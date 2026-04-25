@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* ── Dark theme (default / nighttime) ── */
+:root {
+  --bg-primary: #0f1117;
+  --bg-card: #1a1d27;
+  --bg-card-hover: #222632;
+  --bg-subtle: rgba(255, 255, 255, 0.04);
+  --border-color: #2a2e3a;
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0ab;
+  --text-muted: #6b7280;
+  --accent-blue: #60a5fa;
+  --accent-green: #34d399;
+  --accent-yellow: #fbbf24;
+  --accent-red: #f87171;
+  --accent-orange: #fb923c;
+  --accent-purple: #a78bfa;
+  --accent-teal: #2dd4bf;
+  --alert-bg: rgba(251, 191, 36, 0.1);
+  --alert-border: rgba(251, 191, 36, 0.2);
+  --alert-text: #fbbf24;
+  --capacity-empty-bg: rgba(52, 211, 153, 0.12);
+  --capacity-some-bg: rgba(251, 191, 36, 0.12);
+  --capacity-full-bg: rgba(248, 113, 113, 0.12);
+  --news-source-path-bg: rgba(96, 165, 250, 0.2);
+  --news-source-njt-bg: rgba(52, 211, 153, 0.2);
+  --news-source-panynj-bg: rgba(167, 139, 250, 0.2);
+  --news-source-ferry-bg: rgba(251, 191, 36, 0.2);
+}
+
+/* ── Light theme (daytime 7:30 AM – 6 PM) ── */
+[data-theme="light"] {
+  --bg-primary: #eef1f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f5f6f8;
+  --bg-subtle: rgba(0, 0, 0, 0.035);
+  --border-color: #d4d8e0;
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.05);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --accent-blue: #2563eb;
+  --accent-green: #059669;
+  --accent-yellow: #b45309;
+  --accent-red: #dc2626;
+  --accent-orange: #c2410c;
+  --accent-purple: #7c3aed;
+  --accent-teal: #0d9488;
+  --alert-bg: #fef3c7;
+  --alert-border: #f59e0b;
+  --alert-text: #92400e;
+  --capacity-empty-bg: #d1fae5;
+  --capacity-some-bg: #fef3c7;
+  --capacity-full-bg: #fee2e2;
+  --news-source-path-bg: #dbeafe;
+  --news-source-njt-bg: #d1fae5;
+  --news-source-panynj-bg: #ede9fe;
+  --news-source-ferry-bg: #fef3c7;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.5s ease, color 0.5s ease;
+}

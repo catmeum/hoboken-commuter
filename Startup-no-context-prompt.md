@@ -1,0 +1,1 @@
+I'm working on a Hoboken commuter dashboard webapp in hoboken-commuter/. Check the TODO.md, CHANGELOG.md, DECISIONS.md and DOCUMENTATION.md for context. Let's continue with the bug fixes listed in TODO.md.
