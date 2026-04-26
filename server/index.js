@@ -1937,7 +1937,7 @@ if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '..', 'dist')
 
   // Proxy /api/panynj → https://www.panynj.gov/bin/portauthority/*
-  app.get('/api/panynj/*', async (req, res) => {
+  app.get('/api/panynj/*path', async (req, res) => {
     try {
       const panynj = req.path.replace('/api/panynj', '/bin/portauthority')
       const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
@@ -1952,7 +1952,7 @@ if (process.env.NODE_ENV === 'production') {
   })
 
   // Proxy /api/nws/* → https://api.weather.gov/*
-  app.get('/api/nws/*', async (req, res) => {
+  app.get('/api/nws/*path', async (req, res) => {
     try {
       const nwsPath = req.path.replace('/api/nws', '')
       const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
@@ -1971,7 +1971,7 @@ if (process.env.NODE_ENV === 'production') {
 
   // Serve React SPA — all non-API routes return index.html
   app.use(express.static(distPath))
-  app.get('*', (req, res) => {
+  app.get('*path', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'))
   })
 
