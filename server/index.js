@@ -38,7 +38,8 @@ const DIRECTIONS = {
     busStopOrder: ['clinton', 'willow', 'washington'],
     tunnel: { facilityId: 5, travelDirection: 'ToNY', label: 'Hoboken → NYC' },
     path: [
-      { stopId: '26729', routeId: '862', directionId: 1, dest: 'HOB → 33rd St' },
+      { routeId: '862', directionId: 1, dest: 'HOB → 33rd St' },
+      { routeId: '1024', directionId: 1, dest: 'JSQ via HOB → 33rd St' },
     ],
     ferry: { stopTag: '9', routeNo: '18', destMatch: 'Midtown', dest: 'Hoboken 14th → W 39th' },
   },
@@ -73,8 +74,9 @@ const DIRECTIONS = {
     busStopOrder: ['pabt_willow', 'pabt_washington', 'pabt_119'],
     tunnel: { facilityId: 5, travelDirection: 'ToNJ', label: 'NYC → Hoboken' },
     path: [
-      { stopId: '26734', routeId: '862', directionId: 0, dest: '33rd → Hoboken' },
-      { stopId: '26732', routeId: '861', directionId: 0, dest: '33rd → Newport' },
+      { routeId: '862', directionId: 0, dest: '33rd → Hoboken' },
+      { routeId: '861', directionId: 0, dest: '33rd → Newport' },
+      { routeId: '1024', directionId: 0, dest: '33rd → Hoboken (JSQ)' },
     ],
     ferry: { stopTag: '14', routeNo: '18', destMatch: 'Hoboken', dest: 'W 39th → Hoboken 14th' },
   },
@@ -126,7 +128,7 @@ async function loadGTFS() {
   if (gtfsLoaded) return
 
   const needsDownload = !fs.existsSync(GTFS_ZIP) ||
-    (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs > 24 * 60 * 60 * 1000)
+    (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs > 7 * 24 * 60 * 60 * 1000) // refresh every 7 days
 
   if (needsDownload) {
     console.log('[GTFS] Downloading static data...')
@@ -327,6 +329,8 @@ async function getRealtimeBuses(stopIds, limit = 6, filterRoutes = null, filterH
           etaTime: formatTime(d.getHours(), d.getMinutes()),
           source: 'realtime', tripId,
           capacity: occMap[tripId] || 'unknown',
+          headsign,
+          variant: parseVariant(headsign),
         })
       }
     }
@@ -565,9 +569,10 @@ app.get('/api/bus/stops', async (req, res) => {
     let buses = await getRealtimeBuses(stopIds, 6, routeFilter)
     if (buses.length === 0) buses = getScheduleFallback(stopIds, 6, routeFilter)
 
-    // Add variant info
+    // Add variant and headsign info if missing
     buses = buses.map(b => {
       if (!b.variant && b.tripId) b.variant = parseVariant(tripHeadsignMap[b.tripId])
+      if (!b.headsign && b.tripId) b.headsign = tripHeadsignMap[b.tripId] || ''
       return b
     })
 
@@ -679,18 +684,20 @@ app.get('/api/path/gtfsrt', async (req, res) => {
         if (!tu) continue
         if (tu.trip?.routeId !== pathLine.routeId) continue
         if (tu.trip?.directionId !== pathLine.directionId) continue
+        // Feed only reports next stop per train — take the earliest time from any stop
+        let earliest = null
         for (const stu of tu.stopTimeUpdate) {
-          if (stu.stopId !== pathLine.stopId) continue
           const t = (stu.departure?.time?.low || stu.departure?.time || 0) || (stu.arrival?.time?.low || stu.arrival?.time || 0)
-          if (t && t > now) {
-            const d = new Date(t * 1000)
-            departures.push({
-              dest: pathLine.dest,
-              eta: Math.round((t - now) / 60),
-              etaTime: formatTime(d.getHours(), d.getMinutes()),
-              source: 'realtime',
-            })
-          }
+          if (t && t > now && (earliest === null || t < earliest)) earliest = t
+        }
+        if (earliest !== null) {
+          const d = new Date(earliest * 1000)
+          departures.push({
+            dest: pathLine.dest,
+            eta: Math.round((earliest - now) / 60),
+            etaTime: formatTime(d.getHours(), d.getMinutes()),
+            source: 'realtime',
+          })
         }
       }
     }
@@ -711,7 +718,7 @@ const PATH_STATION_NAMES = {
   '26728': 'Newport', '26729': 'Hoboken', '26730': 'World Trade Center',
   '26731': '9th St', '26732': '14th St', '26733': '23rd St', '26734': '33rd St',
 }
-const PATH_ROUTE_NAMES = { '859': 'NWK-WTC', '860': 'HOB-WTC', '861': 'JSQ-33', '862': 'HOB-33' }
+const PATH_ROUTE_NAMES = { '859': 'NWK-WTC', '860': 'HOB-WTC', '861': 'JSQ-33', '862': 'HOB-33', '1024': 'JSQ-33' }
 
 // Which routes serve each PATH station (weekday daytime service)
 // NWK-WTC (859): Newark → Harrison → Journal Sq → Grove St → Exchange Pl → WTC
@@ -719,20 +726,21 @@ const PATH_ROUTE_NAMES = { '859': 'NWK-WTC', '860': 'HOB-WTC', '861': 'JSQ-33', 
 // JSQ-33  (861): Journal Sq → Grove St → Exchange Pl → Newport → Christopher → 9th → 14th → 23rd → 33rd
 // HOB-33  (862): Hoboken → Christopher → 9th → 14th → 23rd → 33rd
 // Weeknights/holidays: HOB-33 and HOB-WTC merge into JSQ-33 via Hoboken
+// JSQ-33 weekend (1024): same as 861 but runs via Hoboken — replaces 861 on weekends/holidays
 const PATH_STATION_ROUTES = {
-  '26722': ['859'],               // Newark — NWK-WTC
-  '26723': ['859'],               // Harrison — NWK-WTC
-  '26724': ['859', '861'],        // Journal Square — NWK-WTC, JSQ-33
-  '26725': ['859', '861'],        // Grove St — NWK-WTC, JSQ-33
-  '26726': ['859', '860', '861'], // Exchange Place — NWK-WTC, HOB-WTC, JSQ-33
-  '26727': ['861', '862'],        // Christopher St — JSQ-33, HOB-33
-  '26728': ['860', '861'],        // Newport — HOB-WTC, JSQ-33
-  '26729': ['860', '862'],        // Hoboken — HOB-WTC, HOB-33
-  '26730': ['859', '860'],        // World Trade Center — NWK-WTC, HOB-WTC
-  '26731': ['861', '862'],        // 9th St — JSQ-33, HOB-33
-  '26732': ['861', '862'],        // 14th St — JSQ-33, HOB-33
-  '26733': ['861', '862'],        // 23rd St — JSQ-33, HOB-33
-  '26734': ['861', '862'],        // 33rd St — JSQ-33, HOB-33
+  '26722': ['859'],                      // Newark — NWK-WTC
+  '26723': ['859'],                      // Harrison — NWK-WTC
+  '26724': ['859', '861', '1024'],       // Journal Square — NWK-WTC, JSQ-33
+  '26725': ['859', '861', '1024'],       // Grove St — NWK-WTC, JSQ-33
+  '26726': ['859', '860', '861', '1024'],// Exchange Place — NWK-WTC, HOB-WTC, JSQ-33
+  '26727': ['861', '862', '1024'],       // Christopher St — JSQ-33, HOB-33
+  '26728': ['860', '861', '1024'],       // Newport — HOB-WTC, JSQ-33
+  '26729': ['860', '862', '1024'],       // Hoboken — HOB-WTC, HOB-33, JSQ-33 wknd
+  '26730': ['859', '860'],               // World Trade Center — NWK-WTC, HOB-WTC
+  '26731': ['861', '862', '1024'],       // 9th St — JSQ-33, HOB-33
+  '26732': ['861', '862', '1024'],       // 14th St — JSQ-33, HOB-33
+  '26733': ['861', '862', '1024'],       // 23rd St — JSQ-33, HOB-33
+  '26734': ['861', '862', '1024'],       // 33rd St — JSQ-33, HOB-33
 }
 
 // PATH direction labels by route
@@ -741,14 +749,15 @@ const PATH_DIR_LABELS = {
   '860': { '1': 'To WTC', '0': 'To Hoboken' },
   '861': { '1': 'To 33rd St', '0': 'To Journal Sq' },
   '862': { '1': 'To 33rd St', '0': 'To Hoboken' },
+  '1024': { '1': 'To 33rd St', '0': 'To Hoboken' }, // weekend JSQ-33 via Hoboken
 }
 
 // Terminal stations where only one direction makes sense
 const PATH_TERMINAL_DIRS = {
-  '26722': { '859': '1' },              // Newark → only To WTC
-  '26729': { '860': '1', '862': '1' },  // Hoboken → only outbound (To WTC / To 33rd)
-  '26730': { '859': '0', '860': '0' },  // WTC → only outbound (To Newark / To Hoboken)
-  '26734': { '861': '0', '862': '0' },  // 33rd St → only outbound (To JSQ / To Hoboken)
+  '26722': { '859': '1' },                           // Newark → only To WTC
+  '26729': { '860': '1', '862': '1', '1024': '1' },  // Hoboken → only outbound
+  '26730': { '859': '0', '860': '0' },               // WTC → only outbound
+  '26734': { '861': '0', '862': '0', '1024': '0' },  // 33rd St → only outbound
 }
 
 // PATH stations list endpoint
@@ -815,19 +824,21 @@ app.get('/api/path/query', async (req, res) => {
       if (!tu) continue
       if (!routeSet.has(tu.trip?.routeId)) continue
       if (tu.trip?.directionId !== dirId) continue
+      // Feed only reports next stop — take earliest time from any stop in the update
+      let earliest = null
       for (const stu of tu.stopTimeUpdate) {
-        if (stu.stopId !== stop) continue
         const t = (stu.departure?.time?.low || stu.departure?.time || 0) || (stu.arrival?.time?.low || stu.arrival?.time || 0)
-        if (t && t > now) {
-          const d = new Date(t * 1000)
-          const thisRoute = PATH_ROUTE_NAMES[tu.trip.routeId] || tu.trip.routeId
-          departures.push({
-            dest: `${stopName} (${thisRoute})`,
-            eta: Math.round((t - now) / 60),
-            etaTime: formatTime(d.getHours(), d.getMinutes()),
-            source: 'realtime',
-          })
-        }
+        if (t && t > now && (earliest === null || t < earliest)) earliest = t
+      }
+      if (earliest !== null) {
+        const d = new Date(earliest * 1000)
+        const thisRoute = PATH_ROUTE_NAMES[tu.trip.routeId] || tu.trip.routeId
+        departures.push({
+          dest: `${stopName} (${thisRoute})`,
+          eta: Math.round((earliest - now) / 60),
+          etaTime: formatTime(d.getHours(), d.getMinutes()),
+          source: 'realtime',
+        })
       }
     }
 
@@ -1480,15 +1491,17 @@ app.get('/api/rail/query', async (req, res) => {
 
 let nycFerryStopsCache = null
 let nycFerryRoutesCache = null
+let nycFerryTripMapCache = null // tripId → { routeId, headsign }
 
 async function loadNycFerryData() {
-  if (nycFerryStopsCache) return { stops: nycFerryStopsCache, routes: nycFerryRoutesCache }
+  if (nycFerryStopsCache) return { stops: nycFerryStopsCache, routes: nycFerryRoutesCache, tripMap: nycFerryTripMapCache }
   try {
-    const resp = await fetch('https://nycferry.connexionz.net/rtt/public/resource/gtfs.zip')
+    const resp = await fetch('http://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx')
     const buf = Buffer.from(await resp.arrayBuffer())
     const zip = new AdmZip(buf)
     const stopLines = zip.readAsText('stops.txt').trim().split('\n')
     const routeLines = zip.readAsText('routes.txt').trim().split('\n')
+    const tripLines = zip.readAsText('trips.txt').trim().split('\n')
 
     // Parse stops
     const stopHeader = stopLines[0].replace(/"/g, '').split(',')
@@ -1513,11 +1526,25 @@ async function loadNycFerryData() {
       routes[cols[rIdIdx]] = { id: cols[rIdIdx], name: cols[rNameIdx], color: '#' + (cols[rColorIdx] || '00839C') }
     }
     nycFerryRoutesCache = routes
-    console.log('[NYC Ferry] Loaded', stops.length, 'stops,', Object.keys(routes).length, 'routes')
-    return { stops, routes }
+
+    // Parse trips — build tripId → { routeId, headsign } map
+    // The realtime feed has empty routeId, so we resolve via tripId
+    const tripHeader = tripLines[0].replace(/"/g, '').split(',')
+    const tIdIdx = tripHeader.indexOf('trip_id')
+    const tRIdIdx = tripHeader.indexOf('route_id')
+    const tHsIdx = tripHeader.indexOf('trip_headsign')
+    const tripMap = {}
+    for (let i = 1; i < tripLines.length; i++) {
+      const cols = tripLines[i].replace(/"/g, '').split(',')
+      tripMap[cols[tIdIdx]] = { routeId: cols[tRIdIdx], headsign: cols[tHsIdx] || '' }
+    }
+    nycFerryTripMapCache = tripMap
+
+    console.log('[NYC Ferry] Loaded', stops.length, 'stops,', Object.keys(routes).length, 'routes,', Object.keys(tripMap).length, 'trips')
+    return { stops, routes, tripMap }
   } catch (err) {
     console.error('[NYC Ferry] Failed to load:', err.message)
-    return { stops: [], routes: {} }
+    return { stops: [], routes: {}, tripMap: {} }
   }
 }
 
@@ -1559,11 +1586,15 @@ app.get('/api/nycferry/query', async (req, res) => {
         const t = (stu.departure?.time?.low || stu.departure?.time || 0) || (stu.arrival?.time?.low || stu.arrival?.time || 0)
         if (t && t > now) {
           const d = new Date(t * 1000)
-          const route = tu.trip?.routeId
-          const routeInfo = data.routes[route]
+          // routeId is often empty in the feed — resolve via tripId from static GTFS
+          const tripId = tu.trip?.tripId
+          const tripInfo = data.tripMap?.[tripId] || {}
+          const routeId = tu.trip?.routeId || tripInfo.routeId || ''
+          const routeInfo = data.routes[routeId]
+          const headsign = tripInfo.headsign || ''
           departures.push({
-            dest: routeInfo?.name || route || '?',
-            route,
+            dest: routeInfo ? `${routeInfo.name}${headsign ? ' → ' + headsign : ''}` : (headsign || routeId || '?'),
+            route: routeId,
             lineColor: routeInfo?.color || '#00839C',
             eta: Math.round((t - now) / 60),
             etaTime: formatTime(d.getHours(), d.getMinutes()),
@@ -1822,8 +1853,9 @@ app.get('/api/mtabus/query', async (req, res) => {
     if (!stop) return res.json({ departures: [] })
     let url = `${MTA_BUS_BASE}/siri/stop-monitoring.json?key=${MTA_BUS_KEY}&MonitoringRef=${stop}`
     if (route) url += `&LineRef=${encodeURIComponent(route)}`
-    const resp = await fetch(url)
-    if (!resp.ok) return res.json({ departures: [] })
+    // 8-second timeout — SIRI API can hang, especially on weekends
+    const resp = await fetch(url, { signal: AbortSignal.timeout(8000) })
+    if (!resp.ok) return res.json({ departures: [], alerts: [] })
     const data = await resp.json()
     const visits = data.Siri?.ServiceDelivery?.StopMonitoringDelivery?.[0]?.MonitoredStopVisit || []
     const departures = visits.slice(0, 10).map(v => {
@@ -1840,13 +1872,15 @@ app.get('/api/mtabus/query', async (req, res) => {
         source: 'realtime',
       }
     })
-    // Get alerts
     const situations = data.Siri?.ServiceDelivery?.SituationExchangeDelivery?.[0]?.Situations?.PtSituationElement || []
     const alerts = situations.slice(0, 3).map(s => s.Description?.value || s.Summary?.value || '').filter(Boolean)
     res.json({ departures, alerts, timestamp: new Date().toISOString() })
   } catch (err) {
-    console.error('[MTA Bus]', err.message)
-    res.status(500).json({ error: err.message })
+    const isTimeout = err.name === 'TimeoutError' || err.name === 'AbortError'
+    if (isTimeout) console.warn('[MTA Bus] SIRI request timed out for stop', req.query.stop)
+    else console.error('[MTA Bus]', err.message)
+    // Return empty gracefully — card will show "No upcoming buses" instead of error
+    res.json({ departures: [], alerts: [], timeout: isTimeout, timestamp: new Date().toISOString() })
   }
 })
 
@@ -1854,4 +1888,31 @@ const PORT = process.env.BUS_API_PORT || 3001
 app.listen(PORT, () => {
   console.log(`[Server] Running on http://localhost:${PORT}`)
   loadGTFS().catch(err => console.error('[GTFS] Init error:', err.message))
+  // Auto-build MTA station routes cache if missing
+  const stationRoutesFile = path.join(__dirname, '..', '.cache', 'mta_station_routes.json')
+  if (!fs.existsSync(stationRoutesFile)) {
+    console.log('[MTA] Station routes cache missing — building...')
+    import('./build_station_routes.mjs').catch(err => console.error('[MTA] Build error:', err.message))
+  }
+  // Log GTFS cache status
+  if (fs.existsSync(GTFS_ZIP)) {
+    const ageDays = (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000
+    const sizeMB = (fs.statSync(GTFS_ZIP).size / 1e6).toFixed(1)
+    console.log(`[GTFS] Cache: ${sizeMB}MB, age: ${ageDays.toFixed(1)} days${ageDays > 7 ? ' ⚠️  consider refreshing' : ''}`)
+  }
+})
+
+// GTFS cache status endpoint
+app.get('/api/bus/gtfs-status', (req, res) => {
+  const exists = fs.existsSync(GTFS_ZIP)
+  const ageDays = exists ? (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000 : null
+  const sizeMB = exists ? (fs.statSync(GTFS_ZIP).size / 1e6).toFixed(1) : null
+  res.json({
+    cached: exists,
+    loaded: gtfsLoaded,
+    ageDays: ageDays ? parseFloat(ageDays.toFixed(1)) : null,
+    sizeMB: sizeMB ? parseFloat(sizeMB) : null,
+    stale: ageDays ? ageDays > 7 : false,
+    lastModified: exists ? new Date(fs.statSync(GTFS_ZIP).mtimeMs).toISOString() : null,
+  })
 })

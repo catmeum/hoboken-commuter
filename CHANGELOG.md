@@ -1,5 +1,64 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v1.8.0 (2026-04-25)
+
+### Custom Transit Icons
+- **HBLR** — Hoboken Lackawanna Terminal clocktower SVG replaces generic train icon; clock face glows teal in dark mode
+- **LIRR** — M7/M9 commuter train profile (blue nose, silver body, yellow safety stripe); headlight appears in dark mode
+- **Metro-North** — Grand Central information booth clock redesigned with flat pedestal base; opal face glows gold in dark mode; pedestal stays flat
+- **MTA Subway** — settings picker now uses the MtaGlobeIcon to match the card (was generic TrainFront)
+- **MTA Globe** — dark mode now shows warm yellow tint on white half + trapezoid light beam fanning downward
+- All icon glows are element-scoped (not whole-SVG filter) for precision
+
+### NY Waterway renamed to "NYW Ferry"
+- Card titles, settings picker, alert source names, and picker dialog updated
+- Distinguishes clearly from NYC Ferry
+
+### HBLR destination display
+- Headsign (e.g. "Hoboken Terminal", "Bayonne") now shown on each departure row
+- Was missing from realtime response — fixed in both server and card
+
+### PATH fixes
+- Feed only reports each train's next stop, not full itinerary — fixed by matching route+direction only (not stop ID)
+- Weekend/holiday service: route ID `1024` (JSQ-33 via Hoboken) added to all route maps, station configs, and direction labels
+- Both `862` (HOB-33) and `1024` (JSQ-33 wknd) now show correctly on weekends
+
+### NYC Ferry destination fix
+- Realtime feed has empty `routeId` — fixed by building `tripId → routeId + headsign` map from static GTFS `trips.txt`
+- Fixed broken GTFS URL (was pointing at a 403 S3 bucket; now uses official Connexionz endpoint)
+- Departures now show route name + headsign (e.g. "Astoria → Wall St./Pier 11")
+
+### MTA Subway station lines fix
+- `.cache/mta_station_routes.json` was missing after fresh clone — added `server/build_station_routes.mjs`
+- Server auto-builds the file on startup if absent
+- Station line picker now correctly shows all lines for any station
+
+### Settings persistence
+- All settings saved to `localStorage` under key `hoboken-commuter-settings`
+- Loads persisted settings on startup; falls back to defaults for new users
+- Default configuration updated to match current setup (HBLR added to both directions)
+- Reset button at bottom of settings panel with inline confirmation step
+
+### Transit card drag-to-reorder
+- Replaced ↑/↓ arrow buttons with HTML5 drag-and-drop
+- Grab the GripVertical handle and drag a card to its new position
+
+### NJT GTFS refresh interval
+- Changed from 24 hours to 7 days — NJT publishes updates sporadically, not daily
+- Added `/api/bus/gtfs-status` endpoint showing cache age, size, and stale flag
+- Server startup now logs GTFS cache age with ⚠️ warning if over 7 days
+
+### MTA Bus timeout handling
+- SIRI API requests now have an 8-second timeout via `AbortSignal.timeout`
+- On timeout: card shows "Feed timed out — try again shortly" in orange instead of silent empty state
+- Server logs timeout warnings; returns `{ timeout: true }` flag in response
+
+### Integration test suite
+- `npm test` runs 134 tests across all server endpoints
+- Covers NJT Bus/Rail, HBLR, PATH (including weekend route 1024), NYW Ferry, NYC Ferry, MTA Subway/Bus, LIRR, Metro-North, Weather, settings persistence, station routes cache, and all 10 card ID prefixes
+
+---
+
 ## v1.7.0 (2026-04-24)
 
 ### LIRR Integration

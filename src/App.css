@@ -611,9 +611,10 @@
 .path-card .card-icon { color: var(--accent-blue); }
 .nycferry-card .card-icon { color: #00839C; }
 
-/* Metro-North Grand Central clock glow in dark mode */
-[data-theme="dark"] .mnr-clock-icon {
-  filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.6)) drop-shadow(0 0 10px rgba(197, 165, 90, 0.3));
+/* Metro-North Grand Central clock — only the opal face glows gold in dark mode */
+[data-theme="dark"] .mnr-clock-face {
+  fill: #FFFDE8;
+  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.8)) drop-shadow(0 0 7px rgba(255, 200, 0, 0.4));
 }
 
 /* LIRR icon color */
@@ -1085,6 +1086,16 @@
   color: var(--text-muted);
   opacity: 0.4;
   flex-shrink: 0;
+  cursor: grab;
+}
+
+.settings-stop-item[draggable="true"] {
+  cursor: default;
+}
+
+.settings-stop-item[draggable="true"]:active {
+  opacity: 0.5;
+  cursor: grabbing;
 }
 
 .settings-stop-name {
@@ -1137,7 +1148,6 @@
   flex-shrink: 0;
 }
 
-.settings-move-btn,
 .settings-remove-btn,
 .settings-add-btn {
   display: flex;
@@ -1155,7 +1165,6 @@
   transition: all 0.15s;
 }
 
-.settings-move-btn:hover:not(:disabled),
 .settings-add-btn:hover {
   background: var(--accent-blue);
   color: #fff;
@@ -1166,7 +1175,7 @@
   color: #fff;
 }
 
-.settings-move-btn:disabled,
+
 .settings-remove-btn:disabled {
   opacity: 0.25;
   cursor: default;
@@ -1434,10 +1443,24 @@
   color: var(--accent-blue);
 }
 
-/* MTA globe glow in dark mode */
-[data-theme="dark"] .subway-card-icon svg {
-  filter: drop-shadow(0 0 6px rgba(0, 147, 60, 0.5)) drop-shadow(0 0 14px rgba(0, 147, 60, 0.3));
+/* MTA globe — trapezoid beam hidden in light mode, warm white half + beam in dark mode */
+.mta-globe-beam { display: none; }
+[data-theme="dark"] .mta-globe-beam { display: block; }
+[data-theme="dark"] .mta-globe-white {
+  fill: #FFF8DC;
+  filter: drop-shadow(0 0 4px rgba(255, 229, 102, 0.7));
 }
+
+/* HBLR clocktower — only clock face glows teal in dark mode */
+.hblr-clock-face { }
+[data-theme="dark"] .hblr-clock-face {
+  fill: #D4F5EC;
+  filter: drop-shadow(0 0 4px rgba(127, 255, 212, 0.8));
+}
+
+/* LIRR headlight — hidden in light mode, glows in dark mode */
+.lirr-headlight { display: none; }
+[data-theme="dark"] .lirr-headlight { display: block; }
 
 /* Subway direction picker */
 .subway-dir-picker {
@@ -1602,6 +1625,63 @@
 .settings-save-btn:hover {
   opacity: 0.85;
 }
+
+.settings-reset-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.settings-reset-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: inherit;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.settings-reset-btn:hover { opacity: 1; }
+
+.settings-reset-confirm-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.settings-reset-confirm-btn {
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent-red, #ef4444);
+  color: #fff;
+  transition: opacity 0.15s;
+}
+
+.settings-reset-confirm-btn:hover { opacity: 0.85; }
+
+.settings-reset-cancel-btn {
+  font-size: 12px;
+  font-family: inherit;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  transition: opacity 0.15s;
+}
+
+.settings-reset-cancel-btn:hover { opacity: 0.7; }
 
 /* ── Responsive: phone ── */
 @media (max-width: 480px) {

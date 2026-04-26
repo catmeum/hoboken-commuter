@@ -1,10 +1,10 @@
 # Hoboken Commuter Dashboard — Technical Documentation
 
-**Version 1.7.0**
+**Version 1.8.0**
 
 ## Overview
 
-A real-time commuter dashboard for the NY/NJ metro area. Displays tunnel crossing times, NJ Transit bus and rail arrivals, HBLR light rail, NY Waterway and NYC Ferry departures, PATH trains, MTA subway/LIRR/Metro-North/bus, weather for any US zip code, and transit alerts from all sources. Supports bidirectional commuting with a single toggle, and includes a comprehensive settings panel for customizing transit cards, alerts, and display preferences.
+A real-time commuter dashboard for the NY/NJ metro area. Displays tunnel crossing times, NJ Transit bus and rail arrivals, HBLR light rail, NY Waterway and NYC Ferry departures, PATH trains, MTA subway/LIRR/Metro-North/bus, weather for any US zip code, and transit alerts from all sources. Supports bidirectional commuting with a single toggle, and includes a comprehensive settings panel for customizing transit cards, alerts, and display preferences. Settings persist across sessions via localStorage.
 
 **Stack:** React (Vite) frontend + Express backend for API proxying, protobuf parsing, NJT Rail JSON API, and MTA Bus SIRI API.
 
@@ -17,6 +17,7 @@ A real-time commuter dashboard for the NY/NJ metro area. Displays tunnel crossin
 │  Browser (React SPA)                                    │
 │  Polls /api/* endpoints every 15–120 seconds            │
 │  Direction toggle swaps all data sources instantly       │
+│  Settings persisted in localStorage                      │
 └────────────────┬────────────────────────────────────────┘
                  │
 ┌────────────────▼────────────────────────────────────────┐
@@ -37,8 +38,10 @@ A real-time commuter dashboard for the NY/NJ metro area. Displays tunnel crossin
      ├── NJT Rail JSON API (rail departures, alerts, capacity)
      ├── PATH GTFS-RT (train times)
      ├── PATH Alerts (PANYNJ)
-     ├── Ferry ETA (Connexionz)
-     └── MTA GTFS-RT (subway times + alerts)
+     ├── NY Waterway Connexionz API (ferry ETAs)
+     ├── NYC Ferry GTFS-RT (ferry times)
+     ├── MTA GTFS-RT (subway, LIRR, Metro-North times + alerts)
+     └── MTA Bus SIRI API (bus arrivals + alerts)
 ```
 
 ---
@@ -46,19 +49,21 @@ A real-time commuter dashboard for the NY/NJ metro area. Displays tunnel crossin
 ## Running the App
 
 ```bash
-cd hoboken-commuter
 npm install
 cp .env.example .env
-# Edit .env with your NJT developer credentials
+# Edit .env with your credentials
 
-# Start backend (port 3001)
+# Terminal 1 — backend (port 3001)
 npm run server
 
-# Start frontend (port 5173)
+# Terminal 2 — frontend (port 5173)
 npm run dev
+
+# Run integration tests (server must be running)
+npm test
 ```
 
-Both must be running. The Vite dev server proxies `/api/bus`, `/api/path`, and `/api/ferry` to the Express backend on port 3001.
+Both server and frontend must be running. The Vite dev server proxies all `/api/*` calls to the Express backend or external APIs.
 
 ---
 
@@ -86,6 +91,11 @@ Register at https://developer.njtransit.com/registration/
 | `/api/ferry` | `http://localhost:3001` | NY Waterway ferry (via Express backend) |
 | `/api/mta` | `http://localhost:3001` | MTA subway (via Express backend) |
 | `/api/rail` | `http://localhost:3001` | NJT Rail (via Express backend) |
+| `/api/lirr` | `http://localhost:3001` | LIRR (via Express backend) |
+| `/api/mnr` | `http://localhost:3001` | Metro-North (via Express backend) |
+| `/api/mtabus` | `http://localhost:3001` | MTA Bus (via Express backend) |
+| `/api/nycferry` | `http://localhost:3001` | NYC Ferry (via Express backend) |
+| `/api/weather` | `http://localhost:3001` | Weather zip resolution (via Express backend) |
 
 All backend endpoints accept `?dir=outbound` (default) or `?dir=inbound` to switch direction.
 
@@ -98,28 +108,28 @@ The dashboard supports two directions, toggled via the header title:
 ### Outbound (Hoboken → NYC)
 - **Tunnel:** Lincoln Tunnel NY-bound (`travelDirection: "ToNY"`)
 - **Bus stops:** Clinton St & 11th, Willow Ave & 15th, Washington St & 11th
+- **HBLR:** Hoboken Terminal area stop (15534)
 - **Ferry:** Hoboken 14th St → W 39th (Connexionz stop 9)
-- **PATH:** HOB → 33rd St (route 862, direction 1)
+- **PATH:** HOB → 33rd St (route 862 + weekend route 1024, direction 1)
 
 ### Inbound (NYC → Hoboken)
 - **Tunnel:** Lincoln Tunnel NJ-bound (`travelDirection: "ToNJ"`)
 - **Bus stops:** PABT Gate 213 (126 Washington), Gate 214 (126 Willow), Gate 210 (119)
+- **HBLR:** 9th Street stop (15537)
 - **Ferry:** W 39th → Hoboken 14th (Connexionz stop 14)
-- **PATH:** 33rd → Hoboken (route 862, dir 0) + 33rd → Newport (route 861, dir 0)
+- **PATH:** 33rd → Hoboken (route 862 + 1024, dir 0) + 33rd → Newport (route 861, dir 0)
 
 ---
 
 ## Data Sources
 
-### 1. Lincoln Tunnel (Crossing Time + Alerts)
+### 1. Tunnels (PANYNJ)
 
-**Service:** `src/services/lincolnTunnel.js`
-**Polling:** Every 2 minutes
+**Polling:** Every 2 minutes (via Vite proxy, not Express backend)
 
 #### Crossing Times
 - **Endpoint:** `GET /api/panynj/crossingtimesapi.json`
-- **Auth:** None
-- **Filter:** `facilityId === 5`, `travelDirection` based on direction
+- **Filter:** `facilityId`, `travelDirection` based on direction and selected tunnels
 - **Key fields:** `routeTravelTime` (minutes), `routeSpeed` (mph), `overviewUIBackgroundColor` (severity)
 
 #### Severity Mapping
@@ -130,273 +140,225 @@ The dashboard supports two directions, toggled via the header title:
 | Orange | `#FFAE00` | heavy |
 | Red | `#FF0000` | severe |
 
+#### Facility IDs
+1=Bayonne, 2=GWB Upper, 3=Goethals, 4=Holland, 5=Lincoln, 6=Outerbridge, 7=GWB Lower
+
 #### Tunnel Alerts
 - **Endpoint:** `GET /api/panynj/crossingtimesalertapi.json?start_date=MM/DD/YYYY`
-- **Important:** Always pass `start_date=today` or you get 50k+ historical records
-- **Filter:** "Lincoln" in `SentMessage` or `TemplateName`
-
-#### Adding Other Tunnels/Bridges
-Filter by `facilityId`: 1=Bayonne, 2=GWB, 3=Goethals, 4=Holland, 5=Lincoln, 6=Outerbridge
+- Always pass `start_date=today` or you get 50k+ historical records
 
 ---
 
-### 2. Bus Arrivals (NJ Transit GTFS-RT G2)
+### 2. NJT Bus (GTFS-RT G2)
 
-**Service:** `src/services/bus.js` (frontend) + `server/index.js` (backend)
 **Polling:** Every 30 seconds
 
 #### Authentication
 ```
 POST https://pcsdata.njtransit.com/api/GTFSG2/authenticateUser
-Fields: username, password → Returns UserToken (24h TTL)
+Fields: username, password → Returns UserToken (24h TTL, cached 20h)
 ```
 
-#### Trip Updates (real-time ETAs)
-```
-POST https://pcsdata.njtransit.com/api/GTFSG2/getTripUpdates
-Returns: ~2.8MB protobuf. route_id is EMPTY — join trip_id to static GTFS.
-```
-
-#### Vehicle Positions (capacity/occupancy)
-```
-POST https://pcsdata.njtransit.com/api/GTFSG2/getVehiclePositions
-occupancy_status: 0=EMPTY, 1=MANY_SEATS, 2=FEW_SEATS, 3=STANDING, 5=FULL
-```
-
-#### Bus Alerts
-```
-POST https://pcsdata.njtransit.com/api/GTFSG2/getAlerts
-Filtered to routes: 126, 119, 89, 22, 23, 128, 165, 166
-```
-
-#### Static GTFS (schedule fallback + route mapping)
+#### Static GTFS (schedule fallback + route/headsign mapping)
 ```
 POST https://pcsdata.njtransit.com/api/GTFSG2/getGTFS
-~31MB ZIP, cached 24h in .cache/gtfs.zip
+~31MB ZIP, cached 7 days in .cache/gtfs.zip
+Refreshes automatically on server start if stale
 ```
 
-#### Outbound Stop Configuration
-| Stop Name | GTFS stop_id | MyBus Code | Routes |
-|---|---|---|---|
-| Clinton St & 11th | 7917 | 20495 | 126 |
-| Washington St & 11th | 7931 | 20513 | 126, 22, 89 |
-| Willow Ave & 15th | 7940, 16135 | 20523, 32084 | 126, 119, 89 |
-
-**Clinton St service hours:** Weekdays only, AM 5:40–9:45, PM 4:09–8:29
-
-#### Inbound Stop Configuration (PABT)
-| Card Name | GTFS stop_ids | Headsign Filter | Gate (day) |
-|---|---|---|---|
-| 126 Willow / Hamilton Pk | 16977, 16809 | WILLOW, HAMILTON PK VIA WILLOW | 214 |
-| 126 Washington | 16977, 16808 | PATH, HAMILTON PK VIA HOBOKEN (excl. WILLOW) | 213 |
-| 119 | 16977, 16803, 16856 | (all 119) | 210 |
-
-#### PABT Gate Schedule (from portauthoritygate.com)
-| Route | 6 AM – 10 PM | 10 PM – 1 AM | 1 AM – 6 AM |
-|---|---|---|---|
-| 126 (non-L/Washington) | Gate 213 | Gate 323 | Gate 79 |
-| 126 (L/Willow) | Gate 214 | Gate 323 | Gate 79 |
-| 119 | Gate 210 | Gate 322 | Gate 80 |
-
-Gate info is shown in the card header and clickable for the full schedule popup.
-
-#### Adding New Bus Stops
-
-Bus stops are now added through the settings panel search-based picker:
-1. Settings → New Transit Card → NJ Transit Bus
-2. Search for a stop by name (e.g. "Washington", "Port Authority")
-3. Select which routes you want at that stop
-4. Card ID format: `bus:STOP_ID:ROUTE1,ROUTE2`
-
-For preconfigured stops, the legacy format still works (see `DIRECTIONS` config in `server/index.js`).
+Check cache status: `GET /api/bus/gtfs-status`
 
 #### Dynamic Bus Endpoints
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/bus/stop-search?q=TEXT` | Search stops by name (deduplicated, max 30) |
+| `GET /api/bus/stop-search?q=TEXT` | Search stops by name (max 30) |
 | `GET /api/bus/stop-routes?id=STOP_ID` | All routes serving a stop |
 | `GET /api/bus/stops?ids=ID&routes=126,22` | Departures with optional route filter |
-| `GET /api/bus/routes` | All 273 NJT bus route numbers |
-| `GET /api/bus/routes/:route/stops` | All stops for a route (deduplicated) |
+| `GET /api/bus/routes` | All NJT bus route numbers |
+| `GET /api/bus/routes/:route/stops` | All stops for a route |
+| `GET /api/bus/gtfs-status` | Cache age, size, stale flag |
 
-#### PABT Gate Lookup
+#### Outbound Stop Configuration
+| Stop Name | GTFS stop_id | Routes |
+|---|---|---|
+| Clinton St & 11th | 7917 | 126 |
+| Washington St & 11th | 7931 | 126, 22, 89 |
+| Willow Ave & 15th | 7940, 16135 | 126, 119, 89 |
 
-For Port Authority Bus Terminal stops (detected by GTFS stop ID), the server returns gate info when a single route is selected. Gate assignments are from `PABT_GATES_BY_ROUTE` covering ~50 routes. Known PABT stop IDs: 16977, 16012, 16049, 16808, 16809, 16803, 16856.
-
----
-
-### 3. Weather (NWS API)
-
-**Service:** `src/services/weather.js`
-**Polling:** Every 10 minutes
-
-- **Hoboken:** `/api/nws/gridpoints/OKX/32,43/forecast/hourly`
-- **NYC Midtown:** `/api/nws/gridpoints/OKX/34,44/forecast/hourly`
-- **Auth:** None (requires `User-Agent` header, set in Vite proxy)
-- **Toggle:** Click location badge in weather card header to switch
-
-#### Adding New Locations
-1. `GET https://api.weather.gov/points/{lat},{lon}` → get `gridId`, `gridX`, `gridY`
-2. Add to `LOCATIONS` in `src/services/weather.js`
+#### Inbound Stop Configuration (PABT)
+| Card Name | GTFS stop_ids | Gate (day) |
+|---|---|---|
+| 126 Willow / Hamilton Pk | 16977, 16809 | 214 |
+| 126 Washington | 16977, 16808 | 213 |
+| 119 | 16977, 16803, 16856 | 210 |
 
 ---
 
-### 4. NY Waterway Ferry (Connexionz ETA API)
+### 3. NJT Rail (TrainData JSON API)
 
-**Service:** `src/services/ferry.js` (frontend) + `server/index.js` (backend)
-**Polling:** Every 30 seconds
+**Polling:** Every 60 seconds (rate limit: 40K calls/day)
 
-#### ETA Endpoint
-```
-GET https://api-eta.connexionz.net/api/cnxlegacy/stet/nywaterway.connexionz.net/{stopTag}
-Headers: apikey: EFD912BD775313FED5D8791D11365
-         origin: https://etacloud.connexionz.net
-```
-
-#### Direction Config
-| Direction | Stop Tag | Route | Destination Match |
-|---|---|---|---|
-| Outbound | 9 (Hoboken 14th) | 18 | "Midtown" |
-| Inbound | 14 (Midtown/W39th) | 18 | "Hoboken" |
-
-#### Response Key Fields
-- `eta` — real-time minutes (null = schedule only)
-- `scheduledMin` — minutes since midnight (fallback)
-- `alerts` — platform-level alerts
-
-#### Known Ferry Stops
-| Tag | Name |
+| Endpoint | Purpose |
 |---|---|
-| 9 | Hoboken 14th Street |
-| 10 | Hoboken/NJ Transit Terminal |
-| 14 | Midtown / W. 39th St. |
+| `GET /api/rail/stations?q=` | Search 173 stations |
+| `GET /api/rail/station-lines?code=` | Lines at a station |
+| `GET /api/rail/query?station=&lines=` | Departures filtered by line |
 
 ---
 
-### 5. PATH Train (Community GTFS-RT Feed)
+### 4. HBLR Light Rail
 
-**Service:** `src/services/path.js` (frontend) + `server/index.js` (backend)
+Uses NJT bus GTFS-RT infrastructure (route `HBLR`). Stops appear in bus stop search. Card shows headsign (destination) on each departure row.
+
+---
+
+### 5. PATH Train (Community GTFS-RT)
+
 **Polling:** Every 15 seconds
 
-#### GTFS-RT Feed
 ```
 GET https://path.transitdata.nyc/gtfsrt
 Free, no auth. Updated every 5 seconds.
 ```
 
-#### PATH Alerts
-```
-GET https://www.panynj.gov/bin/portauthority/alerts?agency=PATH
-Filters out elevator/escalator advisories.
-```
-
-#### Direction Config
-| Direction | Stop | Route | Dir | Destination |
-|---|---|---|---|---|
-| Outbound | 26729 (Hoboken) | 862 (HOB-33) | 1 | HOB → 33rd St |
-| Inbound | 26734 (33rd St) | 862 (HOB-33) | 0 | 33rd → Hoboken |
-| Inbound | 26732 (33rd St) | 861 (JSQ-33) | 0 | 33rd → Newport |
+**Important:** Feed only reports each train's next stop. Server matches by route+direction only (not stop ID).
 
 #### PATH Routes
-| Route ID | Line |
-|---|---|
-| 859 | Newark–World Trade Center |
-| 860 | Hoboken–World Trade Center |
-| 861 | Journal Square–33rd St |
-| 862 | Hoboken–33rd St |
-
----
-
-### 6. Transit Alerts
-
-Alerts use a two-layer filtering system:
-1. **Active sources** — derived from transit cards on the dashboard. No ferry card = no ferry alerts.
-2. **User toggles** — per-source on/off in Settings → Alerts. Auto-generated from active cards.
-
-All alerts are live and aggregated into the scrolling ticker:
-
-| Source | Endpoint | Filter |
+| Route ID | Line | Notes |
 |---|---|---|
-| Lincoln Tunnel | PANYNJ `crossingtimesalertapi.json` | "Lincoln" in message |
-| Holland Tunnel | PANYNJ `crossingtimesalertapi.json` | "Holland" in message |
-| NJT Bus | NJT GTFS-RT `getAlerts` | Routes matching dashboard cards |
-| Ferry | Connexionz API `alerts` field | Platform-level |
-| PATH | PANYNJ `/alerts?agency=PATH` | Excludes elevator/escalator |
+| 859 | NWK-WTC | Weekdays |
+| 860 | HOB-WTC | Weekdays |
+| 861 | JSQ-33 | Weekdays |
+| 862 | HOB-33 | All days |
+| 1024 | JSQ-33 via HOB | Weekends/holidays |
 
-Alerts also show inline in their respective cards (tunnel card, ferry card, PATH card).
-
-When no live alerts exist, the ticker shows "No active alerts".
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/path/gtfsrt?dir=` | Preconfigured departures |
+| `GET /api/path/query?route=&direction=&stop=` | Dynamic query (multi-route) |
+| `GET /api/path/stations?q=` | Search 13 stations |
+| `GET /api/path/station-routes?id=` | Direction options at a station |
 
 ---
 
-## UI Features
+### 6. NY Waterway Ferry (Connexionz)
 
-### Light/Dark Mode
-- Auto-switches at 7:30 AM (light) and 6:00 PM (dark)
-- Manual toggle via moon/sun button in header
-- Manual override disables auto-switching
+**Polling:** Every 30 seconds
 
-### Direction Toggle
-- Click the "Hoboken → NYC" / "NYC → Hoboken" title to switch
-- All data sources refresh immediately (stale data clears, fresh data loads)
+```
+GET http://nywaterway.connexionz.net/{stopTag}
+Headers: apikey: EFD912BD775313FED5D8791D11365
+```
 
-### Tunnel Card
-- Shows Lincoln and Holland tunnels side by side
-- Each with crossing time (color-coded severity), speed, and most recent alert
-- Flips direction with the main toggle
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/ferry?dir=` | Preconfigured departures |
+| `GET /api/ferry/query?stop=&route=&dest=` | Dynamic query |
+| `GET /api/ferry/terminals?q=` | Search 14 terminals |
+| `GET /api/ferry/terminal-routes?tag=` | Routes at a terminal |
 
-### Weather
-- 3 time periods: adapts labels by time of day (Now/Midday/Evening → Now/Evening/Tonight → Now/+3hr/+6hr)
-- Night periods show moon phase emoji (calculated from synodic month) instead of sun icons
-- Uses NWS `isDaytime` flag per forecast period
-- Hoboken/NYC toggle in card header
+---
 
-### Bus Capacity Badges
-- **Seats** (green) — EMPTY or MANY_SEATS_AVAILABLE
-- **Standing** (yellow) — FEW_SEATS_AVAILABLE
-- **Full** (red) — STANDING_ROOM_ONLY or FULL
+### 7. NYC Ferry (GTFS-RT)
 
-### LIVE / SCHED Indicators
-- **LIVE** (green badge) — real-time GPS-based prediction
-- **SCHED** (yellow badge) — static schedule fallback
-- **~** on individual rows indicates scheduled (not tracked) time
+**Polling:** Every 30 seconds
 
-### PABT Gate Info
-- Gate number shown in card header for preconfigured and dynamic PABT bus cards
-- Only shown when a single route is selected (different routes use different gates)
-- Clickable for floating popup showing all time-of-day gate changes (day/late/overnight)
-- Gate data covers ~50 NJT routes from portauthoritygate.com
-- Updates automatically as time of day changes
+```
+GET https://nycferry.connexionz.net/rtt/public/utility/gtfsrealtime.aspx/tripupdate
+Static GTFS: http://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx
+```
 
-### Settings Panel
-- Gear icon in header opens centered floating modal
-- **Display settings** (top of panel) — inline alert duration (Ticker only / 15m / 30m / 60m / Always) and ticker speed slider (Slow / Regular / Fast)
-- **Direction labels** — "Outbound from" / "Inbound from" with city dropdowns (Hoboken, Jersey City, NYC, Home, Work). Same city can't be selected for both. Updates dashboard header title.
-- **Transit Cards** — side-by-side outbound/inbound columns, up to 6 each, min 3. Reorder with ↑/↓, remove with −.
-- **New Transit Card** — mode-specific picker:
-  - **NJ Transit Bus**: search stops → select routes → confirm
-  - **NJ Transit Rail**: search 173 stations → select lines → confirm
-  - **PATH Train**: search 13 stations → select direction → confirm
-  - **NY Waterway Ferry**: search 14 terminals → select destination → confirm
-  - **NYC Ferry**: search 50 stops → confirm
-  - **HBLR Light Rail**: search stops → confirm
-  - **MTA Subway**: search stations → select lines + direction → confirm
-  - **LIRR**: search 127 stations → confirm
-  - **Metro-North**: search ~100 stations → confirm
-  - **MTA Bus**: search 286+ routes → select stop → confirm
-- **Alerts** — auto-generated toggles from active dashboard cards. Only shows sources relevant to your selected transit lines.
-- **Tunnels & Bridges** — select up to 2 (Coming Soon — UI only)
-- **Save Changes** commits all draft changes; closing without saving reverts
+**Note:** Realtime feed has empty `routeId` — resolved via `tripId → routeId` map built from static GTFS `trips.txt`.
 
-### Connectivity Banner
-- Red banner appears when any data source fails to fetch
-- Disappears automatically when connections recover
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/nycferry/stops?q=` | Search 50 stops |
+| `GET /api/nycferry/query?stop=` | Real-time departures with route + headsign |
 
-### Responsive Scaling
-- All text and elements scale via `clamp()` from 5" Pi screen to large desktop
-- Bus cards dynamically show 2–6 rows based on available height
-- Phone breakpoint stacks to single column with scroll
+---
+
+### 8. MTA Subway (GTFS-RT)
+
+**Polling:** Every 30 seconds (8 feeds by line group)
+
+Station-to-route mapping stored in `.cache/mta_station_routes.json`. Auto-built by `server/build_station_routes.mjs` on server start if missing.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/mta/stations?q=` | Search 496 stations |
+| `GET /api/mta/station-lines?ids=` | Lines at a station (from cache file) |
+| `GET /api/mta/query?stop=&lines=` | Departures + alerts |
+| `GET /api/mta/alerts?lines=` | Alerts filtered by line |
+
+---
+
+### 9. LIRR & Metro-North (MTA GTFS-RT)
+
+**Polling:** Every 30 seconds
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/lirr/stations?q=` | Search 127 LIRR stations |
+| `GET /api/lirr/query?stop=` | LIRR departures |
+| `GET /api/mnr/stations?q=` | Search ~100 MNR stations |
+| `GET /api/mnr/query?stop=` | Metro-North departures |
+
+---
+
+### 10. MTA Bus (SIRI API)
+
+**Polling:** Every 30 seconds. **8-second timeout** — SIRI can be slow; card shows "Feed timed out" on timeout instead of hanging.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/mtabus/routes?q=` | Search 286+ routes |
+| `GET /api/mtabus/route-stops?route=` | Stops for a route (by direction) |
+| `GET /api/mtabus/query?stop=&route=` | Real-time arrivals + alerts |
+
+---
+
+### 11. Weather (NWS)
+
+**Polling:** Every 10 minutes (via Vite proxy)
+
+- Tied to city zip codes set in Settings
+- Auto-switches with direction toggle
+- Zip resolves via `GET /api/weather/resolve-zip?zip=XXXXX`
+
+---
+
+## Settings Persistence
+
+Settings are stored in `localStorage` under key `hoboken-commuter-settings`. Includes:
+- Outbound/inbound card lists and city names
+- Weather locations (zip-resolved)
+- Alert toggles, inline alert duration, ticker speed
+- Show/hide tunnel and weather cards
+- Selected tunnels
+
+**Reset:** Settings panel footer has a "Reset to defaults" button with inline confirmation. Clears localStorage and reloads.
+
+---
+
+## Card ID Format Conventions
+
+| Prefix | Component | Example |
+|---|---|---|
+| `clinton`, `willow`, etc. | Preconfigured BusStopCard | `clinton` |
+| `pabt_*` | Preconfigured BusStopCard (inbound) | `pabt_washington` |
+| `bus:*` | DynamicBusCard | `bus:16012:125` |
+| `rail:*` | DynamicRailCard | `rail:HB:GS,ML` |
+| `hblr:*` | DynamicHblrCard | `hblr:15534` |
+| `ferry_*` | Preconfigured FerryCard | `ferry_hob14` |
+| `ferry:*` | DynamicFerryCard | `ferry:10:19:Midtown` |
+| `path_*` | Preconfigured PathCard | `path_hob33` |
+| `path:*` | DynamicPathCard | `path:861,862:1:26727` |
+| `mta:*` | DynamicMtaCard | `mta:D17,R17:S:B,D,F,N,Q,R,W` |
+| `lirr:*` | DynamicLirrCard | `lirr:8` |
+| `mnr:*` | DynamicMnrCard | `mnr:1` |
+| `mtabus:*` | DynamicMtaBusCard | `mtabus:308209:MTA+NYCT_M1` |
+| `nycferry:*` | DynamicNycFerryCard | `nycferry:113` |
 
 ---
 
@@ -405,18 +367,20 @@ When no live alerts exist, the ticker shows "No active alerts".
 | Data | Cache TTL | Location |
 |---|---|---|
 | NJT auth token | 20 hours | Server memory |
-| GTFS static ZIP | 24 hours | `.cache/gtfs.zip` on disk |
+| GTFS static ZIP | 7 days | `.cache/gtfs.zip` on disk |
+| MTA station routes | Until restart | `.cache/mta_station_routes.json` on disk |
 | Trip updates (bus) | 30 seconds | Server memory |
 | Vehicle positions | 30 seconds | Server memory |
 | Bus alerts | 2 minutes | Server memory |
 | PATH GTFS-RT | 15 seconds | Server memory |
 | PATH alerts | 2 minutes | Server memory |
-| Ferry ETA | 30 seconds (per stop) | Server memory |
+| Ferry ETA (NYW) | 30 seconds (per stop) | Server memory |
+| NYC Ferry GTFS-RT | 30 seconds | Server memory |
 | MTA GTFS-RT | 30 seconds (per feed) | Server memory |
 | MTA Subway alerts | 2 minutes | Server memory |
 | NJT Rail token | 20 hours | Server memory |
-| NJT Rail station list | Until restart | Server memory |
 | NJT Rail station lines | 1 hour | Server memory |
+| Weather zip grid | 24 hours | Server memory |
 
 ---
 
@@ -424,15 +388,40 @@ When no live alerts exist, the ticker shows "No active alerts".
 
 | Data | Interval | Rationale |
 |---|---|---|
-| Lincoln Tunnel | 2 min | PANYNJ updates every 2-3 min |
+| Lincoln/Holland Tunnel | 2 min | PANYNJ updates every 2-3 min |
 | Weather | 10 min | NWS updates hourly |
-| Bus arrivals | 30 sec | Real-time GPS tracking |
-| Ferry | 30 sec | Real-time vessel tracking |
+| NJT Bus | 30 sec | Real-time GPS tracking |
+| NYW Ferry | 30 sec | Real-time vessel tracking |
+| NYC Ferry | 30 sec | GTFS-RT feed |
 | PATH | 15 sec | Feed updates every 5 sec |
 | MTA Subway | 30 sec | Feed updates every 30 sec |
 | MTA Alerts | 2 min | Alert feed cached 2 min |
 | NJT Rail | 60 sec | Rate limit: 40K calls/day |
 | HBLR | 30 sec | Uses bus GTFS-RT feed |
+| LIRR | 30 sec | MTA GTFS-RT feed |
+| Metro-North | 30 sec | MTA GTFS-RT feed |
+| MTA Bus | 30 sec | SIRI API (8s timeout) |
+
+---
+
+## Custom Icons
+
+| Transit Mode | Icon | Dark Mode Effect |
+|---|---|---|
+| MTA Subway | `MtaGlobeIcon` — green/white globe on pole | White half → warm yellow + trapezoid beam |
+| HBLR | `LightRailIcon` — Hoboken Lackawanna clocktower | Clock face glows teal |
+| LIRR | `HeavyRailIcon` — M7/M9 train profile | Headlight appears |
+| Metro-North | `GrandCentralClock` — GCT info booth clock on pedestal | Clock face glows gold |
+
+---
+
+## Testing
+
+```bash
+npm test
+```
+
+Runs 134 integration tests against the live server covering all endpoints. Server must be running on port 3001.
 
 ---
 
@@ -443,14 +432,3 @@ When no live alerts exist, the ticker shows "No active alerts".
 3. Add direct fetch calls for PANYNJ and NWS (replace Vite proxy)
 4. `npm run server` — serves SPA + all APIs on port 3001
 5. Auto-start with systemd or pm2
-
----
-
-## Future Expansion Ideas
-
-- **Settings persistence** — localStorage or backend storage
-- **Rate limiting** — needed before public deployment
-- **NJT Rail capacity display** — API returns car-level passenger counts
-- **Custom transit icons** — HBLR catenary icon, LIRR heavy rail icon, Metro-North Grand Central redesign
-- **Phone app** — wrap with Capacitor or serve as PWA
-- **Historical data** — store crossing times for trend analysis

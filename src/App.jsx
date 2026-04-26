@@ -715,7 +715,7 @@ function DynamicHblrCard({ stopId, displayName, alertSettings, activeAlertSource
   return (
     <div className="card path-card">
       <div className="card-header">
-        <TrainFront className="card-icon" />
+        <LightRailIcon className="card-icon" />
         <span className="card-title">HBLR</span>
         <span className="card-title-sep">·</span>
         <span className="card-title-stop">{name}</span>
@@ -726,6 +726,7 @@ function DynamicHblrCard({ stopId, displayName, alertSettings, activeAlertSource
             {buses.map((b, i) => (
               <div key={i} className="transit-row">
                 <span className="transit-badge" style={{ background: '#6B3FA0' }}>HBLR</span>
+                <span className="transit-dest">{b.headsign || b.variant || '—'}</span>
                 <span className={`transit-time ${etaClass(b.eta)}`}>{b.eta} min</span>
                 <span className="transit-eta-clock">{b.etaTime}</span>
                 {b.source === 'schedule' && <span className="bus-sched-indicator">~</span>}
@@ -755,7 +756,7 @@ function DynamicLirrCard({ stopId, displayName, inlineAlertDuration }) {
   return (
     <div className="card path-card">
       <div className="card-header">
-        <TrainFront className="card-icon" />
+        <HeavyRailIcon className="card-icon" />
         <span className="card-title">LIRR</span>
         <span className="card-title-sep">·</span>
         <span className="card-title-stop">{stationName}</span>
@@ -831,6 +832,7 @@ function DynamicMtaBusCard({ stopId, displayName, alertSettings, activeAlertSour
   const { data } = usePolling(fetcher, 30_000)
   const departures = data?.departures || []
   const alerts = data?.alerts || []
+  const timedOut = data?.timeout === true
   const name = displayName || stopId
   const showAlerts = inlineAlertDuration !== 0 && activeAlertSources?.has('mta_bus') && alertSettings?.mta_bus !== false
   return (
@@ -843,7 +845,11 @@ function DynamicMtaBusCard({ stopId, displayName, alertSettings, activeAlertSour
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
         {showAlerts && alerts.length > 0 && <InlineAlert text={alerts[0]} />}
-        {departures.length > 0 ? (
+        {timedOut ? (
+          <div className="bus-empty" style={{ color: 'var(--accent-orange, #f97316)' }}>
+            Feed timed out — try again shortly
+          </div>
+        ) : departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
               <div key={i} className="transit-row">
@@ -907,7 +913,7 @@ function FerryCard({ data, displayName, alertSettings, activeAlertSources, inlin
     <div className="card ferry-card">
       <div className="card-header">
         <Ship className="card-icon" />
-        <span className="card-title">Ferry</span>
+        <span className="card-title">NYW Ferry</span>
         <span className="card-title-sep">·</span>
         <span className="card-title-stop">{dest}</span>
       </div>
@@ -1044,12 +1050,21 @@ function MtaGlobeIcon({ size = 20 }) {
   const s = size
   return (
     <svg width={s} height={s * 1.6} viewBox="0 0 24 38" style={{ flexShrink: 0 }}>
-      {/* Globe */}
+      {/* Light beam — trapezoid fanning out from globe bottom, dark mode only via CSS */}
+      <defs>
+        <linearGradient id="mtaBeamGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFE566" stopOpacity="0.5"/>
+          <stop offset="100%" stopColor="#FFE566" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points="3,10 21,10 24,22 0,22" fill="url(#mtaBeamGrad)" className="mta-globe-beam"/>
+      {/* Globe green top half */}
       <circle cx="12" cy="10" r="9" fill="#00933C" />
       <clipPath id="globeBottom">
         <rect x="0" y="10" width="24" height="10" />
       </clipPath>
-      <circle cx="12" cy="10" r="9" fill="#fff" clipPath="url(#globeBottom)" />
+      {/* Globe white/warm bottom half */}
+      <circle cx="12" cy="10" r="9" fill="#fff" clipPath="url(#globeBottom)" className="mta-globe-white"/>
       <line x1="3" y1="10" x2="21" y2="10" stroke="#333" strokeWidth="0.5" />
       {/* Collar */}
       <rect x="9" y="19" width="6" height="2" rx="0.5" fill="#2a2a2a" />
@@ -1062,22 +1077,120 @@ function MtaGlobeIcon({ size = 20 }) {
     </svg>
   )
 }
-// Grand Central Terminal clock icon for Metro-North (golden, shows 4:20)
+// Hoboken Lackawanna Terminal clocktower — used for HBLR
+// Copper-green tower, four-faced clock, hipped roof, red brick base. Clock face glows in dark mode.
+function LightRailIcon({ className, size = 20 }) {
+  const h = size * 1.6
+  return (
+    <svg width={size} height={h} viewBox="0 0 24 38" className={className} style={{ flexShrink: 0 }}>
+      {/* Red brick terminal base */}
+      <rect x="2" y="27" width="20" height="11" fill="#8B3A2A"/>
+      <line x1="2" y1="30.5" x2="22" y2="30.5" stroke="#6B2A1A" strokeWidth="0.4"/>
+      <line x1="2" y1="34" x2="22" y2="34" stroke="#6B2A1A" strokeWidth="0.4"/>
+      <line x1="7" y1="27" x2="7" y2="30.5" stroke="#6B2A1A" strokeWidth="0.4"/>
+      <line x1="12" y1="30.5" x2="12" y2="34" stroke="#6B2A1A" strokeWidth="0.4"/>
+      <line x1="17" y1="27" x2="17" y2="30.5" stroke="#6B2A1A" strokeWidth="0.4"/>
+      {/* Arched windows */}
+      <path d="M4.5 28.5 Q5.5 27.5 6.5 28.5 L6.5 30.5 L4.5 30.5 Z" fill="#5A1A0A" opacity="0.6"/>
+      <path d="M9 28.5 Q10 27.5 11 28.5 L11 30.5 L9 30.5 Z" fill="#5A1A0A" opacity="0.6"/>
+      <path d="M13.5 28.5 Q14.5 27.5 15.5 28.5 L15.5 30.5 L13.5 30.5 Z" fill="#5A1A0A" opacity="0.6"/>
+      {/* Tower shaft — copper green */}
+      <rect x="8.5" y="13" width="7" height="14" fill="#4A7C6F"/>
+      <rect x="9" y="13.5" width="2.5" height="13" fill="#5A9080" opacity="0.35"/>
+      {/* Belfry */}
+      <rect x="7.5" y="9.5" width="9" height="4" rx="0.5" fill="#3D6B5E"/>
+      <path d="M9 9.5 Q10.5 7.8 12 9.5" fill="#2A4A40"/>
+      <path d="M12 9.5 Q13.5 7.8 15 9.5" fill="#2A4A40"/>
+      {/* Hipped copper roof */}
+      <path d="M6.5 9.5 L12 3.5 L17.5 9.5 Z" fill="#5A9080"/>
+      <path d="M6.5 9.5 L12 3.5 L9.5 9.5 Z" fill="#4A7C6F" opacity="0.45"/>
+      {/* Finial */}
+      <line x1="12" y1="3.5" x2="12" y2="1.2" stroke="#4A7C6F" strokeWidth="1.2"/>
+      <circle cx="12" cy="1.2" r="0.9" fill="#5A9080"/>
+      {/* Clock face — glows in dark mode via CSS .hblr-clock-face */}
+      <circle cx="12" cy="17" r="3" fill="#E8F4F0" className="hblr-clock-face"/>
+      <circle cx="12" cy="17" r="3" fill="none" stroke="#3D6B5E" strokeWidth="0.5"/>
+      <line x1="12" y1="17" x2="12" y2="14.5" stroke="#2A4A40" strokeWidth="0.7" strokeLinecap="round"/>
+      <line x1="12" y1="17" x2="14" y2="17.8" stroke="#2A4A40" strokeWidth="0.5" strokeLinecap="round"/>
+      <circle cx="12" cy="17" r="0.4" fill="#4A7C6F"/>
+    </svg>
+  )
+}
+// LIRR M7/M9 commuter train — solid fill, blue nose, yellow stripe, headlight in dark mode
+function HeavyRailIcon({ className, size = 20 }) {
+  const h = size * 1.6
+  return (
+    <svg width={size} height={h} viewBox="0 0 24 38" className={className} style={{ flexShrink: 0 }}>
+      {/* Car body — silver */}
+      <rect x="1.5" y="10" width="21" height="13" rx="1.5" fill="#C8CDD4"/>
+      <rect x="2" y="10.5" width="7" height="12" fill="#D8DDE4" opacity="0.5"/>
+      {/* Blue nose */}
+      <rect x="1.5" y="10" width="5.5" height="13" rx="1.5" fill="#003DA5"/>
+      <rect x="5" y="10" width="2" height="13" fill="#003DA5"/>
+      {/* Yellow safety stripe */}
+      <rect x="6.8" y="10" width="1.5" height="13" fill="#F7C300"/>
+      {/* Cab window */}
+      <rect x="2" y="11.5" width="4" height="4" rx="0.5" fill="#1A1A2E" opacity="0.85"/>
+      {/* Passenger windows */}
+      <rect x="9.5" y="11.5" width="3" height="3.5" rx="0.4" fill="#B8D4E8" opacity="0.9"/>
+      <rect x="13.5" y="11.5" width="3" height="3.5" rx="0.4" fill="#B8D4E8" opacity="0.9"/>
+      <rect x="17.5" y="11.5" width="2.5" height="3.5" rx="0.4" fill="#B8D4E8" opacity="0.9"/>
+      {/* Door line */}
+      <line x1="9" y1="10" x2="9" y2="23" stroke="#A0A8B0" strokeWidth="0.5"/>
+      {/* Underframe */}
+      <rect x="1.5" y="23" width="21" height="2" fill="#6B7280"/>
+      {/* Bogies */}
+      <rect x="2.5" y="25" width="5.5" height="2" rx="0.5" fill="#4B5563"/>
+      <rect x="16" y="25" width="5.5" height="2" rx="0.5" fill="#4B5563"/>
+      {/* Wheels */}
+      <circle cx="4" cy="28.5" r="2" fill="#374151"/>
+      <circle cx="4" cy="28.5" r="0.8" fill="#6B7280"/>
+      <circle cx="7" cy="28.5" r="2" fill="#374151"/>
+      <circle cx="7" cy="28.5" r="0.8" fill="#6B7280"/>
+      <circle cx="17" cy="28.5" r="2" fill="#374151"/>
+      <circle cx="17" cy="28.5" r="0.8" fill="#6B7280"/>
+      <circle cx="20" cy="28.5" r="2" fill="#374151"/>
+      <circle cx="20" cy="28.5" r="0.8" fill="#6B7280"/>
+      {/* Rail */}
+      <rect x="0.5" y="30.5" width="23" height="1.2" rx="0.5" fill="#9CA3AF"/>
+      {/* Headlight — visible in dark mode only via CSS .lirr-headlight */}
+      <circle cx="3" cy="20" r="1.2" fill="#FFFDE0" className="lirr-headlight"/>
+      <circle cx="3" cy="20" r="0.6" fill="#FFFFFF" className="lirr-headlight"/>
+    </svg>
+  )
+}
+// Grand Central Terminal information booth clock — four-faced opal clock on brass stand with pedestal
+// Clock face glows gold in dark mode via CSS .mnr-clock-face
 function GrandCentralClock({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" className="mnr-clock-icon" style={{ flexShrink: 0 }}>
-      <circle cx="12" cy="12" r="11" fill="none" stroke="#C5A55A" strokeWidth="1.5"/>
-      <circle cx="12" cy="12" r="9.5" fill="none" stroke="#D4AF37" strokeWidth="0.5"/>
-      {/* Hour markers */}
-      {[0,30,60,90,120,150,180,210,240,270,300,330].map(deg => (
-        <line key={deg} x1="12" y1="3" x2="12" y2="4.5" stroke="#D4AF37" strokeWidth="0.8" transform={`rotate(${deg} 12 12)`}/>
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+      {/* Flat base plate */}
+      <rect x="6.5" y="21.5" width="11" height="1.8" rx="0.6" fill="#B8860B"/>
+      {/* Stem */}
+      <rect x="10.5" y="18" width="3" height="3.5" rx="0.3" fill="#C5A55A"/>
+      {/* Flared capital */}
+      <path d="M9 18 L15 18 L13.8 19.2 L10.2 19.2 Z" fill="#D4AF37"/>
+      {/* Outer brass housing */}
+      <circle cx="12" cy="11" r="6.5" fill="#B8860B"/>
+      {/* Opal clock face — glows in dark mode via CSS */}
+      <circle cx="12" cy="11" r="5.5" fill="#F5F0E8" className="mnr-clock-face"/>
+      {/* Bezel ring */}
+      <circle cx="12" cy="11" r="6" fill="none" stroke="#D4AF37" strokeWidth="0.6"/>
+      {/* Main hour markers */}
+      <line x1="12" y1="5.8" x2="12" y2="7" stroke="#5C4A1E" strokeWidth="0.8"/>
+      <line x1="17.2" y1="11" x2="16" y2="11" stroke="#5C4A1E" strokeWidth="0.8"/>
+      <line x1="12" y1="16.2" x2="12" y2="15" stroke="#5C4A1E" strokeWidth="0.8"/>
+      <line x1="6.8" y1="11" x2="8" y2="11" stroke="#5C4A1E" strokeWidth="0.8"/>
+      {/* Minor markers */}
+      {[30,60,120,150,210,240,300,330].map(deg => (
+        <line key={deg} x1="12" y1="5.8" x2="12" y2="6.4" stroke="#8B7340" strokeWidth="0.4" transform={`rotate(${deg} 12 11)`}/>
       ))}
-      {/* Hour hand pointing to 4 (120°) */}
-      <line x1="12" y1="12" x2="12" y2="6.5" stroke="#D4AF37" strokeWidth="1.5" strokeLinecap="round" transform="rotate(120 12 12)"/>
-      {/* Minute hand pointing to 4 (20 min = 120°) */}
-      <line x1="12" y1="12" x2="12" y2="4.5" stroke="#C5A55A" strokeWidth="1" strokeLinecap="round" transform="rotate(120 12 12)"/>
-      {/* Center dot */}
-      <circle cx="12" cy="12" r="1" fill="#D4AF37"/>
+      {/* Hour hand ~10 (300°) */}
+      <line x1="12" y1="11" x2="12" y2="8" stroke="#3B2F0E" strokeWidth="1" strokeLinecap="round" transform="rotate(300 12 11)"/>
+      {/* Minute hand ~2 (60°) */}
+      <line x1="12" y1="11" x2="12" y2="7.2" stroke="#3B2F0E" strokeWidth="0.7" strokeLinecap="round" transform="rotate(60 12 11)"/>
+      {/* Center brass pin */}
+      <circle cx="12" cy="11" r="0.6" fill="#D4AF37"/>
     </svg>
   )
 }
@@ -1095,12 +1208,12 @@ const TRANSIT_MODES = [
   { id: 'bus', name: 'NJ Transit Bus', icon: Bus, enabled: true },
   { id: 'njtrain', name: 'NJ Transit Rail', icon: TrainFront, enabled: true },
   { id: 'path', name: 'PATH Train', icon: TrainFront, enabled: true },
-  { id: 'ferry', name: 'NY Waterway Ferry', icon: Ship, enabled: true },
+  { id: 'ferry', name: 'NYW Ferry', icon: Ship, enabled: true },
   { id: 'nycferry', name: 'NYC Ferry', icon: Ship, enabled: true },
-  { id: 'hblr', name: 'Hudson-Bergen Light Rail', icon: TrainFront, enabled: true },
-  { id: 'subway', name: 'MTA Subway', icon: TrainFront, enabled: true },
-  { id: 'lirr', name: 'LIRR', icon: TrainFront, enabled: true },
-  { id: 'mnr', name: 'Metro-North', icon: TrainFront, enabled: true },
+  { id: 'hblr', name: 'Hudson-Bergen Light Rail', icon: LightRailIcon, enabled: true },
+  { id: 'subway', name: 'MTA Subway', icon: MtaGlobeIcon, enabled: true },
+  { id: 'lirr', name: 'LIRR', icon: HeavyRailIcon, enabled: true },
+  { id: 'mnr', name: 'Metro-North', icon: GrandCentralClock, enabled: true },
   { id: 'mta-bus', name: 'MTA Bus', icon: Bus, enabled: true },
 ]
 
@@ -1156,7 +1269,7 @@ const ALERT_SOURCE_NAMES = {
   bus_128: 'Bus 128',
   bus_165: 'Bus 165',
   bus_166: 'Bus 166',
-  ferry: 'NY Waterway Ferry',
+  ferry: 'NYW Ferry',
   path_hob33: 'PATH HOB–33rd',
   path_jsq33: 'PATH JSQ–33rd',
   mta_subway: 'MTA Subway',
@@ -1631,7 +1744,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
             {step === 0 && 'New Transit Card'}
             {step === 'bus-search' && 'NJ Transit Bus — Search Stop'}
             {step === 'bus-lines' && `${shortenStopName(selectedBusStop?.name)} — Select Lines`}
-            {step === 'ferry-search' && 'NY Waterway Ferry — Search Terminal'}
+            {step === 'ferry-search' && 'NYW Ferry — Search Terminal'}
             {step === 'ferry-routes' && `${selectedFerryTerminal?.name} — Select Destination`}
             {step === 'path-search' && 'PATH Train — Search Station'}
             {step === 'path-lines' && `${selectedPathStation?.name} — Select Line & Direction`}
@@ -2055,6 +2168,8 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
   const [draftShowWeather, setDraftShowWeather] = useState(showWeather)
   const [draftTunnels, setDraftTunnels] = useState([...selectedTunnels])
   const [newCardTarget, setNewCardTarget] = useState(null)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const dragRef = useRef(null) // { id, setter } for active drag
 
   // Reset drafts when panel opens
   useEffect(() => {
@@ -2081,20 +2196,6 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
 
   const allSelected = new Set([...draftOutStops, ...draftInStops])
 
-  function makeMove(setter) {
-    return (id, dir) => {
-      setter((prev) => {
-        const idx = prev.indexOf(id)
-        if (idx < 0) return prev
-        const newIdx = idx + dir
-        if (newIdx < 0 || newIdx >= prev.length) return prev
-        const next = [...prev]
-        ;[next[idx], next[newIdx]] = [next[newIdx], next[idx]]
-        return next
-      })
-    }
-  }
-
   function makeRemove(setter) {
     return (id) => setter((prev) => prev.filter((s) => s !== id))
   }
@@ -2120,21 +2221,47 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
   }
 
   function renderStopList(stops, setter, minCount) {
+    function onDragStart(id) {
+      dragRef.current = { id, setter }
+    }
+    function onDragOver(e, overId) {
+      e.preventDefault()
+      if (!dragRef.current || dragRef.current.setter !== setter) return
+      const { id } = dragRef.current
+      if (id === overId) return
+      setter((prev) => {
+        const from = prev.indexOf(id)
+        const to = prev.indexOf(overId)
+        if (from < 0 || to < 0) return prev
+        const next = [...prev]
+        next.splice(from, 1)
+        next.splice(to, 0, id)
+        return next
+      })
+    }
+    function onDragEnd() {
+      dragRef.current = null
+    }
     return (
       <div className="settings-stop-list">
-        {stops.map((id, idx) => {
+        {stops.map((id) => {
           const catalogStop = ALL_STOPS.find((s) => s.id === id)
           const stopType = catalogStop?.type || 'bus'
           const stopLine = catalogStop?.line || ''
           const stopName = catalogStop?.name || dynamicStopNames[id] || id
           return (
-            <div key={id} className="settings-stop-item selected">
+            <div
+              key={id}
+              className="settings-stop-item selected"
+              draggable
+              onDragStart={() => onDragStart(id)}
+              onDragOver={(e) => onDragOver(e, id)}
+              onDragEnd={onDragEnd}
+            >
               <GripVertical className="settings-grip" />
               <span className={`settings-type-badge ${stopType}`}>{stopLine}</span>
               <span className="settings-stop-name">{stopName}</span>
               <div className="settings-stop-actions">
-                <button onClick={() => makeMove(setter)(id, -1)} disabled={idx === 0} className="settings-move-btn">↑</button>
-                <button onClick={() => makeMove(setter)(id, 1)} disabled={idx === stops.length - 1} className="settings-move-btn">↓</button>
                 <button onClick={() => makeRemove(setter)(id)} className="settings-remove-btn" disabled={stops.length <= minCount}>
                   <Minus size={12} />
                 </button>
@@ -2330,6 +2457,22 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
           }}>
               Save Changes
             </button>
+            <div className="settings-reset-row">
+              {confirmReset ? (
+                <>
+                  <span className="settings-reset-confirm-text">Reset to defaults?</span>
+                  <button className="settings-reset-confirm-btn" onClick={() => {
+                    localStorage.removeItem(STORAGE_KEY)
+                    window.location.reload()
+                  }}>Yes, reset</button>
+                  <button className="settings-reset-cancel-btn" onClick={() => setConfirmReset(false)}>Cancel</button>
+                </>
+              ) : (
+                <button className="settings-reset-btn" onClick={() => setConfirmReset(true)}>
+                  Reset to defaults
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2345,24 +2488,58 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
 }
 
 // ── App ──
+
+const STORAGE_KEY = 'hoboken-commuter-settings'
+
+const DEFAULT_SETTINGS = {
+  outboundCity: 'Hoboken',
+  inboundCity: 'NYC',
+  outboundStops: ['clinton', 'willow', 'washington', 'path_hob33', 'ferry_hob14', 'hblr:15534'],
+  inboundStops: ['pabt_willow', 'pabt_washington', 'pabt_119', 'path_33hob', 'ferry_w39', 'hblr:15537'],
+  outboundWeather: { label: 'Hoboken', url: '/api/nws/gridpoints/OKX/32,43/forecast/hourly' },
+  inboundWeather: { label: 'NYC', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+  alertSettings: {},
+  inlineAlertDuration: 60,
+  tickerSpeed: 60,
+  showTunnels: true,
+  showWeather: true,
+  selectedTunnels: ['lincoln', 'holland'],
+}
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return DEFAULT_SETTINGS
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
+  } catch {
+    return DEFAULT_SETTINGS
+  }
+}
+
+function saveSettings(settings) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+  } catch {}
+}
+
 export default function App() {
   const [theme, setTheme] = useState(isDaytime() ? 'light' : 'dark')
   const [autoTheme, setAutoTheme] = useState(true)
   const [weatherLocation, setWeatherLocation] = useState('hoboken')
-  const [outboundWeather, setOutboundWeather] = useState({ label: 'Hoboken', url: '/api/nws/gridpoints/OKX/32,43/forecast/hourly' })
-  const [inboundWeather, setInboundWeather] = useState({ label: 'NYC', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' })
+  const [outboundWeather, setOutboundWeather] = useState(() => loadSettings().outboundWeather)
+  const [inboundWeather, setInboundWeather] = useState(() => loadSettings().inboundWeather)
   const [direction, setDirection] = useState('outbound')
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [outboundCity, setOutboundCity] = useState('Hoboken')
-  const [inboundCity, setInboundCity] = useState('NYC')
-  const [outboundStops, setOutboundStops] = useState(['clinton', 'willow', 'washington', 'path_hob33', 'ferry_hob14'])
-  const [inboundStops, setInboundStops] = useState(['pabt_willow', 'pabt_washington', 'pabt_119', 'path_33hob', 'path_33newport', 'ferry_w39'])
-  const [alertSettings, setAlertSettings] = useState({})
-  const [inlineAlertDuration, setInlineAlertDuration] = useState(60)
-  const [tickerSpeed, setTickerSpeed] = useState(60)
-  const [showTunnels, setShowTunnels] = useState(true)
-  const [showWeather, setShowWeather] = useState(true)
-  const [selectedTunnels, setSelectedTunnels] = useState(['lincoln', 'holland'])
+  const [outboundCity, setOutboundCity] = useState(() => loadSettings().outboundCity)
+  const [inboundCity, setInboundCity] = useState(() => loadSettings().inboundCity)
+  const [outboundStops, setOutboundStops] = useState(() => loadSettings().outboundStops)
+  const [inboundStops, setInboundStops] = useState(() => loadSettings().inboundStops)
+  const [alertSettings, setAlertSettings] = useState(() => loadSettings().alertSettings)
+  const [inlineAlertDuration, setInlineAlertDuration] = useState(() => loadSettings().inlineAlertDuration)
+  const [tickerSpeed, setTickerSpeed] = useState(() => loadSettings().tickerSpeed)
+  const [showTunnels, setShowTunnels] = useState(() => loadSettings().showTunnels)
+  const [showWeather, setShowWeather] = useState(() => loadSettings().showWeather)
+  const [selectedTunnels, setSelectedTunnels] = useState(() => loadSettings().selectedTunnels)
 
   const dirLabel = direction === 'outbound' ? `${outboundCity} → ${inboundCity}` : `${inboundCity} → ${outboundCity}`
 
@@ -2577,6 +2754,20 @@ export default function App() {
           if (st !== undefined) setShowTunnels(st)
           if (sw !== undefined) setShowWeather(sw)
           if (stun) setSelectedTunnels(stun)
+          saveSettings({
+            outboundStops: os,
+            inboundStops: is,
+            outboundCity: oc,
+            inboundCity: ic,
+            alertSettings: as,
+            inlineAlertDuration: iad,
+            tickerSpeed: ts,
+            outboundWeather: ow,
+            inboundWeather: iw,
+            showTunnels: st,
+            showWeather: sw,
+            selectedTunnels: stun,
+          })
         }}
       />
     </div>
