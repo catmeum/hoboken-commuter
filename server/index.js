@@ -18,6 +18,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '..', '.env') })
 
 const app = express()
+app.set('trust proxy', 1)
 
 // CORS — restrict to known origin in production, open in dev
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*'
