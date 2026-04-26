@@ -1927,6 +1927,57 @@ app.get('/api/mtabus/query', strictLimiter, async (req, res) => {
   }
 })
 
+// ══════════════════════════════════════════════════════════
+// Production mode — serve built frontend + proxy external APIs
+// In dev, Vite handles these. In prod (NODE_ENV=production),
+// Express serves dist/ and proxies PANYNJ + NWS directly.
+// ══════════════════════════════════════════════════════════
+
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(__dirname, '..', 'dist')
+
+  // Proxy /api/panynj → https://www.panynj.gov/bin/portauthority/*
+  app.get('/api/panynj/*', async (req, res) => {
+    try {
+      const panynj = req.path.replace('/api/panynj', '/bin/portauthority')
+      const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
+      const url = `https://www.panynj.gov${panynj}${qs}`
+      const r = await fetch(url, { signal: AbortSignal.timeout(10000) })
+      const data = await r.json()
+      res.json(data)
+    } catch (err) {
+      console.error('[PANYNJ proxy]', err.message)
+      res.status(502).json({ error: 'PANYNJ unavailable' })
+    }
+  })
+
+  // Proxy /api/nws/* → https://api.weather.gov/*
+  app.get('/api/nws/*', async (req, res) => {
+    try {
+      const nwsPath = req.path.replace('/api/nws', '')
+      const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
+      const url = `https://api.weather.gov${nwsPath}${qs}`
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'HobokenCommuter/1.0 (commuter-dashboard)' },
+        signal: AbortSignal.timeout(10000),
+      })
+      const data = await r.json()
+      res.json(data)
+    } catch (err) {
+      console.error('[NWS proxy]', err.message)
+      res.status(502).json({ error: 'NWS unavailable' })
+    }
+  })
+
+  // Serve React SPA — all non-API routes return index.html
+  app.use(express.static(distPath))
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'))
+  })
+
+  console.log('[Server] Production mode — serving', distPath)
+}
+
 const PORT = process.env.BUS_API_PORT || 3001
 app.listen(PORT, () => {
   console.log(`[Server] Running on http://localhost:${PORT}`)

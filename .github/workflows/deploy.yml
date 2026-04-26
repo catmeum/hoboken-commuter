@@ -1,0 +1,49 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy to Lightsail
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          script: |
+            set -e
+            cd /app/hoboken-commuter
+
+            # Pull latest code
+            git pull origin master
+
+            # Install production dependencies
+            npm ci --omit=dev
+
+            # Build frontend
+            npm run build
+
+            # Restart the server (pm2 manages the process)
+            pm2 restart hoboken-commuter --update-env
+
+            echo "Deploy complete"
