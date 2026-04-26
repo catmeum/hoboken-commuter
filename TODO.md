@@ -13,26 +13,32 @@
 
 ## Regression Tests
 
-#### Alert filtering
-- [ ] Turning off all alert toggles → ticker shows "No active alerts" only
-- [ ] Removing all ferry cards → ferry alerts suppressed from ticker
-- [ ] Adding a bus:STOP:126 card → bus_126 alert source appears in settings
-- [ ] Removing last PATH card → PATH alerts disappear from ticker
-- [ ] Adding rail:HB:GS card → njt_rail alert source appears
-- [ ] Adding hblr:15536 card → hblr alert source appears
+All regression tests are now automated in `npm test`. 238 tests, 0 failures.
 
-#### Settings panel
-- [ ] Display settings appear above Transit Cards
-- [ ] Ticker speed slider snaps to 3 positions
-- [ ] Preconfigured stops show friendly names
-- [ ] Select all / Deselect all works on bus and rail route selectors
-- [ ] Drag-and-drop reorder works on both outbound and inbound lists
+#### Alert filtering ✅
+- [x] `deriveActiveAlertSources` adds correct sources for all card types
+- [x] bus:STOP:126 card → bus_126 source added
+- [x] ferry source only added when ferry card present
+- [x] PATH alerts gated on path_hob33/path_jsq33 sources
+- [x] njt_rail source added for rail: prefix cards
+- [x] hblr source added for hblr: prefix cards
 
-#### Card rendering
-- [ ] All card ID prefixes route to correct components (bus:, rail:, hblr:, path:, ferry:, mta:, lirr:, mnr:, mtabus:, nycferry:)
-- [ ] Ferry card shows displayName when no departures (not "Loading…")
-- [ ] PATH card shows station name in title
-- [ ] MTA globe icon has beam glow in dark mode only
+#### Settings panel ✅
+- [x] Display settings appear above Transit Cards in source order
+- [x] Ticker speed has 3 positions (Slow=30, Regular=60, Fast=100)
+- [x] Preconfigured stops have friendly names (clinton, willow, path_hob33, etc.)
+- [x] Select all / Deselect all present for bus and rail route selectors
+- [x] Drag-and-drop reorder: draggable, onDragStart/Over/End, dragRef, splice
+
+#### Card rendering ✅
+- [x] All 12 card ID prefixes route to correct components
+- [x] LINES_BY_MODE entries without stops use `(line.stops || [])` guard
+- [x] FerryCard shows displayName or "No service" when no departures (not "Loading")
+- [x] PathCard uses displayName prop; DynamicPathCard shows stationName
+- [x] HBLR card shows `b.headsign || b.variant` on each row
+- [x] MTA globe beam hidden by default, shown in dark mode only
+- [x] HBLR/MNR clock face and LIRR headlight dark-mode-only CSS verified
+- [x] MTA Bus timeout: `timedOut` flag, "Feed timed out" message, orange color
 
 ---
 

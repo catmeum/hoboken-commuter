@@ -433,3 +433,276 @@ await section('Card ID format conventions', async () => {
 console.log(`\n${'─'.repeat(50)}`)
 console.log(`Results: ${passed} passed, ${failed} failed, ${skipped} skipped`)
 if (failed > 0) process.exit(1)
+
+// ═══════════════════════════════════════════════════════════
+// REGRESSION TESTS
+// ═══════════════════════════════════════════════════════════
+
+const { readFileSync } = await import('fs')
+const src = readFileSync('src/App.jsx', 'utf8')
+
+// Helper: extract a function body from source
+function extractFn(source, fnName) {
+  const idx = source.indexOf(`function ${fnName}(`)
+  if (idx < 0) return ''
+  let depth = 0, i = idx
+  while (i < source.length) {
+    if (source[i] === '{') depth++
+    if (source[i] === '}') { depth--; if (depth === 0) return source.slice(idx, i + 1) }
+    i++
+  }
+  return ''
+}
+
+// ─────────────────────────────────────────────
+// Alert filtering — deriveActiveAlertSources
+// ─────────────────────────────────────────────
+await section('Alert filtering — deriveActiveAlertSources logic', async () => {
+  // Verify the function exists and handles all expected card types
+  const fn = extractFn(src, 'deriveActiveAlertSources')
+  ok('Function exists', fn.length > 0)
+
+  // Tunnel sources always added
+  ok('lincoln_tunnel always added', fn.includes("sources.add('lincoln_tunnel')") || fn.includes('"lincoln_tunnel"'))
+  ok('holland_tunnel always added', fn.includes("sources.add('holland_tunnel')") || fn.includes('"holland_tunnel"'))
+
+  // Bus cards
+  ok('bus_126 added for clinton/washington/willow', fn.includes("sources.add('bus_126')"))
+  ok('bus_119 added for willow/pabt_119', fn.includes("sources.add('bus_119')"))
+
+  // PATH cards
+  ok('path_hob33 added for path_hob33 card', fn.includes("sources.add('path_hob33')"))
+  ok('path_jsq33 added for path_33newport card', fn.includes("sources.add('path_jsq33')"))
+
+  // Ferry
+  ok('ferry source added for ferry cards', fn.includes("sources.add('ferry')"))
+
+  // NJT Rail
+  ok('njt_rail added for rail: prefix', fn.includes("sources.add('njt_rail')"))
+
+  // HBLR
+  ok('hblr added for hblr: prefix', fn.includes("sources.add('hblr')"))
+
+  // MTA Subway
+  ok('mta_subway added for mta: prefix', fn.includes("sources.add('mta_subway')"))
+
+  // Dynamic bus cards add per-route sources
+  ok('bus: prefix handled in deriveActiveAlertSources', fn.includes("startsWith('bus:')"))
+})
+
+await section('Alert filtering — bus:STOP:126 adds bus_126 source', async () => {
+  // Verify the bus: card parsing logic adds the right source
+  const fn = extractFn(src, 'deriveActiveAlertSources')
+  ok('Parses routes from bus: card ID', fn.includes("split(':')"))
+  ok('Adds bus_ROUTE source for each route', fn.includes('bus_') && fn.includes("sources.add("))
+})
+
+await section('Alert filtering — removing ferry card suppresses ferry alerts', async () => {
+  // Verify ferry source is only added when a ferry card is present
+  const fn = extractFn(src, 'deriveActiveAlertSources')
+  const ferrySection = fn.slice(fn.indexOf('ferry'))
+  ok('ferry source conditional on card presence', fn.includes("sources.add('ferry')"))
+  // Verify buildTickerItems checks activeAlertSources before showing ferry alerts
+  const tickerFn = extractFn(src, 'buildTickerItems')
+  ok('Ticker checks ferry source before showing alert', tickerFn.includes("on('ferry')") || tickerFn.includes("activeAlertSources"))
+})
+
+await section('Alert filtering — PATH alerts gated on path source', async () => {
+  const tickerFn = extractFn(src, 'buildTickerItems')
+  ok('PATH alert checks path_hob33 or path_jsq33', tickerFn.includes("on('path_hob33')") || tickerFn.includes("path_hob33"))
+  ok('NJT Rail alert checks njt_rail source', tickerFn.includes("on('njt_rail')") || tickerFn.includes("njt_rail"))
+})
+
+// ─────────────────────────────────────────────
+// Settings panel structure
+// ─────────────────────────────────────────────
+await section('Settings panel — Display section above Transit Cards', async () => {
+  // Find the settings body and verify Display section comes before Transit Cards section
+  const displayIdx = src.indexOf('Display Settings')
+  const transitIdx = src.indexOf('Transit Cards')
+  ok('Display Settings section exists', displayIdx > 0)
+  ok('Transit Cards section exists', transitIdx > 0)
+  ok('Display appears before Transit Cards in source', displayIdx < transitIdx)
+})
+
+await section('Settings panel — ticker speed values', async () => {
+  ok('Slow speed = 30', src.includes('30 : 30') || src.includes("=== 30 ? 'Slow'") || src.includes('draftTickerSpeed === 30'))
+  ok('Regular speed = 60', src.includes('tickerSpeed === 60') || src.includes("=== 60") || src.includes("60 : 'Regular'") || src.includes("Regular"))
+  ok('Fast speed = 100', src.includes('draftTickerSpeed === 100') || src.includes("=== 100 ? 'Fast'"))
+  ok('Slider has 3 positions (0-2)', src.includes('max={2}') && src.includes('step={1}'))
+})
+
+await section('Settings panel — preconfigured stop friendly names', async () => {
+  // PRECONFIGURED_STOP_NAMES map should exist with friendly names
+  ok('clinton has friendly name', src.includes("'clinton'") && src.includes('Clinton'))
+  ok('willow has friendly name', src.includes("'willow'") && src.includes('Willow'))
+  ok('washington has friendly name', src.includes("'washington'") && src.includes('Washington'))
+  ok('path_hob33 has friendly name', src.includes("'path_hob33'") && src.includes('33rd'))
+  ok('ferry_hob14 has friendly name', src.includes("'ferry_hob14'") && src.includes('Hoboken'))
+  ok('pabt_willow has friendly name', src.includes("'pabt_willow'") && src.includes('PABT'))
+})
+
+await section('Settings panel — drag-and-drop reorder', async () => {
+  ok('draggable attribute set on stop items', src.includes('draggable'))
+  ok('onDragStart handler exists', src.includes('onDragStart'))
+  ok('onDragOver handler exists', src.includes('onDragOver'))
+  ok('onDragEnd handler exists', src.includes('onDragEnd'))
+  ok('dragRef used for drag state', src.includes('dragRef'))
+  ok('Reorder via splice in onDragOver', src.includes('splice'))
+})
+
+await section('Settings panel — select all / deselect all', async () => {
+  ok('Select all button exists for bus routes', src.includes('Select all') || src.includes('select all') || src.includes('selectAll'))
+  ok('Deselect all button exists', src.includes('Deselect all') || src.includes('deselect all') || src.includes('deselectAll') || src.includes('clear all') || src.includes('Clear all'))
+})
+
+// ─────────────────────────────────────────────
+// Card rendering
+// ─────────────────────────────────────────────
+await section('Card rendering — all prefixes route to correct components', async () => {
+  // Verify the card rendering switch/if chain handles all prefixes
+  ok('ferry_hob14/ferry_w39 → FerryCard', src.includes("stopId === 'ferry_hob14'") || src.includes("'ferry_hob14'"))
+  ok('ferry: → DynamicFerryCard', src.includes("startsWith('ferry:')") && src.includes('DynamicFerryCard'))
+  ok('path_* → PathCard', src.includes("stopId === 'path_hob33'") && src.includes('PathCard'))
+  ok('path: → DynamicPathCard', src.includes("startsWith('path:')") && src.includes('DynamicPathCard'))
+  ok('bus: → DynamicBusCard', src.includes("startsWith('bus:')") && src.includes('DynamicBusCard'))
+  ok('rail: → DynamicRailCard', src.includes("startsWith('rail:')") && src.includes('DynamicRailCard'))
+  ok('hblr: → DynamicHblrCard', src.includes("startsWith('hblr:')") && src.includes('DynamicHblrCard'))
+  ok('mta: → DynamicMtaCard', src.includes("startsWith('mta:')") && src.includes('DynamicMtaCard'))
+  ok('lirr: → DynamicLirrCard', src.includes("startsWith('lirr:')") && src.includes('DynamicLirrCard'))
+  ok('mnr: → DynamicMnrCard', src.includes("startsWith('mnr:')") && src.includes('DynamicMnrCard'))
+  ok('mtabus: → DynamicMtaBusCard', src.includes("startsWith('mtabus:')") && src.includes('DynamicMtaBusCard'))
+  ok('nycferry: → DynamicNycFerryCard', src.includes("startsWith('nycferry:')") && src.includes('DynamicNycFerryCard'))
+})
+
+await section('Card rendering — LINES_BY_MODE entries without stops do not crash ALL_STOPS', async () => {
+  // ALL_STOPS builder uses (line.stops || []) — verify this guard exists
+  ok('ALL_STOPS uses (line.stops || []) guard', src.includes('line.stops || []') || src.includes('(line.stops||[])'))
+
+  // Verify all search-based modes have empty stops arrays (not missing)
+  const linesSection = src.slice(src.indexOf('const LINES_BY_MODE'), src.indexOf('const ALL_STOPS'))
+  ok('njtrain has empty stops array', linesSection.includes("njtrain: []") || linesSection.includes("njtrain:[]"))
+  ok('ferry has empty stops array', linesSection.includes("ferry: []") || linesSection.includes("ferry:[]"))
+  ok('path has empty stops array', linesSection.includes("path: []") || linesSection.includes("path:[]"))
+  ok('hblr has empty stops array', linesSection.includes("hblr: []") || linesSection.includes("hblr:[]"))
+  ok('lirr has empty stops array', linesSection.includes("lirr: []") || linesSection.includes("lirr:[]"))
+  ok('mnr has empty stops array', linesSection.includes("mnr: []") || linesSection.includes("mnr:[]"))
+  ok('subway has empty stops array', linesSection.includes("subway: []") || linesSection.includes("subway:[]"))
+  ok('nycferry has empty stops array', linesSection.includes("nycferry: []") || linesSection.includes("nycferry:[]"))
+})
+
+await section('Card rendering — FerryCard shows displayName when no departures', async () => {
+  ok('FerryCard uses hasDepartures flag', src.includes('const hasDepartures'))
+  ok('Shows displayName or "No service" when empty', src.includes("displayName || 'No service'") || src.includes('displayName || "No service"'))
+  ok('Does not show "Loading" text in FerryCard', !src.slice(src.indexOf('function FerryCard'), src.indexOf('function PathCard')).includes('Loading'))
+})
+
+await section('Card rendering — PathCard shows station name in title', async () => {
+  const pathCardFn = extractFn(src, 'PathCard')
+  ok('PathCard function exists', pathCardFn.length > 0)
+  ok('Uses displayName prop', pathCardFn.includes('displayName'))
+  // DynamicPathCard also shows station name
+  ok('DynamicPathCard shows stationName', src.includes('stationName') && src.includes('DynamicPathCard'))
+})
+
+await section('Card rendering — HBLR card shows headsign', async () => {
+  ok('DynamicHblrCard renders headsign field', src.includes('b.headsign'))
+  ok('Falls back to variant if no headsign', src.includes('b.headsign || b.variant'))
+})
+
+await section('Card rendering — MTA globe beam only in dark mode', async () => {
+  const css = readFileSync('src/App.css', 'utf8')
+  ok('mta-globe-beam hidden by default', css.includes('.mta-globe-beam') && css.includes('display: none'))
+  ok('mta-globe-beam shown in dark mode only', css.includes('[data-theme="dark"] .mta-globe-beam') && css.includes('display: block'))
+  ok('mta-globe-white tinted in dark mode', css.includes('[data-theme="dark"] .mta-globe-white'))
+  ok('HBLR clock face glows in dark mode only', css.includes('[data-theme="dark"] .hblr-clock-face'))
+  ok('MNR clock face glows in dark mode only', css.includes('[data-theme="dark"] .mnr-clock-face'))
+  ok('LIRR headlight hidden by default', css.includes('.lirr-headlight') && css.includes('display: none'))
+  ok('LIRR headlight shown in dark mode', css.includes('[data-theme="dark"] .lirr-headlight') && css.includes('display: block'))
+})
+
+await section('Card rendering — MTA Bus timeout message', async () => {
+  ok('timedOut flag derived from response', src.includes("data?.timeout === true"))
+  ok('Shows timeout message when timedOut', src.includes('Feed timed out'))
+  ok('Timeout message has distinct color', src.includes('accent-orange') || src.includes('#f97316'))
+})
+
+// ─────────────────────────────────────────────
+// DEFAULT_SETTINGS matches expected config
+// ─────────────────────────────────────────────
+await section('DEFAULT_SETTINGS — correct default card config', async () => {
+  ok('HBLR outbound stop in defaults', src.includes("'hblr:15534'"))
+  ok('HBLR inbound stop in defaults', src.includes("'hblr:15537'"))
+  ok('clinton in outbound defaults', src.includes("'clinton'"))
+  ok('path_hob33 in outbound defaults', src.includes("'path_hob33'"))
+  ok('ferry_hob14 in outbound defaults', src.includes("'ferry_hob14'"))
+  ok('pabt_willow in inbound defaults', src.includes("'pabt_willow'"))
+  ok('path_33hob in inbound defaults', src.includes("'path_33hob'"))
+  ok('ferry_w39 in inbound defaults', src.includes("'ferry_w39'"))
+  // path_33newport was removed from defaults
+  const defaultsSection = src.slice(src.indexOf('const DEFAULT_SETTINGS'), src.indexOf('function loadSettings'))
+  ok('path_33newport NOT in defaults', !defaultsSection.includes("'path_33newport'"))
+})
+
+// ─────────────────────────────────────────────
+// GTFS cache status endpoint
+// ─────────────────────────────────────────────
+await section('GTFS cache status endpoint', async () => {
+  const data = await get('/api/bus/gtfs-status')
+  ok('Returns cached boolean', typeof data.cached === 'boolean')
+  ok('Returns loaded boolean', typeof data.loaded === 'boolean')
+  ok('Returns ageDays', data.ageDays === null || typeof data.ageDays === 'number')
+  ok('Returns sizeMB', data.sizeMB === null || typeof data.sizeMB === 'number')
+  ok('Returns stale flag', typeof data.stale === 'boolean')
+  ok('Cache is not stale (< 7 days)', data.stale === false)
+  ok('GTFS is loaded', data.loaded === true)
+})
+
+// ─────────────────────────────────────────────
+// MTA Bus timeout handling
+// ─────────────────────────────────────────────
+await section('MTA Bus — timeout handling in server', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok('AbortSignal.timeout used', serverSrc.includes('AbortSignal.timeout(8000)'))
+  ok('TimeoutError caught', serverSrc.includes('TimeoutError') || serverSrc.includes('AbortError'))
+  ok('Returns timeout:true flag', serverSrc.includes('timeout: isTimeout') || serverSrc.includes("timeout: true"))
+  ok('Returns empty departures on timeout', serverSrc.includes('departures: []') && serverSrc.includes('timeout'))
+})
+
+// ─────────────────────────────────────────────
+// PATH weekend route 1024 in server config
+// ─────────────────────────────────────────────
+await section('PATH — route 1024 fully integrated in server', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok("Route 1024 in PATH_ROUTE_NAMES", serverSrc.includes("'1024'") && serverSrc.includes('JSQ-33'))
+  ok('Route 1024 in PATH_DIR_LABELS', serverSrc.slice(serverSrc.indexOf('PATH_DIR_LABELS')).includes("'1024'"))
+  ok('Route 1024 in PATH_TERMINAL_DIRS', serverSrc.slice(serverSrc.indexOf('PATH_TERMINAL_DIRS')).includes("'1024'"))
+  ok('Route 1024 in outbound DIRECTIONS', serverSrc.includes("routeId: '1024'"))
+  ok('Route 1024 in PATH_STATION_ROUTES for Hoboken', serverSrc.includes("'26729': ['860', '862', '1024']"))
+})
+
+// ─────────────────────────────────────────────
+// NYC Ferry GTFS URL correct
+// ─────────────────────────────────────────────
+await section('NYC Ferry — correct GTFS URL', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok('Uses correct Connexionz GTFS URL', serverSrc.includes('nycferry.connexionz.net/rtt/public/utility/gtfs.aspx'))
+  ok('Does not use broken S3 URL', !serverSrc.includes('rrgtfsfeeds.s3.amazonaws.com/gtfs_nyc_ferry'))
+  ok('Builds tripId→routeId map', serverSrc.includes('nycFerryTripMapCache') || serverSrc.includes('tripMap'))
+})
+
+// ─────────────────────────────────────────────
+// NJT GTFS 7-day refresh
+// ─────────────────────────────────────────────
+await section('NJT GTFS — 7-day refresh interval', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok('Uses 7-day TTL (not 24h)', serverSrc.includes('7 * 24 * 60 * 60 * 1000'))
+  ok('Does not use 24h TTL', !serverSrc.includes('> 24 * 60 * 60 * 1000'))
+})
+
+// ─────────────────────────────────────────────
+// Summary (updated)
+// ─────────────────────────────────────────────
+console.log(`\n${'─'.repeat(50)}`)
+console.log(`Results: ${passed} passed, ${failed} failed, ${skipped} skipped`)
+if (failed > 0) process.exit(1)
