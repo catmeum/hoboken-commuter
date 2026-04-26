@@ -7,6 +7,7 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import rateLimit from 'express-rate-limit'
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings'
 import fs from 'fs'
 import path from 'path'
@@ -17,7 +18,49 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '..', '.env') })
 
 const app = express()
-app.use(cors())
+
+// CORS — restrict to known origin in production, open in dev
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*'
+app.use(cors({
+  origin: ALLOWED_ORIGIN,
+  methods: ['GET'],
+}))
+
+// ══════════════════════════════════════════════════════════
+// Rate limiting
+// Protects upstream APIs from abuse and prevents excessive bills.
+// ══════════════════════════════════════════════════════════
+
+// Global: 300 requests per minute per IP — covers normal dashboard polling
+const globalLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down.' },
+  skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
+})
+app.use(globalLimiter)
+
+// Strict: 30 req/min — endpoints that hit paid/rate-limited upstream APIs
+// NJT Rail (40K/day limit), MTA Bus SIRI (API key), weather zip (external calls)
+const strictLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Rate limit exceeded for this endpoint.' },
+  skip: (req) => req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1',
+})
+
+// Input validation helpers
+function safeString(val, maxLen = 100) {
+  return String(val || '').slice(0, maxLen).replace(/[^\w\s,.:/-]/g, '')
+}
+function safeZip(val) {
+  return String(val || '').replace(/\D/g, '').slice(0, 5)
+}
+
 
 const NJT_USERNAME = process.env.VITE_NJT_USERNAME
 const NJT_PASSWORD = process.env.VITE_NJT_PASSWORD
@@ -536,7 +579,7 @@ app.get('/api/bus/stop-routes', async (req, res) => {
 app.get('/api/bus/stop-search', async (req, res) => {
   try {
     await loadGTFS()
-    const q = (req.query.q || '').toLowerCase()
+    const q = safeString(req.query.q, 50).toLowerCase()
     if (q.length < 2) return res.json({ stops: [] })
 
     const seenNames = new Map()
@@ -1421,7 +1464,7 @@ app.get('/api/rail/station-lines', async (req, res) => {
 })
 
 // Departures query — returns next departures filtered by line
-app.get('/api/rail/query', async (req, res) => {
+app.get('/api/rail/query', strictLimiter, async (req, res) => {
   try {
     const { station, lines: linesParam } = req.query
     if (!station) return res.json({ departures: [], alerts: [], stationName: '' })
@@ -1618,9 +1661,9 @@ app.get('/api/nycferry/query', async (req, res) => {
 const weatherGridCache = {} // zip → { label, url, time }
 const WEATHER_GRID_TTL = 86400_000 // 24 hours
 
-app.get('/api/weather/resolve-zip', async (req, res) => {
+app.get('/api/weather/resolve-zip', strictLimiter, async (req, res) => {
   try {
-    const zip = (req.query.zip || '').trim()
+    const zip = safeZip(req.query.zip)
     if (!/^\d{5}$/.test(zip)) return res.status(400).json({ error: 'Invalid zip code' })
 
     // Check cache
@@ -1847,7 +1890,7 @@ app.get('/api/mtabus/route-stops', async (req, res) => {
 })
 
 // MTA Bus stop monitoring — real-time arrivals at a stop
-app.get('/api/mtabus/query', async (req, res) => {
+app.get('/api/mtabus/query', strictLimiter, async (req, res) => {
   try {
     const { stop, route } = req.query
     if (!stop) return res.json({ departures: [] })

@@ -9,7 +9,7 @@
 
 ## Before Deployment
 
-- [ ] **Rate limiting** — add rate limiting to the Express server to prevent abuse and control upstream API usage costs
+- [x] **Rate limiting** — `express-rate-limit`: global 300 req/min per IP; strict 30 req/min on NJT Rail, MTA Bus SIRI, and weather zip endpoints; CORS restricted to `ALLOWED_ORIGIN` env var (defaults to `*` in dev)
 
 ## Regression Tests
 
