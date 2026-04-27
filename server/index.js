@@ -1982,19 +1982,23 @@ if (process.env.NODE_ENV === 'production') {
 const PORT = process.env.BUS_API_PORT || 3001
 app.listen(PORT, () => {
   console.log(`[Server] Running on http://localhost:${PORT}`)
-  loadGTFS().catch(err => console.error('[GTFS] Init error:', err.message))
-  // Auto-build MTA station routes cache if missing
-  const stationRoutesFile = path.join(__dirname, '..', '.cache', 'mta_station_routes.json')
-  if (!fs.existsSync(stationRoutesFile)) {
-    console.log('[MTA] Station routes cache missing — building...')
-    import('./build_station_routes.mjs').catch(err => console.error('[MTA] Build error:', err.message))
-  }
-  // Log GTFS cache status
-  if (fs.existsSync(GTFS_ZIP)) {
-    const ageDays = (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000
-    const sizeMB = (fs.statSync(GTFS_ZIP).size / 1e6).toFixed(1)
-    console.log(`[GTFS] Cache: ${sizeMB}MB, age: ${ageDays.toFixed(1)} days${ageDays > 7 ? ' ⚠️  consider refreshing' : ''}`)
-  }
+  
+  // Load GTFS and MTA caches in background — don't block startup
+  setImmediate(() => {
+    loadGTFS().catch(err => console.error('[GTFS] Init error:', err.message))
+    
+    const stationRoutesFile = path.join(__dirname, '..', '.cache', 'mta_station_routes.json')
+    if (!fs.existsSync(stationRoutesFile)) {
+      console.log('[MTA] Station routes cache missing — building...')
+      import('./build_station_routes.mjs').catch(err => console.error('[MTA] Build error:', err.message))
+    }
+    
+    if (fs.existsSync(GTFS_ZIP)) {
+      const ageDays = (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000
+      const sizeMB = (fs.statSync(GTFS_ZIP).size / 1e6).toFixed(1)
+      console.log(`[GTFS] Cache: ${sizeMB}MB, age: ${ageDays.toFixed(1)} days${ageDays > 7 ? ' ⚠️  consider refreshing' : ''}`)
+    }
+  })
 })
 
 // GTFS cache status endpoint
