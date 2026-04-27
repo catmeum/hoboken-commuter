@@ -1930,6 +1930,21 @@ app.get('/api/mtabus/query', strictLimiter, async (req, res) => {
   }
 })
 
+// GTFS cache status endpoint — must be before production catch-all
+app.get('/api/bus/gtfs-status', (req, res) => {
+  const exists = fs.existsSync(GTFS_ZIP)
+  const ageDays = exists ? (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000 : null
+  const sizeMB = exists ? (fs.statSync(GTFS_ZIP).size / 1e6).toFixed(1) : null
+  res.json({
+    cached: exists,
+    loaded: gtfsLoaded,
+    ageDays: ageDays ? parseFloat(ageDays.toFixed(1)) : null,
+    sizeMB: sizeMB ? parseFloat(sizeMB) : null,
+    stale: ageDays ? ageDays > 7 : false,
+    lastModified: exists ? new Date(fs.statSync(GTFS_ZIP).mtimeMs).toISOString() : null,
+  })
+})
+
 // ══════════════════════════════════════════════════════════
 // Production mode — serve built frontend + proxy external APIs
 // In dev, Vite handles these. In prod (NODE_ENV=production),
@@ -2003,17 +2018,4 @@ app.listen(PORT, () => {
   })
 })
 
-// GTFS cache status endpoint
-app.get('/api/bus/gtfs-status', (req, res) => {
-  const exists = fs.existsSync(GTFS_ZIP)
-  const ageDays = exists ? (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000 : null
-  const sizeMB = exists ? (fs.statSync(GTFS_ZIP).size / 1e6).toFixed(1) : null
-  res.json({
-    cached: exists,
-    loaded: gtfsLoaded,
-    ageDays: ageDays ? parseFloat(ageDays.toFixed(1)) : null,
-    sizeMB: sizeMB ? parseFloat(sizeMB) : null,
-    stale: ageDays ? ageDays > 7 : false,
-    lastModified: exists ? new Date(fs.statSync(GTFS_ZIP).mtimeMs).toISOString() : null,
-  })
-})
+
