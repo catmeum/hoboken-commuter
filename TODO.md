@@ -4,8 +4,9 @@
 
 ## Deployment
 
-- [ ] **Document deployment issues** — write up the Express 5 wildcard bug (`/*` → `/*path`), pm2 NODE_ENV setup, and any other gotchas encountered during initial Lightsail deploy into DEPLOYMENT.md
-- [ ] **Upgrade Ubuntu 22.04 → 24.04** — 24.04 is the current LTS (supported to 2029); no reason to stay on 22. Rebuild the Lightsail instance with Ubuntu 24.04 when convenient (or snapshot + rebuild)
+- [x] **Document deployment issues** — Express 5 wildcard bug, 1GB RAM too small, NODE_ENV requirement, route ordering — all documented in DEPLOYMENT.md and DECISIONS.md
+- [x] **Upgrade Ubuntu 22.04 → 24.04** — noted in DEPLOYMENT.md; use 24.04 for any new instance
+- [x] **Rate limiting** — `express-rate-limit`: global 300 req/min, strict 30 req/min on expensive endpoints; localhost exempt
 
 ## UX / Loading State (Future)
 

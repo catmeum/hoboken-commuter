@@ -1,21 +1,23 @@
 # Deploying to AWS Lightsail
 
-This guide walks through setting up the Hoboken Commuter Dashboard on a $5/mo AWS Lightsail VPS with automatic deploys from GitHub.
+This guide walks through setting up the Hoboken Commuter Dashboard on AWS Lightsail with automatic deploys from GitHub.
 
 ## Overview
 
-- **Server:** AWS Lightsail $5/mo instance (1 vCPU, 1GB RAM, 40GB SSD)
+- **Server:** AWS Lightsail **$10/mo** instance (2 vCPU, 2GB RAM, 60GB SSD) — see note below on why 2GB
 - **Process manager:** pm2 (keeps the server running, auto-restarts on crash)
-- **Auto-deploy:** GitHub Actions — every push to `master` deploys automatically
+- **Auto-deploy:** GitHub Actions — every push to `master` deploys automatically (doc-only pushes skipped)
 - **HTTPS:** Caddy (free, auto-renews Let's Encrypt certificates)
+
+> ⚠️ **Use the 2GB RAM plan, not 1GB.** The `npm run build` step during deploys requires significant memory. On a 1GB instance, the build exhausts RAM, the OS kills processes, and the server ends up in a broken state with SSH hanging. 2GB resolves this completely. See DECISIONS.md for full explanation.
 
 ---
 
 ## Step 1 — Create the Lightsail Instance
 
 1. Go to [lightsail.aws.amazon.com](https://lightsail.aws.amazon.com)
-2. Create instance → **Linux/Unix** → **OS Only** → **Ubuntu 22.04 LTS**
-3. Choose **$5/mo** plan (1GB RAM)
+2. Create instance → **Linux/Unix** → **OS Only** → **Ubuntu 24.04 LTS**
+3. Choose **$10/mo** plan (2GB RAM) — do not use 1GB, builds will fail
 4. Name it `hoboken-commuter`
 5. Create a **static IP** and attach it to the instance (free while attached)
 6. In the **Networking** tab, open ports: **22** (SSH), **80** (HTTP), **443** (HTTPS)
@@ -90,8 +92,8 @@ mkdir -p .cache
 ```bash
 cd /app/hoboken-commuter
 
-# Start the server
-pm2 start server/index.js --name hoboken-commuter
+# Start the server with NODE_ENV=production
+NODE_ENV=production pm2 start server/index.js --name hoboken-commuter --node-args="--max-old-space-size=1536"
 
 # Save pm2 config so it restarts on reboot
 pm2 save
@@ -224,6 +226,11 @@ npm ci && pm2 restart hoboken-commuter
 
 ## Known Issues & Gotchas
 
+### Use 2GB RAM — 1GB is not enough
+The 1GB Lightsail plan causes SSH to hang and the service to fail continuously during deploys. The root cause is `npm run build` exhausting available RAM, causing the OS to kill processes mid-deploy. Symptoms: GitHub Actions SSH step hangs indefinitely, pm2 shows the app as errored, server becomes unresponsive.
+
+**Fix:** Use the $10/mo 2GB plan. The extra $5/mo is worth it — 1GB is simply not viable for a Node.js app that builds on the server.
+
 ### Express 5 wildcard routes require named parameters
 Express 5 (used in this project) uses `path-to-regexp` v8 which no longer accepts unnamed wildcards. Any route using `/*` will throw at startup in production.
 
@@ -248,5 +255,10 @@ NODE_ENV=production pm2 start server/index.js --name hoboken-commuter
 ```
 Or in a pm2 ecosystem file, or as a system environment variable.
 
+### API routes must be registered before the production catch-all
+In production mode, Express serves the React SPA via a `*path` catch-all that returns `index.html` for any unmatched path. Any `app.get('/api/...')` route registered **after** this catch-all will return HTML instead of JSON.
+
+All API endpoints must be defined before the `if (process.env.NODE_ENV === 'production')` block in `server/index.js`.
+
 ### Ubuntu version
-Initial setup used Ubuntu 22.04 LTS. Ubuntu 24.04 LTS is preferred for new instances (supported until 2029). Node 20 runs on both without issues.
+Use Ubuntu 24.04 LTS for new instances (supported until 2029). The initial setup used 22.04 — both work fine with Node 20, but 24.04 is preferred going forward.

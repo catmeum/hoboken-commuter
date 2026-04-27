@@ -182,3 +182,39 @@ The station-to-route mapping is built by parsing the full MTA subway GTFS static
 
 The PATH GTFS-RT community feed only reports each train's next stop — not the full trip sequence. Filtering by `stopId === '26729'` (Hoboken) would only catch trains still sitting at Hoboken, missing all trains already en route. The fix matches on `routeId + directionId` only and takes the earliest reported stop time as the ETA. This correctly captures all trains heading in the right direction regardless of where they currently are.
 
+
+## Why Lightsail VPS instead of App Runner or Amplify
+
+AWS Amplify is designed for static frontends + serverless (Lambda) backends. This app is a **persistent Node.js server** — it holds the NJT auth token in memory (20h TTL), caches GTFS data in memory and on disk, and maintains in-memory caches for PATH, ferry, and MTA feeds. Lambda functions are stateless and spin down between requests, which would cause constant re-authentication and cache misses.
+
+AWS App Runner is closer but lacks persistent disk — the `.cache/gtfs.zip` would be lost on every deploy, forcing a 31MB re-download each time.
+
+A Lightsail VPS ($5/mo, 2GB RAM) gives a persistent process, persistent disk, predictable flat billing, and the ability to host multiple apps on the same instance later. GitHub Actions handles auto-deploy via SSH on every push to `master`.
+
+## Why 2GB RAM on Lightsail (not 1GB)
+
+The initial deployment used a 1GB RAM instance. This caused SSH connections to hang during deploys and the service to fail continuously. The root cause: `npm run build` (Vite + React) requires significant memory, and with only 1GB the build process would exhaust RAM, causing the OS to kill processes and leaving the server in a broken state.
+
+Upgrading to the 2GB plan ($10/mo) resolved all stability issues immediately. For a Node.js app that also runs `npm run build` on the server during deploys, 2GB is the practical minimum.
+
+## Why the production catch-all must come last
+
+In production mode, Express serves the React SPA via a `*path` catch-all route that returns `index.html` for any unmatched path. Any API endpoint registered **after** this catch-all will never be reached — the catch-all intercepts the request first and returns HTML.
+
+The `/api/bus/gtfs-status` endpoint was originally registered after `app.listen()`, which placed it after the catch-all in Express's route stack. It returned HTML instead of JSON in production. The fix: register all API endpoints before the production static-serving block.
+
+**Rule:** all `app.get('/api/...')` routes must be defined before `app.use(express.static(...))` and the `*path` catch-all.
+
+## Why Express 5 requires named wildcards
+
+Express 5 upgraded its underlying `path-to-regexp` library to v8, which no longer accepts unnamed wildcards (`*`). Routes like `app.get('/*', ...)` throw a `TypeError` at startup.
+
+The fix is to name the wildcard: `app.get('/*path', ...)`. The captured value is then available as `req.params.path` instead of `req.params[0]`. In this app, the production proxy routes used `req.path` directly (not `req.params`), so only the route definition needed updating — no handler logic changed.
+
+This bug only manifested in production because in dev, Vite's proxy intercepts `/api/panynj/*` and `/api/nws/*` before Express ever sees them.
+
+## Why doc-only pushes skip the deploy workflow
+
+The GitHub Actions deploy workflow runs `npm ci`, `npm run build`, and restarts pm2 on every push. For documentation-only changes (`.md` files, `icon-drafts.html`), this is wasteful — it takes 2-3 minutes and restarts the live server unnecessarily.
+
+The workflow uses `paths-ignore` to skip deploys when only doc files change. Code changes (`src/`, `server/`, `package.json`, etc.) still trigger a full deploy.

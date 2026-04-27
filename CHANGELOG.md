@@ -1,5 +1,26 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v1.9.0 (2026-04-26)
+
+### Production Deployment (AWS Lightsail)
+- App is now live on AWS Lightsail VPS with auto-deploy via GitHub Actions
+- GitHub Actions workflow: push to `master` → SSH → pull → `npm ci` → `npm run build` → pm2 restart
+- `paths-ignore` added to workflow so doc-only pushes don't trigger deploys
+- Production server mode: Express serves built React SPA from `dist/` and proxies PANYNJ + NWS directly
+
+### Rate Limiting & Security
+- `express-rate-limit` added: global 300 req/min per IP, strict 30 req/min on NJT Rail / MTA Bus / weather zip
+- Localhost (`127.0.0.1`, `::1`) exempt from all rate limits (dev/test never blocked)
+- CORS restricted to `ALLOWED_ORIGIN` env var (defaults to `*` in dev)
+- Input sanitization on bus stop search and weather zip endpoints
+
+### Bug Fixes
+- **Express 5 wildcard routes** — unnamed `/*` throws in Express 5 (`path-to-regexp` v8); renamed to `/*path` on all three routes (`/api/panynj/*path`, `/api/nws/*path`, `*path` catch-all)
+- **`/api/bus/gtfs-status` returning HTML** — endpoint was registered after `app.listen()`, after the production `*path` catch-all; moved before the production block so it responds correctly
+- **Regression test suite expanded** — 238 tests, 0 failures; covers alert filtering logic, settings panel structure, card routing, dark mode CSS, and all deployment-related code paths
+
+---
+
 ## v1.8.0 (2026-04-25)
 
 ### Custom Transit Icons
