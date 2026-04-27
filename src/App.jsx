@@ -2769,6 +2769,13 @@ export default function App() {
         return <DynamicBusCard key={stopId} stopId={stopId} displayName={catalogStop?.name || dynamicStopNames[stopId]} />
       })}
 
+      {/* Footer */}
+      <footer className="dashboard-footer">
+        <span>We ❤️ public transit</span>
+        <span className="footer-sep">·</span>
+        <span>Like this dashboard? <a href="https://venmo.com/u/IanStroz" target="_blank" rel="noopener noreferrer">Buy me a coffee ☕</a></span>
+      </footer>
+
       <SettingsPanel
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
