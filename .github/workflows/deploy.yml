@@ -3,6 +3,16 @@ name: Deploy to Lightsail
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'TODO.md'
+      - 'DECISIONS.md'
+      - 'CHANGELOG.md'
+      - 'DEPLOYMENT.md'
+      - 'README.md'
+      - 'DATA_SOURCES.md'
+      - 'public/icon-drafts.html'
+      - '.gitignore'
 
 jobs:
   deploy:

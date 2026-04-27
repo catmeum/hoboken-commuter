@@ -2,6 +2,18 @@
 
 ## Active
 
+## Deployment
+
+- [ ] **Document deployment issues** — write up the Express 5 wildcard bug (`/*` → `/*path`), pm2 NODE_ENV setup, and any other gotchas encountered during initial Lightsail deploy into DEPLOYMENT.md
+- [ ] **Upgrade Ubuntu 22.04 → 24.04** — 24.04 is the current LTS (supported to 2029); no reason to stay on 22. Rebuild the Lightsail instance with Ubuntu 24.04 when convenient (or snapshot + rebuild)
+
+## UX / Loading State (Future)
+
+- [ ] **GTFS loading status API** — update `/api/bus/gtfs-status` to return `{ status: "building" | "ready", progress?: string }` so the frontend can poll it during startup
+- [ ] **App-level loading screen** — on initial load, poll `/api/bus/gtfs-status` every 3s; while `status === "building"` show a full-screen overlay with spinner and "Loading transit data, please wait…"
+- [ ] **Panel-level graceful degradation** — instead of panels hanging, show skeleton loader or "Data loading…" placeholder while GTFS builds, then auto-refresh when ready
+- [ ] **Auto-refresh on ready** — when poll detects `status === "ready"`, dismiss loading screen and trigger a data fetch across all panels automatically
+
 ## Backlog
 
 - [ ] **Clinton St service note** — hardcoded hours; could derive from GTFS dynamically

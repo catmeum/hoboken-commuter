@@ -219,3 +219,34 @@ npm ci && pm2 restart hoboken-commuter
 | `NODE_ENV` | Set to `production` on server | Yes |
 | `ALLOWED_ORIGIN` | Your domain (e.g. `https://yourdomain.com`) | Recommended |
 | `BUS_API_PORT` | Server port (default: 3001) | No |
+
+---
+
+## Known Issues & Gotchas
+
+### Express 5 wildcard routes require named parameters
+Express 5 (used in this project) uses `path-to-regexp` v8 which no longer accepts unnamed wildcards. Any route using `/*` will throw at startup in production.
+
+**Fix:** rename all wildcards:
+```js
+// ❌ Express 4 style — breaks in Express 5
+app.get('/api/panynj/*', ...)
+app.get('*', ...)
+
+// ✅ Express 5 style
+app.get('/api/panynj/*path', ...)
+app.get('*path', ...)
+```
+This only affects production because in dev, Vite handles `/api/panynj/*` and `/api/nws/*` via its own proxy — Express never sees those routes.
+
+### NODE_ENV must be set explicitly for production mode
+The server checks `process.env.NODE_ENV === 'production'` to enable static file serving and the PANYNJ/NWS proxy routes. If this isn't set, the server starts but serves no frontend and tunnels/weather won't work.
+
+Set it in the pm2 start command:
+```bash
+NODE_ENV=production pm2 start server/index.js --name hoboken-commuter
+```
+Or in a pm2 ecosystem file, or as a system environment variable.
+
+### Ubuntu version
+Initial setup used Ubuntu 22.04 LTS. Ubuntu 24.04 LTS is preferred for new instances (supported until 2029). Node 20 runs on both without issues.
