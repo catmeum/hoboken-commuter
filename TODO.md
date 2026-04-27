@@ -6,9 +6,9 @@
 
 ## Feature Backlog
 
-- [ ] **Google Analytics** — add GA4 to track visitors and custom events for which transit cards are enabled (fire an event on settings save with the card list). Useful for understanding real usage patterns.
+- [x] **Google Analytics** — GA4 tag in `index.html`; custom `settings_saved` event fires on every Save Changes with full card config
 - [ ] **Multiple location presets** — add preset configs for Hoboken, Jersey City, and NYC commuters with different default transit cards for each. Could be a first-run picker or a "Load preset" option in settings.
-- [ ] **Pull-to-refresh** — add pull-down gesture on mobile to trigger a full data refresh across all cards. Standard mobile UX pattern.
+- [x] **Pull-to-refresh** — pull-down gesture on mobile triggers full data refresh across all cards; blue progress bar indicator
 - [ ] **Phone / iPad app** — wrap as a PWA (Progressive Web App) first: add `manifest.json`, service worker, and iOS meta tags so it can be installed to home screen. Longer term: Capacitor wrapper for a native App Store build.
 - [ ] **Dashboard theme refresh** — current theme feels generic/AI-generated. Redesign with a more distinct visual identity — consider a transit-inspired aesthetic (think MTA signage, NJT colors, or a clean commuter board look).
 
