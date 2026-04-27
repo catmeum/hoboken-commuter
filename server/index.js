@@ -296,10 +296,42 @@ async function fetchVehiclePositions() {
 // Bus helpers
 // ══════════════════════════════════════════════════════════
 
+// All transit schedules (NJT GTFS, ferry scheduledMin, gate hours) are in Eastern Time.
+// The server may run in UTC (e.g. Lightsail). Always use Eastern time for display and comparisons.
+const EASTERN_TZ = 'America/New_York'
+
+function nowEastern() {
+  // Returns { h, m, s, totalMinutes } in Eastern Time
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TZ,
+    hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false,
+  }).formatToParts(new Date())
+  const get = (type) => parseInt(parts.find(p => p.type === type)?.value || '0')
+  const h = get('hour') % 24  // Intl can return 24 for midnight
+  const m = get('minute')
+  const s = get('second')
+  return { h, m, s, totalMinutes: h * 60 + m }
+}
+
+function dateToEastern(date) {
+  // Returns { h, m } for a Date object converted to Eastern Time
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TZ,
+    hour: 'numeric', minute: 'numeric', hour12: false,
+  }).formatToParts(date)
+  const get = (type) => parseInt(parts.find(p => p.type === type)?.value || '0')
+  return { h: get('hour') % 24, m: get('minute') }
+}
+
 function formatTime(h, m) {
   const ampm = h >= 12 ? 'PM' : 'AM'
   const h12 = h % 12 || 12
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+}
+
+function formatTimeFromDate(date) {
+  const { h, m } = dateToEastern(date)
+  return formatTime(h, m)
 }
 
 // Headsign → friendly variant label
@@ -313,8 +345,8 @@ function parseVariant(headsign) {
 }
 
 function getScheduleFallback(stopIds, limit = 6, filterRoutes = null, filterHeadsigns = null, excludeHeadsigns = null) {
-  const now = new Date()
-  const nowTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`
+  const { h: nowH, m: nowM, s: nowS, totalMinutes: nowTotalMin } = nowEastern()
+  const nowTime = `${String(nowH).padStart(2,'0')}:${String(nowM).padStart(2,'0')}:${String(nowS).padStart(2,'0')}`
   const upcoming = []
   for (const sid of stopIds) {
     for (const entry of (scheduleByStop[sid] || [])) {
@@ -325,7 +357,7 @@ function getScheduleFallback(stopIds, limit = 6, filterRoutes = null, filterHead
         if (filterHeadsigns && !filterHeadsigns.some(f => hsUpper.includes(f.toUpperCase()))) continue
         if (excludeHeadsigns && excludeHeadsigns.some(f => hsUpper.includes(f.toUpperCase()))) continue
         const [eh, em] = entry.departureTime.split(':').map(Number)
-        const etaMin = (eh * 60 + em) - (now.getHours() * 60 + now.getMinutes())
+        const etaMin = (eh * 60 + em) - nowTotalMin
         if (etaMin > 0 && etaMin < 180) {
           upcoming.push({
             route: entry.route,
@@ -372,7 +404,7 @@ async function getRealtimeBuses(stopIds, limit = 6, filterRoutes = null, filterH
         results.push({
           route,
           eta: Math.round((t - now) / 60),
-          etaTime: formatTime(d.getHours(), d.getMinutes()),
+          etaTime: formatTimeFromDate(d),
           source: 'realtime', tripId,
           capacity: occMap[tripId] || 'unknown',
           headsign,
@@ -427,7 +459,7 @@ async function fetchBusAlerts() {
 
 function getCurrentGate(gateConfig) {
   if (!gateConfig) return null
-  const h = new Date().getHours()
+  const { h } = nowEastern()
   if (h >= 6 && h < 22) return gateConfig.day       // 6 AM – 10 PM
   if (h >= 22 || h < 1) return gateConfig.late       // 10 PM – 1 AM
   return gateConfig.overnight                         // 1 AM – 6 AM
@@ -741,7 +773,7 @@ app.get('/api/path/gtfsrt', async (req, res) => {
           departures.push({
             dest: pathLine.dest,
             eta: Math.round((earliest - now) / 60),
-            etaTime: formatTime(d.getHours(), d.getMinutes()),
+            etaTime: formatTimeFromDate(d),
             source: 'realtime',
           })
         }
@@ -882,7 +914,7 @@ app.get('/api/path/query', async (req, res) => {
         departures.push({
           dest: `${stopName} (${thisRoute})`,
           eta: Math.round((earliest - now) / 60),
-          etaTime: formatTime(d.getHours(), d.getMinutes()),
+          etaTime: formatTimeFromDate(d),
           source: 'realtime',
         })
       }
@@ -962,10 +994,10 @@ app.get('/api/ferry', async (req, res) => {
               etaMin = trip.eta
               source = 'realtime'
               const d = new Date(Date.now() + trip.eta * 60_000)
-              etaTimeStr = formatTime(d.getHours(), d.getMinutes())
+              etaTimeStr = formatTimeFromDate(d)
             } else if (trip.scheduledMin != null) {
-              const now = new Date()
-              etaMin = trip.scheduledMin - (now.getHours() * 60 + now.getMinutes())
+              const { totalMinutes: nowMin } = nowEastern()
+              etaMin = trip.scheduledMin - nowMin
               if (etaMin <= 0) continue
               source = 'schedule'
               etaTimeStr = formatTime(Math.floor(trip.scheduledMin / 60), trip.scheduledMin % 60)
@@ -1011,10 +1043,10 @@ app.get('/api/ferry/query', async (req, res) => {
               etaMin = trip.eta
               source = 'realtime'
               const dt = new Date(Date.now() + trip.eta * 60_000)
-              etaTimeStr = formatTime(dt.getHours(), dt.getMinutes())
+              etaTimeStr = formatTimeFromDate(dt)
             } else if (trip.scheduledMin != null) {
-              const now = new Date()
-              etaMin = trip.scheduledMin - (now.getHours() * 60 + now.getMinutes())
+              const { totalMinutes: nowMin } = nowEastern()
+              etaMin = trip.scheduledMin - nowMin
               if (etaMin <= 0) continue
               source = 'schedule'
               etaTimeStr = formatTime(Math.floor(trip.scheduledMin / 60), trip.scheduledMin % 60)
@@ -1320,7 +1352,7 @@ app.get('/api/mta/query', async (req, res) => {
             if (t && t > now) {
               const d = new Date(t * 1000)
               const dir = stu.stopId.endsWith('N') ? 'Uptown' : stu.stopId.endsWith('S') ? 'Downtown' : ''
-              departures.push({ dest: `${route} ${dir}`.trim(), route, eta: Math.round((t - now) / 60), etaTime: formatTime(d.getHours(), d.getMinutes()), source: 'realtime' })
+              departures.push({ dest: `${route} ${dir}`.trim(), route, eta: Math.round((t - now) / 60), etaTime: formatTimeFromDate(d), source: 'realtime' })
             }
           }
         }
@@ -1500,7 +1532,7 @@ app.get('/api/rail/query', strictLimiter, async (req, res) => {
         eta = Math.max(0, Math.round((schedDate.getTime() + secLate * 1000 - now.getTime()) / 60000))
       }
       const schedDate = new Date(item.SCHED_DEP_DATE)
-      const etaTime = formatTime(schedDate.getHours(), schedDate.getMinutes())
+      const etaTime = formatTimeFromDate(schedDate)
 
       return {
         dest: item.DESTINATION,
@@ -1643,7 +1675,7 @@ app.get('/api/nycferry/query', async (req, res) => {
             route: routeId,
             lineColor: routeInfo?.color || '#00839C',
             eta: Math.round((t - now) / 60),
-            etaTime: formatTime(d.getHours(), d.getMinutes()),
+            etaTime: formatTimeFromDate(d),
             source: 'realtime',
           })
         }
@@ -1773,7 +1805,7 @@ app.get('/api/lirr/query', async (req, res) => {
             route,
             lineColor: routeInfo?.color || '#006EC7',
             eta: Math.round((t - now) / 60),
-            etaTime: formatTime(d.getHours(), d.getMinutes()),
+            etaTime: formatTimeFromDate(d),
             source: 'realtime',
           })
         }
@@ -1822,7 +1854,7 @@ app.get('/api/mnr/query', async (req, res) => {
             route,
             lineColor: routeInfo?.color || '#009B3A',
             eta: Math.round((t - now) / 60),
-            etaTime: formatTime(d.getHours(), d.getMinutes()),
+            etaTime: formatTimeFromDate(d),
             source: 'realtime',
           })
         }
@@ -1914,7 +1946,7 @@ app.get('/api/mtabus/query', strictLimiter, async (req, res) => {
         dest: j.DestinationName || '?',
         eta: eta ?? 99,
         distance: dist,
-        etaTime: call.ExpectedArrivalTime ? formatTime(new Date(call.ExpectedArrivalTime).getHours(), new Date(call.ExpectedArrivalTime).getMinutes()) : '',
+        etaTime: call.ExpectedArrivalTime ? formatTimeFromDate(new Date(call.ExpectedArrivalTime)) : '',
         source: 'realtime',
       }
     })
