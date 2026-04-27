@@ -4,6 +4,8 @@
  * All endpoints accept ?dir=outbound (default, Hoboken→NYC) or ?dir=inbound (NYC→Hoboken)
  */
 
+// imports for the server start
+
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
