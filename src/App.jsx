@@ -38,7 +38,7 @@ function isDaytime() {
 }
 
 // ── Polling hook — clears data when fetchFn changes (e.g. direction switch) ──
-function usePolling(fetchFn, intervalMs) {
+function usePolling(fetchFn, intervalMs, refreshKey = 0) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
 
@@ -58,7 +58,7 @@ function usePolling(fetchFn, intervalMs) {
     poll()
     const id = setInterval(poll, intervalMs)
     return () => clearInterval(id)
-  }, [poll, intervalMs])
+  }, [poll, intervalMs, refreshKey])
 
   return { data, error }
 }
@@ -2519,6 +2519,16 @@ function loadSettings() {
 function saveSettings(settings) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+    // Fire GA4 event with card configuration
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'settings_saved', {
+        outbound_cards: (settings.outboundStops || []).join(','),
+        inbound_cards: (settings.inboundStops || []).join(','),
+        outbound_city: settings.outboundCity,
+        inbound_city: settings.inboundCity,
+        card_count: (settings.outboundStops?.length || 0) + (settings.inboundStops?.length || 0),
+      })
+    }
   } catch {}
 }
 
@@ -2540,32 +2550,33 @@ export default function App() {
   const [showTunnels, setShowTunnels] = useState(() => loadSettings().showTunnels)
   const [showWeather, setShowWeather] = useState(() => loadSettings().showWeather)
   const [selectedTunnels, setSelectedTunnels] = useState(() => loadSettings().selectedTunnels)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const dirLabel = direction === 'outbound' ? `${outboundCity} → ${inboundCity}` : `${inboundCity} → ${outboundCity}`
 
   // Live data — all direction-aware
   const tunnelFetcher = useCallback(() => fetchTunnels(direction, selectedTunnels), [direction, selectedTunnels])
-  const { data: tunnelData, error: tunnelError } = usePolling(tunnelFetcher, 120_000)
+  const { data: tunnelData, error: tunnelError } = usePolling(tunnelFetcher, 120_000, refreshKey)
   const tunnels = tunnelData || TUNNEL_FALLBACK
 
   // Weather auto-matches direction: outbound shows outbound city weather, inbound shows inbound city weather
   const activeWeatherLocation = direction === 'outbound' ? outboundWeather : inboundWeather
   const weatherFetcher = useCallback(() => fetchWeather(activeWeatherLocation), [activeWeatherLocation])
-  const { data: weatherData, error: weatherError } = usePolling(weatherFetcher, 600_000)
+  const { data: weatherData, error: weatherError } = usePolling(weatherFetcher, 600_000, refreshKey)
   const weather = weatherData || WEATHER_FALLBACK
 
   const busFetcher = useCallback(() => fetchBusArrivals(direction), [direction])
-  const { data: busData, error: busError } = usePolling(busFetcher, 30_000)
+  const { data: busData, error: busError } = usePolling(busFetcher, 30_000, refreshKey)
   const defaultBusFallback = direction === 'inbound' ? BUS_FALLBACK_INBOUND : BUS_FALLBACK
   const busStops = busData || defaultBusFallback
   const busStopOrder = busStops._stopOrder || defaultBusFallback._stopOrder
 
   const ferryFetcher = useCallback(() => fetchFerry(direction), [direction])
-  const { data: ferryData, error: ferryError } = usePolling(ferryFetcher, 30_000)
+  const { data: ferryData, error: ferryError } = usePolling(ferryFetcher, 30_000, refreshKey)
   const ferry = ferryData || FERRY_FALLBACK
 
   const pathFetcher = useCallback(() => fetchPath(direction), [direction])
-  const { data: pathData, error: pathError } = usePolling(pathFetcher, 15_000)
+  const { data: pathData, error: pathError } = usePolling(pathFetcher, 15_000, refreshKey)
   const path = pathData || PATH_FALLBACK
 
   // Collect all MTA lines from dashboard cards for alert polling
@@ -2581,7 +2592,7 @@ export default function App() {
     const data = await res.json()
     return data.alerts || []
   }, [mtaLinesParam])
-  const { data: mtaAlertData } = usePolling(mtaAlertFetcher, 120_000)
+  const { data: mtaAlertData } = usePolling(mtaAlertFetcher, 120_000, refreshKey)
   const mtaAlerts = mtaAlertData || []
 
   // Collect NJT Rail station codes for alert polling
@@ -2597,7 +2608,7 @@ export default function App() {
     const data = await res.json()
     return (data.alerts || []).map(text => ({ text }))
   }, [firstRailStation])
-  const { data: railAlertData } = usePolling(railAlertFetcher, 120_000)
+  const { data: railAlertData } = usePolling(railAlertFetcher, 120_000, refreshKey)
   const railAlerts = railAlertData || []
 
   useEffect(() => {
@@ -2626,8 +2637,41 @@ export default function App() {
 
   const tickerItems = buildTickerItems(tunnels, ferry, path, busStops, mtaAlerts, railAlerts, alertSettings, activeAlertSources)
 
+  // Pull-to-refresh
+  const pullRef = useRef({ startY: 0, pulling: false })
+  const [pullProgress, setPullProgress] = useState(0) // 0–1
+  const PULL_THRESHOLD = 80 // px to trigger refresh
+
+  function onTouchStart(e) {
+    if (window.scrollY === 0) {
+      pullRef.current = { startY: e.touches[0].clientY, pulling: true }
+    }
+  }
+  function onTouchMove(e) {
+    if (!pullRef.current.pulling) return
+    const dy = e.touches[0].clientY - pullRef.current.startY
+    if (dy > 0) setPullProgress(Math.min(dy / PULL_THRESHOLD, 1))
+  }
+  function onTouchEnd() {
+    if (pullRef.current.pulling && pullProgress >= 1) {
+      setRefreshKey(k => k + 1)
+      if (window.gtag) window.gtag('event', 'pull_to_refresh')
+    }
+    pullRef.current.pulling = false
+    setPullProgress(0)
+  }
+
   return (
-    <div className="dashboard">
+    <div
+      className="dashboard"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Pull-to-refresh indicator */}
+      {pullProgress > 0 && (
+        <div className="pull-indicator" style={{ opacity: pullProgress, transform: `scaleX(${pullProgress})` }} />
+      )}
       {/* Connectivity alert */}
       <ConnectivityBanner errors={[tunnelError, weatherError, busError, ferryError, pathError]} />
 

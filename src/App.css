@@ -9,7 +9,20 @@
   overflow: hidden;
 }
 
-/* ── Connectivity Banner ── */
+/* Pull-to-refresh indicator — thin bar at top that fills as you pull */
+.pull-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--accent-blue);
+  transform-origin: left;
+  z-index: 1000;
+  transition: opacity 0.1s;
+  border-radius: 0 2px 2px 0;
+}
+
 .connectivity-banner {
   grid-column: 1 / -1;
   display: flex;
