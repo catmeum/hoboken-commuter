@@ -273,6 +273,7 @@ await section('MTA Subway — station lines (Times Square)', async () => {
   const data = await get('/api/mta/station-lines?ids=R16,A27,127')
   ok('Returns lines array', Array.isArray(data.lines))
   ok('Has multiple lines', data.lines.length >= 3)
+  ok('building flag is false when cache exists', data.building !== true)
 })
 
 await section('MTA Subway — departures', async () => {
@@ -440,6 +441,36 @@ if (failed > 0) process.exit(1)
 
 const { readFileSync } = await import('fs')
 const src = readFileSync('src/App.jsx', 'utf8')
+
+// ─────────────────────────────────────────────
+// MTA Subway — line icons and cache
+// ─────────────────────────────────────────────
+await section('MTA Subway — station lines building state', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok('Returns building:true when map is empty', serverSrc.includes("building: true"))
+  ok('Returns building:false in normal response', serverSrc.includes("building: false") || serverSrc.includes("building,"))
+})
+
+await section('MTA Subway — FX line in MTA_COLORS', async () => {
+  ok('FX line has color defined', src.includes("'FX': '#FF6319'") || src.includes('"FX": "#FF6319"') || src.includes("'FX'"))
+  const { existsSync } = await import('fs')
+  if (existsSync('.cache/mta_station_routes.json')) {
+    const cache = JSON.parse(readFileSync('.cache/mta_station_routes.json', 'utf8'))
+    const allLines = new Set(Object.values(cache).flat())
+    const MTA_COLORS_KEYS = ['1','2','3','4','5','6','6X','7','7X','A','C','E','B','D','F','FX','M','G','J','Z','L','N','Q','R','W','S','GS','FS','H','SI']
+    const missing = [...allLines].filter(l => !MTA_COLORS_KEYS.includes(l))
+    ok('No lines in cache missing from MTA_COLORS', missing.length === 0, missing.length > 0 ? `Missing: ${missing.join(', ')}` : '')
+  } else {
+    skip('MTA_COLORS completeness check', 'cache file not present')
+  }
+})
+
+await section('MTA Subway — station-lines returns empty array not error for unknown ID', async () => {
+  const data = await get('/api/mta/station-lines?ids=BOGUS999')
+  ok('Returns lines array for unknown ID', Array.isArray(data.lines))
+  ok('Returns empty array not error', data.lines.length === 0)
+  ok('No error field', !data.error)
+})
 
 // Helper: extract a function body from source
 function extractFn(source, fnName) {

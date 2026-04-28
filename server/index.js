@@ -1297,9 +1297,13 @@ function loadStationRoutes() {
 
 app.get('/api/mta/station-lines', async (req, res) => {
   const ids = (req.query.ids || '').split(',').filter(Boolean)
-  if (ids.length === 0) return res.json({ lines: [] })
+  if (ids.length === 0) return res.json({ lines: [], building: false })
 
   const map = loadStationRoutes()
+  // If the cache file hasn't been built yet, signal the frontend
+  if (Object.keys(map).length === 0) {
+    return res.json({ lines: [], building: true })
+  }
   const lines = new Set()
   for (const id of ids) {
     const routes = map[id]

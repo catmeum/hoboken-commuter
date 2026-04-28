@@ -1024,7 +1024,7 @@ const MTA_COLORS = {
   '4': '#00933C', '5': '#00933C', '6': '#00933C', '6X': '#00933C',
   '7': '#B933AD', '7X': '#B933AD',
   'A': '#0039A6', 'C': '#0039A6', 'E': '#0039A6',
-  'B': '#FF6319', 'D': '#FF6319', 'F': '#FF6319', 'M': '#FF6319',
+  'B': '#FF6319', 'D': '#FF6319', 'F': '#FF6319', 'FX': '#FF6319', 'M': '#FF6319',
   'G': '#6CBE45',
   'J': '#996633', 'Z': '#996633',
   'L': '#A7A9AC',
@@ -1692,12 +1692,26 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
   async function selectSubwayStation(station) {
     setSelectedStation(station)
+    setStationLines([])
+    setSelectedSubwayLines(new Set())
     // Load which lines serve this station
     try {
       const res = await fetch(`/api/mta/station-lines?ids=${station.ids.join(',')}`)
       const data = await res.json()
-      setStationLines(data.lines || [])
-      setSelectedSubwayLines(new Set(data.lines || []))
+      if (data.building) {
+        // Cache still building — retry after 3 seconds
+        setTimeout(async () => {
+          try {
+            const res2 = await fetch(`/api/mta/station-lines?ids=${station.ids.join(',')}`)
+            const data2 = await res2.json()
+            setStationLines(data2.lines || [])
+            setSelectedSubwayLines(new Set(data2.lines || []))
+          } catch {}
+        }, 3000)
+      } else {
+        setStationLines(data.lines || [])
+        setSelectedSubwayLines(new Set(data.lines || []))
+      }
     } catch { setStationLines([]) }
   }
 
@@ -2102,7 +2116,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
           {step === 'subway-dir' && selectedStation && (
             <div className="subway-dir-picker">
-              {stationLines.length > 0 && (
+              {stationLines.length > 0 ? (
                 <>
                   <div className="subway-lines-label">Lines at this station</div>
                   <div className="subway-lines-row">
@@ -2113,6 +2127,8 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
                     ))}
                   </div>
                 </>
+              ) : (
+                <div className="settings-stop-empty" style={{ fontSize: '12px' }}>Loading lines… (station data building, please wait)</div>
               )}
               <div className="subway-lines-label" style={{ marginTop: '12px' }}>Direction</div>
               <div className="subway-dir-options">
