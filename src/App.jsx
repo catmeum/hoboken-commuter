@@ -710,6 +710,13 @@ function DynamicHblrCard({ stopId, displayName, alertSettings, activeAlertSource
 
   const buses = data?.buses || []
   const name = displayName || shortenStopName(data?.stop) || stopId
+
+  // Backfill the stop name into persistent cache so settings panel shows it after reload
+  useEffect(() => {
+    if (data?.stop && !displayName) {
+      persistDynamicStopName(stopId, shortenStopName(data.stop))
+    }
+  }, [data?.stop, stopId, displayName])
   const showAlerts = activeAlertSources?.has('hblr') && alertSettings?.hblr !== false
 
   return (
@@ -1310,6 +1317,27 @@ const dynamicStopNames = {
   'path_33newport': '33rd St → Newport',
   'path_hobwtc': 'Hoboken → WTC',
   'path_wtchob': 'WTC → Hoboken',
+  // Default HBLR stops (names from GTFS; will be overwritten by persistDynamicStopName on first add)
+  'hblr:15534': 'Hoboken Terminal',
+  'hblr:15537': '9th St',
+}
+
+// Restore any persisted dynamic stop names from localStorage (e.g. HBLR, dynamic bus, etc.)
+// This ensures the settings panel shows friendly names after a page reload.
+const STOP_NAMES_KEY = 'hoboken-commuter-stop-names'
+try {
+  const saved = localStorage.getItem(STOP_NAMES_KEY)
+  if (saved) Object.assign(dynamicStopNames, JSON.parse(saved))
+} catch {}
+
+function persistDynamicStopName(id, name) {
+  dynamicStopNames[id] = name
+  try {
+    const saved = localStorage.getItem(STOP_NAMES_KEY)
+    const existing = saved ? JSON.parse(saved) : {}
+    existing[id] = name
+    localStorage.setItem(STOP_NAMES_KEY, JSON.stringify(existing))
+  } catch {}
 }
 
 function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
@@ -1455,7 +1483,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
       const shortName = shortenStopName(selectedBusStop.name)
       cardName = `${shortName} (${lineSuffix})`
     }
-    dynamicStopNames[stopId] = cardName
+    persistDynamicStopName(stopId, cardName)
     onAdd(stopId)
     handleClose()
   }
@@ -1463,7 +1491,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
   function selectStop(stopId) {
     if (selectedLine && selectedLine.stops) {
       const cs = selectedLine.stops.find(s => s.id === stopId)
-      if (cs) dynamicStopNames[stopId] = cs.name
+      if (cs) persistDynamicStopName(stopId, cs.name)
     }
     onAdd(stopId)
     handleClose()
@@ -1493,7 +1521,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     const tag = selectedFerryTerminal.tag
     const termName = selectedFerryTerminal.name
     const stopId = `ferry:${tag}:${routeNo}:${destName || ''}`
-    dynamicStopNames[stopId] = `${termName} → ${destName || routeNo}`
+    persistDynamicStopName(stopId, `${termName} → ${destName || routeNo}`)
     onAdd(stopId)
     handleClose()
   }
@@ -1522,7 +1550,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     const routes = option.routeIds.join(',')
     const stopId = `path:${routes}:${option.dirId}:${selectedPathStation.id}`
     const routeLabel = option.routeNames.join('/')
-    dynamicStopNames[stopId] = `${selectedPathStation.name} · ${routeLabel} ${option.label}`
+    persistDynamicStopName(stopId, `${selectedPathStation.name} · ${routeLabel} ${option.label}`)
     onAdd(stopId)
     handleClose()
   }
@@ -1562,7 +1590,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     const stopId = `rail:${selectedRailStation.code}:${lines}`
     const lineLabel = selectedRailLines.size === railLines.length && railLines.length > 1
       ? 'all lines' : [...selectedRailLines].map(c => railLines.find(l => l.code === c)?.abbr || c).join('/')
-    dynamicStopNames[stopId] = `${selectedRailStation.name} (${lineLabel})`
+    persistDynamicStopName(stopId, `${selectedRailStation.name} (${lineLabel})`)
     onAdd(stopId)
     handleClose()
   }
@@ -1589,7 +1617,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
   function selectHblrStop(stopId, stopName) {
     const cardId = `hblr:${stopId}`
-    dynamicStopNames[cardId] = shortenStopName(stopName)
+    persistDynamicStopName(cardId, shortenStopName(stopName))
     onAdd(cardId)
     handleClose()
   }
@@ -1607,7 +1635,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
   function selectLirrStation(station) {
     const cardId = `lirr:${station.id}`
-    dynamicStopNames[cardId] = station.name
+    persistDynamicStopName(cardId, station.name)
     onAdd(cardId)
     handleClose()
   }
@@ -1625,7 +1653,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
   function selectMnrStation(station) {
     const cardId = `mnr:${station.id}`
-    dynamicStopNames[cardId] = station.name
+    persistDynamicStopName(cardId, station.name)
     onAdd(cardId)
     handleClose()
   }
@@ -1656,7 +1684,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
   function selectMtaBusStop(stop) {
     const cardId = `mtabus:${stop.id}:${selectedMtaBusRoute.id}`
-    dynamicStopNames[cardId] = `${stop.name} (${selectedMtaBusRoute.name})`
+    persistDynamicStopName(cardId, `${stop.name} (${selectedMtaBusRoute.name})`)
     onAdd(cardId)
     handleClose()
   }
@@ -1674,7 +1702,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
   function selectNycFerryStop(stop) {
     const cardId = `nycferry:${stop.id}`
-    dynamicStopNames[cardId] = stop.name
+    persistDynamicStopName(cardId, stop.name)
     onAdd(cardId)
     handleClose()
   }
@@ -1731,7 +1759,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     const stopId = `mta:${ids}:${selectedDirection}:${lines}`
     const dirLabel = selectedDirection === 'N' ? 'Uptown' : selectedDirection === 'S' ? 'Downtown' : 'All'
     const lineLabels = [...selectedSubwayLines].sort().join('/')
-    dynamicStopNames[stopId] = `${selectedStation.name} (${lineLabels} ${dirLabel})`
+    persistDynamicStopName(stopId, `${selectedStation.name} (${lineLabels} ${dirLabel})`)
     onAdd(stopId)
     handleClose()
   }
@@ -2165,7 +2193,35 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
   )
 }
 
-function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops, inboundStops, alertSettings, activeAlertSources, inlineAlertDuration, tickerSpeed, outboundWeather, inboundWeather, showTunnels, showWeather, selectedTunnels, onSave }) {
+// ── Preset Picker Modal ──
+function PresetPickerModal({ open, onSelect }) {
+  if (!open) return null
+  return (
+    <div className="settings-overlay preset-picker-overlay">
+      <div className="preset-picker-modal">
+        <div className="preset-picker-header">
+          <span className="preset-picker-title">Where do you commute from?</span>
+          <p className="preset-picker-subtitle">Pick a neighborhood to set up your dashboard. You can customize everything in Settings.</p>
+        </div>
+        <div className="preset-picker-grid">
+          {PRESETS.map(preset => (
+            <button
+              key={preset.id}
+              className="preset-picker-card"
+              onClick={() => onSelect(preset)}
+            >
+              <span className="preset-picker-emoji">{preset.emoji}</span>
+              <span className="preset-picker-label">{preset.label}</span>
+              <span className="preset-picker-desc">{preset.description}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops, inboundStops, alertSettings, activeAlertSources, inlineAlertDuration, tickerSpeed, outboundWeather, inboundWeather, showTunnels, showWeather, selectedTunnels, onSave, onShowPresetPicker }) {
   const [draftOutStops, setDraftOutStops] = useState(outboundStops)
   const [draftInStops, setDraftInStops] = useState(inboundStops)
   const [draftOutCity, setDraftOutCity] = useState(outboundCity)
@@ -2205,6 +2261,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
       setDraftShowTunnels(showTunnels)
       setDraftShowWeather(showWeather)
       setDraftTunnels([...selectedTunnels])
+      setConfirmReset(false)
     }
   }, [open])
 
@@ -2479,7 +2536,9 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                   <span className="settings-reset-confirm-text">Reset to defaults?</span>
                   <button className="settings-reset-confirm-btn" onClick={() => {
                     localStorage.removeItem(STORAGE_KEY)
-                    window.location.reload()
+                    localStorage.removeItem(STOP_NAMES_KEY)
+                    onClose()
+                    onShowPresetPicker()
                   }}>Yes, reset</button>
                   <button className="settings-reset-cancel-btn" onClick={() => setConfirmReset(false)}>Cancel</button>
                 </>
@@ -2507,11 +2566,262 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
 
 const STORAGE_KEY = 'hoboken-commuter-settings'
 
+// Fallback HBLR stop IDs used in DEFAULT_SETTINGS.
+// The app fetches /api/bus/hblr-defaults on load and migrates these to the current GTFS IDs.
+const HBLR_DEFAULTS_FALLBACK = { outbound: '15534', inbound: '15537' }
+
+// ── Neighborhood presets ──
+// Each preset defines outbound/inbound stop IDs and the display names to cache.
+// stopNames entries are written to dynamicStopNames so the settings panel shows
+// friendly labels immediately without waiting for an API response.
+const PRESETS = [
+  {
+    id: 'hoboken',
+    label: 'Hoboken',
+    emoji: '🚂',
+    description: 'Bus, PATH, Ferry & HBLR from Hoboken',
+    outboundCity: 'Hoboken',
+    inboundCity: 'NYC',
+    outboundWeather: { label: 'Hoboken', url: '/api/nws/gridpoints/OKX/32,43/forecast/hourly' },
+    inboundWeather:  { label: 'NYC',     url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+    outboundStops: ['clinton', 'willow', 'washington', 'path_hob33', 'ferry_hob14', `hblr:${HBLR_DEFAULTS_FALLBACK.outbound}`],
+    inboundStops:  ['pabt_willow', 'pabt_washington', 'pabt_119', 'path_33hob', 'ferry_w39', `hblr:${HBLR_DEFAULTS_FALLBACK.inbound}`],
+    stopNames: {}, // preconfigured stops already in dynamicStopNames
+  },
+  {
+    id: 'newport',
+    label: 'Newport / JC',
+    emoji: '🌊',
+    description: 'Bus 119, PATH, HBLR & Ferry from Jersey City',
+    outboundCity: 'Jersey City',
+    inboundCity: 'NYC',
+    outboundWeather: { label: 'Jersey City', url: '/api/nws/gridpoints/OKX/33,43/forecast/hourly' },
+    inboundWeather:  { label: 'NYC',         url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+    outboundStops: [
+      'bus:15888:119',          // JFK Blvd & Bayview Ave — Bus 119
+      'path:861,1024:1:newport', // Newport PATH → 33rd St
+      'path:861,1024:1:grove_street', // Grove St PATH → 33rd St
+      'hblr:15497',             // Newport Light Rail Station
+      'ferry:17:23:Brookfield Place', // Paulus Hook → Brookfield Place
+    ],
+    inboundStops: [
+      'bus:15888:119',
+      'path:861,1024:0:newport',
+      'path:861,1024:0:grove_street',
+      'hblr:15497',
+      'ferry:17:23:Brookfield Place',
+    ],
+    stopNames: {
+      'bus:15888:119':                   'JFK Blvd / Bayview (119)',
+      'path:861,1024:1:newport':         'Newport · JSQ-33 To 33rd St',
+      'path:861,1024:0:newport':         'Newport · JSQ-33 To Journal Sq',
+      'path:861,1024:1:grove_street':    'Grove St · JSQ-33 To 33rd St',
+      'path:861,1024:0:grove_street':    'Grove St · JSQ-33 To Hoboken',
+      'hblr:15497':                      'Newport',
+      'ferry:17:23:Brookfield Place':    'Paulus Hook → Brookfield Pl',
+    },
+  },
+  {
+    id: 'midtown',
+    label: 'Midtown Manhattan',
+    emoji: '🗽',
+    description: 'Times Sq, Grand Central, Penn Station & more',
+    outboundCity: 'NYC',
+    inboundCity: 'Hoboken',
+    outboundWeather: { label: 'NYC',     url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+    inboundWeather:  { label: 'Hoboken', url: '/api/nws/gridpoints/OKX/32,43/forecast/hourly' },
+    outboundStops: [
+      'mta:127,725,902,R16:S:1,2,3,7,7X,GS,N,Q,R,W', // Times Sq-42 St
+      'mta:631,723,901:S:4,5,6,6X,7,7X,GS',           // Grand Central-42 St
+      'mta:120,A28:S:1,2,3,A,C,E,N,Q,R,W',            // 34 St-Penn Station
+      'mta:D17,R17:S:B,D,F,FX,M,N,Q,R,W',             // 34 St-Herald Sq
+      'mta:D15:S:B,D,F,FX,M',                          // 47-50 Sts-Rockefeller Ctr
+      'nycferry:17',                                    // NYC Ferry E 34th St
+    ],
+    inboundStops: [
+      'mta:127,725,902,R16:N:1,2,3,7,7X,GS,N,Q,R,W',
+      'mta:631,723,901:N:4,5,6,6X,7,7X,GS',
+      'mta:120,A28:N:1,2,3,A,C,E,N,Q,R,W',
+      'mta:D17,R17:N:B,D,F,FX,M,N,Q,R,W',
+      'mta:D15:N:B,D,F,FX,M',
+      'nycferry:17',
+    ],
+    stopNames: {
+      'mta:127,725,902,R16:S:1,2,3,7,7X,GS,N,Q,R,W': 'Times Sq-42 St (Downtown)',
+      'mta:631,723,901:S:4,5,6,6X,7,7X,GS':           'Grand Central-42 St (Downtown)',
+      'mta:120,A28:S:1,2,3,A,C,E,N,Q,R,W':            '34 St-Penn Station (Downtown)',
+      'mta:D17,R17:S:B,D,F,FX,M,N,Q,R,W':             '34 St-Herald Sq (Downtown)',
+      'mta:D15:S:B,D,F,FX,M':                          '47-50 Sts-Rockefeller Ctr (Downtown)',
+      'mta:127,725,902,R16:N:1,2,3,7,7X,GS,N,Q,R,W': 'Times Sq-42 St (Uptown)',
+      'mta:631,723,901:N:4,5,6,6X,7,7X,GS':           'Grand Central-42 St (Uptown)',
+      'mta:120,A28:N:1,2,3,A,C,E,N,Q,R,W':            '34 St-Penn Station (Uptown)',
+      'mta:D17,R17:N:B,D,F,FX,M,N,Q,R,W':             '34 St-Herald Sq (Uptown)',
+      'mta:D15:N:B,D,F,FX,M':                          '47-50 Sts-Rockefeller Ctr (Uptown)',
+      'nycferry:17':                                    'East 34th St Ferry',
+    },
+  },
+  {
+    id: 'downtown',
+    label: 'Downtown Manhattan',
+    emoji: '🏙️',
+    description: 'Fulton St, Wall St, Chambers St & more',
+    outboundCity: 'NYC',
+    inboundCity: 'Hoboken',
+    outboundWeather: { label: 'NYC',     url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+    inboundWeather:  { label: 'Hoboken', url: '/api/nws/gridpoints/OKX/32,43/forecast/hourly' },
+    outboundStops: [
+      'mta:229,418,A38,G36,M22:S:2,3,4,5,A,C,G,J,Z', // Fulton St
+      'mta:230,419:S:2,3,4,5',                         // Wall St
+      'mta:137,A36,M21:S:1,2,3,A,C,J,Z',              // Chambers St
+      'mta:640:S:4,5,6,6X',                            // Brooklyn Bridge-City Hall
+      'mta:420:S:4,5',                                  // Bowling Green
+      'nycferry:87',                                    // NYC Ferry Wall St/Pier 11
+    ],
+    inboundStops: [
+      'mta:229,418,A38,G36,M22:N:2,3,4,5,A,C,G,J,Z',
+      'mta:230,419:N:2,3,4,5',
+      'mta:137,A36,M21:N:1,2,3,A,C,J,Z',
+      'mta:640:N:4,5,6,6X',
+      'mta:420:N:4,5',
+      'nycferry:87',
+    ],
+    stopNames: {
+      'mta:229,418,A38,G36,M22:S:2,3,4,5,A,C,G,J,Z': 'Fulton St (Downtown)',
+      'mta:230,419:S:2,3,4,5':                         'Wall St (Downtown)',
+      'mta:137,A36,M21:S:1,2,3,A,C,J,Z':              'Chambers St (Downtown)',
+      'mta:640:S:4,5,6,6X':                            'Brooklyn Bridge-City Hall (Downtown)',
+      'mta:420:S:4,5':                                  'Bowling Green (Downtown)',
+      'mta:229,418,A38,G36,M22:N:2,3,4,5,A,C,G,J,Z': 'Fulton St (Uptown)',
+      'mta:230,419:N:2,3,4,5':                         'Wall St (Uptown)',
+      'mta:137,A36,M21:N:1,2,3,A,C,J,Z':              'Chambers St (Uptown)',
+      'mta:640:N:4,5,6,6X':                            'Brooklyn Bridge-City Hall (Uptown)',
+      'mta:420:N:4,5':                                  'Bowling Green (Uptown)',
+      'nycferry:87':                                    'Wall St/Pier 11 Ferry',
+    },
+  },
+  {
+    id: 'brooklyn',
+    label: 'Brooklyn',
+    emoji: '🌉',
+    description: 'Atlantic Av, Jay St, Borough Hall & more',
+    outboundCity: 'Brooklyn',
+    inboundCity: 'Manhattan',
+    outboundWeather: { label: 'Brooklyn', url: '/api/nws/gridpoints/OKX/35,43/forecast/hourly' },
+    inboundWeather:  { label: 'Manhattan', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+    outboundStops: [
+      'mta:235,D24,R31:S:2,3,4,5,B,D,N,Q,R,W', // Atlantic Av-Barclays Ctr
+      'mta:A41,R29:S:A,C,F,FX,N,R,W',           // Jay St-MetroTech
+      'mta:232,423:S:2,3,4,5',                   // Borough Hall
+      'mta:L16,R30:S:B,D,N,Q,R,W',              // DeKalb Av
+      'mta:A42:S:A,C,G',                         // Hoyt-Schermerhorn Sts
+      'mta:236,F20:S:2,3,4,F,G',                // Bergen St
+    ],
+    inboundStops: [
+      'mta:235,D24,R31:N:2,3,4,5,B,D,N,Q,R,W',
+      'mta:A41,R29:N:A,C,F,FX,N,R,W',
+      'mta:232,423:N:2,3,4,5',
+      'mta:L16,R30:N:B,D,N,Q,R,W',
+      'mta:A42:N:A,C,G',
+      'mta:236,F20:N:2,3,4,F,G',
+    ],
+    stopNames: {
+      'mta:235,D24,R31:S:2,3,4,5,B,D,N,Q,R,W': 'Atlantic Av-Barclays Ctr (Downtown)',
+      'mta:A41,R29:S:A,C,F,FX,N,R,W':           'Jay St-MetroTech (Downtown)',
+      'mta:232,423:S:2,3,4,5':                   'Borough Hall (Downtown)',
+      'mta:L16,R30:S:B,D,N,Q,R,W':              'DeKalb Av (Downtown)',
+      'mta:A42:S:A,C,G':                         'Hoyt-Schermerhorn Sts (Downtown)',
+      'mta:236,F20:S:2,3,4,F,G':                'Bergen St (Downtown)',
+      'mta:235,D24,R31:N:2,3,4,5,B,D,N,Q,R,W': 'Atlantic Av-Barclays Ctr (Uptown)',
+      'mta:A41,R29:N:A,C,F,FX,N,R,W':           'Jay St-MetroTech (Uptown)',
+      'mta:232,423:N:2,3,4,5':                   'Borough Hall (Uptown)',
+      'mta:L16,R30:N:B,D,N,Q,R,W':              'DeKalb Av (Uptown)',
+      'mta:A42:N:A,C,G':                         'Hoyt-Schermerhorn Sts (Uptown)',
+      'mta:236,F20:N:2,3,4,F,G':                'Bergen St (Uptown)',
+    },
+  },
+  {
+    id: 'queens',
+    label: 'Queens',
+    emoji: '✈️',
+    description: 'Jackson Hts, Flushing, Jamaica & more',
+    outboundCity: 'Queens',
+    inboundCity: 'Manhattan',
+    outboundWeather: { label: 'Queens',    url: '/api/nws/gridpoints/OKX/36,44/forecast/hourly' },
+    inboundWeather:  { label: 'Manhattan', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+    outboundStops: [
+      'mta:G14:S:E,F,FX,M,R',    // Jackson Hts-Roosevelt Av
+      'mta:701:S:7,7X',           // Flushing-Main St
+      'mta:F01:S:F,FX',           // Jamaica-179 St
+      'mta:G08:S:E,F,FX,M,R',    // Forest Hills-71 Av
+      'mta:G11,J15:S:E,F,J,M,R,Z', // Woodhaven Blvd
+      'mta:G05:S:E,J,Z',          // Jamaica Center-Parsons/Archer
+    ],
+    inboundStops: [
+      'mta:G14:N:E,F,FX,M,R',
+      'mta:701:N:7,7X',
+      'mta:F01:N:F,FX',
+      'mta:G08:N:E,F,FX,M,R',
+      'mta:G11,J15:N:E,F,J,M,R,Z',
+      'mta:G05:N:E,J,Z',
+    ],
+    stopNames: {
+      'mta:G14:S:E,F,FX,M,R':      'Jackson Hts-Roosevelt Av (Downtown)',
+      'mta:701:S:7,7X':             'Flushing-Main St (Downtown)',
+      'mta:F01:S:F,FX':             'Jamaica-179 St (Downtown)',
+      'mta:G08:S:E,F,FX,M,R':      'Forest Hills-71 Av (Downtown)',
+      'mta:G11,J15:S:E,F,J,M,R,Z': 'Woodhaven Blvd (Downtown)',
+      'mta:G05:S:E,J,Z':            'Jamaica Center (Downtown)',
+      'mta:G14:N:E,F,FX,M,R':      'Jackson Hts-Roosevelt Av (Uptown/Queens)',
+      'mta:701:N:7,7X':             'Flushing-Main St (Uptown/Queens)',
+      'mta:F01:N:F,FX':             'Jamaica-179 St (Uptown/Queens)',
+      'mta:G08:N:E,F,FX,M,R':      'Forest Hills-71 Av (Uptown/Queens)',
+      'mta:G11,J15:N:E,F,J,M,R,Z': 'Woodhaven Blvd (Uptown/Queens)',
+      'mta:G05:N:E,J,Z':            'Jamaica Center (Uptown/Queens)',
+    },
+  },
+]
+
+// Apply a preset: write stop names to cache and save settings
+function applyPreset(preset, hblrDefaults) {
+  // Resolve HBLR fallback IDs to current GTFS IDs if we have them
+  const resolveHblr = (stops) => stops.map(id => {
+    if (id === `hblr:${HBLR_DEFAULTS_FALLBACK.outbound}` && hblrDefaults?.outbound) return `hblr:${hblrDefaults.outbound}`
+    if (id === `hblr:${HBLR_DEFAULTS_FALLBACK.inbound}`  && hblrDefaults?.inbound)  return `hblr:${hblrDefaults.inbound}`
+    return id
+  })
+  const outStops = resolveHblr(preset.outboundStops)
+  const inStops  = resolveHblr(preset.inboundStops)
+
+  // Cache all stop names so settings panel shows friendly labels
+  for (const [id, name] of Object.entries(preset.stopNames)) {
+    persistDynamicStopName(id, name)
+  }
+  // Also cache HBLR names if resolved
+  if (hblrDefaults?.outbound && hblrDefaults?.outboundName) {
+    persistDynamicStopName(`hblr:${hblrDefaults.outbound}`, shortenStopName(hblrDefaults.outboundName))
+  }
+  if (hblrDefaults?.inbound && hblrDefaults?.inboundName) {
+    persistDynamicStopName(`hblr:${hblrDefaults.inbound}`, shortenStopName(hblrDefaults.inboundName))
+  }
+
+  const settings = {
+    ...DEFAULT_SETTINGS,
+    outboundCity:    preset.outboundCity,
+    inboundCity:     preset.inboundCity,
+    outboundWeather: preset.outboundWeather,
+    inboundWeather:  preset.inboundWeather,
+    outboundStops:   outStops,
+    inboundStops:    inStops,
+  }
+  saveSettings(settings)
+  return settings
+}
+
 const DEFAULT_SETTINGS = {
   outboundCity: 'Hoboken',
   inboundCity: 'NYC',
-  outboundStops: ['clinton', 'willow', 'washington', 'path_hob33', 'ferry_hob14', 'hblr:15534'],
-  inboundStops: ['pabt_willow', 'pabt_washington', 'pabt_119', 'path_33hob', 'ferry_w39', 'hblr:15537'],
+  outboundStops: ['clinton', 'willow', 'washington', 'path_hob33', 'ferry_hob14', `hblr:${HBLR_DEFAULTS_FALLBACK.outbound}`],
+  inboundStops: ['pabt_willow', 'pabt_washington', 'pabt_119', 'path_33hob', 'ferry_w39', `hblr:${HBLR_DEFAULTS_FALLBACK.inbound}`],
   outboundWeather: { label: 'Hoboken', url: '/api/nws/gridpoints/OKX/32,43/forecast/hourly' },
   inboundWeather: { label: 'NYC', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
   alertSettings: {},
@@ -2567,6 +2877,65 @@ export default function App() {
   const [showWeather, setShowWeather] = useState(() => loadSettings().showWeather)
   const [selectedTunnels, setSelectedTunnels] = useState(() => loadSettings().selectedTunnels)
   const [refreshKey, setRefreshKey] = useState(0)
+
+  // Show preset picker on first load (no saved settings) or after reset
+  const [presetPickerOpen, setPresetPickerOpen] = useState(() => !localStorage.getItem(STORAGE_KEY))
+  // Cache HBLR defaults from server so applyPreset can resolve them
+  const [hblrDefaults, setHblrDefaults] = useState(null)
+
+  // On first load, fetch HBLR default stop IDs from the server (resolved from current GTFS data).
+  // This keeps the default dashboard in sync with GTFS updates without any code changes.
+  useEffect(() => {
+    fetch('/api/bus/hblr-defaults')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return
+        setHblrDefaults(data)
+        const { outbound: obId, inbound: ibId, outboundName, inboundName } = data
+
+        // Update stop name cache with GTFS-resolved names
+        if (outboundName) persistDynamicStopName(`hblr:${obId}`, shortenStopName(outboundName))
+        if (inboundName)  persistDynamicStopName(`hblr:${ibId}`,  shortenStopName(inboundName))
+
+        // If the user has the old default HBLR IDs, migrate them to the current GTFS IDs.
+        // We only do this for stops that look like the defaults (hblr:XXXXX pattern) —
+        // user-added custom HBLR stops are left alone.
+        const oldObId = HBLR_DEFAULTS_FALLBACK.outbound
+        const oldIbId = HBLR_DEFAULTS_FALLBACK.inbound
+
+        setOutboundStops(prev => {
+          const updated = prev.map(id => id === `hblr:${oldObId}` ? `hblr:${obId}` : id)
+          if (updated.some((id, i) => id !== prev[i])) {
+            const s = loadSettings()
+            saveSettings({ ...s, outboundStops: updated })
+            return updated
+          }
+          return prev
+        })
+        setInboundStops(prev => {
+          const updated = prev.map(id => id === `hblr:${oldIbId}` ? `hblr:${ibId}` : id)
+          if (updated.some((id, i) => id !== prev[i])) {
+            const s = loadSettings()
+            saveSettings({ ...s, inboundStops: updated })
+            return updated
+          }
+          return prev
+        })
+      })
+      .catch(() => {}) // non-fatal — fallback IDs remain in use
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handlePresetSelect(preset) {
+    const settings = applyPreset(preset, hblrDefaults)
+    setOutboundCity(settings.outboundCity)
+    setInboundCity(settings.inboundCity)
+    setOutboundWeather(settings.outboundWeather)
+    setInboundWeather(settings.inboundWeather)
+    setOutboundStops(settings.outboundStops)
+    setInboundStops(settings.inboundStops)
+    setAlertSettings(settings.alertSettings)
+    setPresetPickerOpen(false)
+  }
 
   const dirLabel = direction === 'outbound' ? `${outboundCity} → ${inboundCity}` : `${inboundCity} → ${outboundCity}`
 
@@ -2678,8 +3047,9 @@ export default function App() {
   }
 
   return (
+    <>
     <div
-      className="dashboard"
+      className={`dashboard${presetPickerOpen || settingsOpen ? ' dashboard-blurred' : ''}`}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -2792,51 +3162,59 @@ export default function App() {
         <span>Like this dashboard? <a href="https://venmo.com/u/IanStroz" target="_blank" rel="noopener noreferrer">Buy me a coffee ☕</a></span>
       </footer>
 
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        outboundCity={outboundCity}
-        inboundCity={inboundCity}
-        outboundStops={outboundStops}
-        inboundStops={inboundStops}
-        alertSettings={alertSettings}
-        activeAlertSources={activeAlertSources}
-        inlineAlertDuration={inlineAlertDuration}
-        tickerSpeed={tickerSpeed}
-        outboundWeather={outboundWeather}
-        inboundWeather={inboundWeather}
-        showTunnels={showTunnels}
-        showWeather={showWeather}
-        selectedTunnels={selectedTunnels}
-        onSave={({ outboundStops: os, inboundStops: is, outboundCity: oc, inboundCity: ic, alertSettings: as, inlineAlertDuration: iad, tickerSpeed: ts, outboundWeather: ow, inboundWeather: iw, showTunnels: st, showWeather: sw, selectedTunnels: stun }) => {
-          setOutboundStops(os)
-          setInboundStops(is)
-          if (oc) setOutboundCity(oc)
-          if (ic) setInboundCity(ic)
-          if (as) setAlertSettings(as)
-          if (iad !== undefined) setInlineAlertDuration(iad)
-          if (ts !== undefined) setTickerSpeed(ts)
-          if (ow) setOutboundWeather(ow)
-          if (iw) setInboundWeather(iw)
-          if (st !== undefined) setShowTunnels(st)
-          if (sw !== undefined) setShowWeather(sw)
-          if (stun) setSelectedTunnels(stun)
-          saveSettings({
-            outboundStops: os,
-            inboundStops: is,
-            outboundCity: oc,
-            inboundCity: ic,
-            alertSettings: as,
-            inlineAlertDuration: iad,
-            tickerSpeed: ts,
-            outboundWeather: ow,
-            inboundWeather: iw,
-            showTunnels: st,
-            showWeather: sw,
-            selectedTunnels: stun,
-          })
-        }}
-      />
     </div>
+
+    <SettingsPanel
+      open={settingsOpen}
+      onClose={() => setSettingsOpen(false)}
+      outboundCity={outboundCity}
+      inboundCity={inboundCity}
+      outboundStops={outboundStops}
+      inboundStops={inboundStops}
+      alertSettings={alertSettings}
+      activeAlertSources={activeAlertSources}
+      inlineAlertDuration={inlineAlertDuration}
+      tickerSpeed={tickerSpeed}
+      outboundWeather={outboundWeather}
+      inboundWeather={inboundWeather}
+      showTunnels={showTunnels}
+      showWeather={showWeather}
+      selectedTunnels={selectedTunnels}
+      onShowPresetPicker={() => setPresetPickerOpen(true)}
+      onSave={({ outboundStops: os, inboundStops: is, outboundCity: oc, inboundCity: ic, alertSettings: as, inlineAlertDuration: iad, tickerSpeed: ts, outboundWeather: ow, inboundWeather: iw, showTunnels: st, showWeather: sw, selectedTunnels: stun }) => {
+        setOutboundStops(os)
+        setInboundStops(is)
+        if (oc) setOutboundCity(oc)
+        if (ic) setInboundCity(ic)
+        if (as) setAlertSettings(as)
+        if (iad !== undefined) setInlineAlertDuration(iad)
+        if (ts !== undefined) setTickerSpeed(ts)
+        if (ow) setOutboundWeather(ow)
+        if (iw) setInboundWeather(iw)
+        if (st !== undefined) setShowTunnels(st)
+        if (sw !== undefined) setShowWeather(sw)
+        if (stun) setSelectedTunnels(stun)
+        saveSettings({
+          outboundStops: os,
+          inboundStops: is,
+          outboundCity: oc,
+          inboundCity: ic,
+          alertSettings: as,
+          inlineAlertDuration: iad,
+          tickerSpeed: ts,
+          outboundWeather: ow,
+          inboundWeather: iw,
+          showTunnels: st,
+          showWeather: sw,
+          selectedTunnels: stun,
+        })
+      }}
+    />
+
+    <PresetPickerModal
+      open={presetPickerOpen}
+      onSelect={handlePresetSelect}
+    />
+    </>
   )
 }

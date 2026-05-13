@@ -1729,12 +1729,109 @@
 
 /* Cards stretch to fill remaining column height */
 
+/* ── Preset Picker Modal ── */
+.preset-picker-overlay {
+  z-index: 300; /* above settings panel */
+}
+
+/* Blur the dashboard content behind any modal (settings panel or preset picker) */
+.dashboard.dashboard-blurred {
+  filter: blur(4px) brightness(0.7);
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.2s ease;
+}
+
+.preset-picker-modal {
+  background: var(--bg-card);
+  border-radius: clamp(10px, 1.2vw, 16px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  width: min(520px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.preset-picker-header {
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.preset-picker-title {
+  display: block;
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.preset-picker-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.preset-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 20px 28px 28px;
+}
+
+.preset-picker-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-primary);
+  transition: all 0.15s ease;
+}
+
+.preset-picker-card:hover {
+  border-color: var(--accent-blue);
+  background: rgba(96, 165, 250, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.preset-picker-emoji {
+  font-size: 24px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.preset-picker-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.preset-picker-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
 /* ── Responsive: phone ── */
 @media (max-width: 480px) {
   .dashboard {
     grid-template-columns: 1fr;
     grid-template-rows: auto;
+    height: auto;
+    min-height: 100dvh;
     overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
   }
 
   .top-row {

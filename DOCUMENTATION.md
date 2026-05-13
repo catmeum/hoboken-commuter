@@ -1,6 +1,6 @@
 # Hoboken Commuter Dashboard — Technical Documentation
 
-**Version 1.8.0**
+**Version 2.0.0**
 
 ## Overview
 
@@ -179,19 +179,23 @@ Check cache status: `GET /api/bus/gtfs-status`
 | `GET /api/bus/routes/:route/stops` | All stops for a route |
 | `GET /api/bus/gtfs-status` | Cache age, size, stale flag |
 
-#### Outbound Stop Configuration
-| Stop Name | GTFS stop_id | Routes |
+### Outbound Stop Configuration
+| Stop Name | Name Pattern | Routes |
 |---|---|---|
-| Clinton St & 11th | 7917 | 126 |
-| Washington St & 11th | 7931 | 126, 22, 89 |
-| Willow Ave & 15th | 7940, 16135 | 126, 119, 89 |
+| Clinton St & 11th | `CLINTON` + `11TH` | 126 |
+| Washington St & 11th | `WASHINGTON` + `11TH` | 126, 22, 89 |
+| Willow Ave & 15th | `WILLOW` + `15TH` | 126, 119, 89 |
+
+Stop IDs are resolved from GTFS by name pattern at startup — no hardcoded IDs. After a GTFS re-download, the server automatically finds the correct stop IDs. Fallback IDs are used only if name resolution fails.
 
 #### Inbound Stop Configuration (PABT)
-| Card Name | GTFS stop_ids | Gate (day) |
+| Card Name | Name Pattern | Gate (day) |
 |---|---|---|
-| 126 Willow / Hamilton Pk | 16977, 16809 | 214 |
-| 126 Washington | 16977, 16808 | 213 |
-| 119 | 16977, 16803, 16856 | 210 |
+| 126 Willow / Hamilton Pk | `PORT AUTHORITY` + route 126 | 214 |
+| 126 Washington | `PORT AUTHORITY` + route 126 | 213 |
+| 119 | `PORT AUTHORITY` + route 119 | 210 |
+
+PABT stop IDs are also rebuilt from GTFS at startup — `PABT_STOP_IDS` is populated from any stop whose name contains "PORT AUTHORITY". This ensures gate info shows correctly for dynamically-added PABT routes (e.g. 125) even after NJT renumbers platform IDs.
 
 ---
 
@@ -210,6 +214,8 @@ Check cache status: `GET /api/bus/gtfs-status`
 ### 4. HBLR Light Rail
 
 Uses NJT bus GTFS-RT infrastructure (route `HBLR`). Stops appear in bus stop search. Card shows headsign (destination) on each departure row.
+
+Default stop IDs are resolved from GTFS by name at startup via `/api/bus/hblr-defaults`. The frontend fetches this endpoint on load and migrates any stale IDs in localStorage automatically. Stop names are persisted to `localStorage` under `hoboken-commuter-stop-names` so the settings panel shows friendly labels after a page reload.
 
 ---
 
@@ -337,7 +343,28 @@ Settings are stored in `localStorage` under key `hoboken-commuter-settings`. Inc
 - Show/hide tunnel and weather cards
 - Selected tunnels
 
-**Reset:** Settings panel footer has a "Reset to defaults" button with inline confirmation. Clears localStorage and reloads.
+Dynamic stop display names (for cards added via the picker) are stored separately under `hoboken-commuter-stop-names` and merged into `dynamicStopNames` on load.
+
+**Reset:** Settings panel footer has a "Reset to defaults" button with inline confirmation. Clears both localStorage keys and shows the preset picker.
+
+---
+
+## Neighborhood Presets
+
+On first load (no saved settings) or after a reset, a **preset picker modal** appears over the dashboard. The user picks their neighborhood and the dashboard populates with relevant transit cards.
+
+| Preset | Outbound stops |
+|---|---|
+| Hoboken | Bus 126 (3 stops), PATH HOB→33rd, NYW Ferry, HBLR Hoboken Terminal |
+| Newport / JC | Bus 119 (JFK Blvd), PATH Newport→33rd, PATH Grove St→33rd, HBLR Newport, NYW Ferry Paulus Hook |
+| Midtown Manhattan | Times Sq, Grand Central, 34th Penn, Herald Sq, 47-50 Rockefeller, NYC Ferry E34th |
+| Downtown Manhattan | Fulton St, Wall St, Chambers St, Brooklyn Bridge/City Hall, Bowling Green, NYC Ferry Pier 11 |
+| Brooklyn | Atlantic Av-Barclays, Jay St-MetroTech, Borough Hall, DeKalb Av, Hoyt-Schermerhorn, Bergen St |
+| Queens | Jackson Hts-Roosevelt Av, Flushing-Main St, Jamaica-179 St, Forest Hills-71 Av, Woodhaven Blvd, Jamaica Center |
+
+Each preset defines both outbound and inbound stop lists. Stop names are written to `dynamicStopNames` immediately so the settings panel shows friendly labels without waiting for API responses.
+
+The dashboard blurs and dims behind the picker modal (`filter: blur(4px) brightness(0.7)`) so it doesn't distract from the selection.
 
 ---
 
@@ -367,7 +394,7 @@ Settings are stored in `localStorage` under key `hoboken-commuter-settings`. Inc
 | Data | Cache TTL | Location |
 |---|---|---|
 | NJT auth token | 20 hours | Server memory |
-| GTFS static ZIP | 7 days | `.cache/gtfs.zip` on disk |
+| GTFS static ZIP | **3 days** (NJT license: download within 3 business days) | `.cache/gtfs.zip` on disk |
 | MTA station routes | Until restart | `.cache/mta_station_routes.json` on disk |
 | Trip updates (bus) | 30 seconds | Server memory |
 | Vehicle positions | 30 seconds | Server memory |
@@ -421,7 +448,16 @@ Settings are stored in `localStorage` under key `hoboken-commuter-settings`. Inc
 npm test
 ```
 
-Runs 134 integration tests against the live server covering all endpoints. Server must be running on port 3001.
+Runs integration tests against the live server covering all endpoints plus static source analysis. Server must be running on port 3001.
+
+Test sections include:
+- All transit API endpoints (NJT Bus/Rail, HBLR, PATH, NYW Ferry, NYC Ferry, MTA Subway/Bus, LIRR, Metro-North, Weather)
+- GTFS auto-resolution: verifies outbound stops return only expected routes, HBLR defaults endpoint returns valid stop IDs
+- PABT gate detection: verifies gate info is returned for dynamically-added routes (125, 126, etc.)
+- Preset picker: verifies all 6 presets are defined with required fields, blur CSS is in place, HBLR_DEFAULTS_FALLBACK is defined before PRESETS
+- HBLR name persistence: verifies stop names survive page reload via localStorage
+- Mobile layout: verifies `100dvh`, safe-area-inset, and overflow fixes are present
+- Alert filtering, card routing, settings panel structure, drag-to-reorder
 
 ---
 

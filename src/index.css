@@ -72,6 +72,15 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* On mobile, allow the page to scroll naturally */
+@media (max-width: 480px) {
+  html, body, #root {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg-primary);

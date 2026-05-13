@@ -73,13 +73,42 @@ const NJT_API = 'https://pcsdata.njtransit.com/api/GTFSG2'
 // Direction-based config
 // ══════════════════════════════════════════════════════════
 
+// ── Stop name patterns for GTFS-based resolution ──
+// Instead of hardcoding GTFS stop IDs (which change with each NJT GTFS update),
+// we define name patterns. After GTFS loads, resolveConfiguredStops() finds the
+// matching stop IDs from the current GTFS data automatically.
+//
+// stopNamePatterns: array of substrings that must ALL appear in the stop name (case-insensitive)
+// filterRoutes: only accept stops that serve these routes (prevents false matches)
+// fallbackIds: used only if name resolution fails (last resort, logged as warning)
 const DIRECTIONS = {
   outbound: {
     label: 'Hoboken → NYC',
     busStops: {
-      clinton: { name: 'Clinton St & 11th', stopIds: ['7917'], serviceNote: 'Weekdays only · AM 5:40–9:45 · PM 4:09–8:29' },
-      washington: { name: 'Washington St & 11th', stopIds: ['7931'], serviceNote: null },
-      willow: { name: 'Willow Ave & 15th', stopIds: ['7940', '16135'], serviceNote: null },
+      clinton: {
+        name: 'Clinton St & 11th',
+        stopNamePatterns: ['CLINTON', '11TH'],
+        filterRoutes: ['126'],
+        fallbackIds: ['7917'],
+        stopIds: ['7917'], // resolved at startup; fallback until GTFS loads
+        serviceNote: 'Weekdays only · AM 5:40–9:45 · PM 4:09–8:29',
+      },
+      washington: {
+        name: 'Washington St & 11th',
+        stopNamePatterns: ['WASHINGTON', '11TH'],
+        filterRoutes: ['126'],
+        fallbackIds: ['7931'],
+        stopIds: ['7931'],
+        serviceNote: null,
+      },
+      willow: {
+        name: 'Willow Ave & 15th',
+        stopNamePatterns: ['WILLOW', '15TH'],
+        filterRoutes: ['126'],
+        fallbackIds: ['7940', '16135'],
+        stopIds: ['7940', '16135'],
+        serviceNote: null,
+      },
     },
     busStopOrder: ['clinton', 'willow', 'washington'],
     tunnel: { facilityId: 5, travelDirection: 'ToNY', label: 'Hoboken → NYC' },
@@ -95,26 +124,35 @@ const DIRECTIONS = {
       pabt_willow: {
         name: 'PABT · 126 Willow / Hamilton Pk',
         gate: { day: '214', late: '323', overnight: '79' },
-        stopIds: ['16977', '16809'],
-        serviceNote: 'Peak hours only · check NJT for schedule',
+        // PABT has a fixed master stop ID (16977) plus platform-specific IDs.
+        // Platform IDs can change; resolve by finding PABT stops that serve route 126
+        // with Willow/Hamilton Park headsigns.
+        stopNamePatterns: ['PORT AUTHORITY'],
         filterRoutes: ['126'],
         filterHeadsigns: ['WILLOW', 'HAMILTON PK VIA WILLOW'],
+        fallbackIds: ['16977', '16809'],
+        stopIds: ['16977', '16809'],
+        serviceNote: 'Peak hours only · check NJT for schedule',
       },
       pabt_washington: {
         name: 'PABT · 126 Washington',
         gate: { day: '213', late: '323', overnight: '79' },
-        stopIds: ['16977', '16808'],
-        serviceNote: 'Peak hours only · check NJT for schedule',
+        stopNamePatterns: ['PORT AUTHORITY'],
         filterRoutes: ['126'],
         filterHeadsigns: ['PATH', 'HAMILTON PK VIA HOBOKEN'],
         excludeHeadsigns: ['WILLOW'],
+        fallbackIds: ['16977', '16808'],
+        stopIds: ['16977', '16808'],
+        serviceNote: 'Peak hours only · check NJT for schedule',
       },
       pabt_119: {
         name: 'PABT · 119',
         gate: { day: '210', late: '322', overnight: '80' },
+        stopNamePatterns: ['PORT AUTHORITY'],
+        filterRoutes: ['119'],
+        fallbackIds: ['16977', '16803', '16856'],
         stopIds: ['16977', '16803', '16856'],
         serviceNote: null,
-        filterRoutes: ['119'],
       },
     },
     busStopOrder: ['pabt_willow', 'pabt_washington', 'pabt_119'],
@@ -126,6 +164,18 @@ const DIRECTIONS = {
     ],
     ferry: { stopTag: '14', routeNo: '18', destMatch: 'Hoboken', dest: 'W 39th → Hoboken 14th' },
   },
+}
+
+// HBLR default stops — resolved by name from GTFS at startup.
+// These drive the /api/bus/hblr-defaults endpoint used by the frontend DEFAULT_SETTINGS.
+const HBLR_DEFAULTS = {
+  outbound: { namePatterns: ['HOBOKEN', 'TERMINAL'], fallbackId: '15534' },
+  inbound:  { namePatterns: ['9TH'],                 fallbackId: '15537' },
+}
+// Resolved IDs (populated after GTFS loads)
+let hblrDefaultIds = {
+  outbound: HBLR_DEFAULTS.outbound.fallbackId,
+  inbound:  HBLR_DEFAULTS.inbound.fallbackId,
 }
 
 function getDir(req) {
@@ -174,7 +224,7 @@ async function loadGTFS() {
   if (gtfsLoaded) return
 
   const needsDownload = !fs.existsSync(GTFS_ZIP) ||
-    (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs > 7 * 24 * 60 * 60 * 1000) // refresh every 7 days
+    (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs > 3 * 24 * 60 * 60 * 1000) // refresh every 3 days (NJT license: download within 3 business days)
 
   if (needsDownload) {
     console.log('[GTFS] Downloading static data...')
@@ -248,6 +298,84 @@ async function loadGTFS() {
 
   gtfsLoaded = true
   console.log('[GTFS] Schedule loaded for', Object.keys(scheduleByStop).length, 'stops')
+
+  // ── Resolve configured stop IDs from GTFS by name pattern ──
+  // This replaces hardcoded IDs with whatever the current GTFS data says,
+  // so a GTFS re-download is all that's needed when NJT renumbers stops.
+  console.log('[GTFS] Resolving configured stop IDs by name...')
+
+  // Helper: find all stop IDs whose name matches ALL patterns and serve at least one of the given routes
+  function findStopIdsByName(namePatterns, requiredRoutes) {
+    const pats = namePatterns.map(p => p.toUpperCase())
+    const results = []
+    for (const [stopId, name] of Object.entries(stopNamesMap)) {
+      const upper = (name || '').toUpperCase()
+      if (!pats.every(p => upper.includes(p))) continue
+      if (!scheduleByStop[stopId]) continue
+      if (requiredRoutes) {
+        const routes = new Set(scheduleByStop[stopId].map(e => e.route))
+        if (!requiredRoutes.some(r => routes.has(r))) continue
+      }
+      results.push(stopId)
+    }
+    return results
+  }
+
+  // Resolve bus stop IDs for all configured directions
+  for (const [dirKey, dir] of Object.entries(DIRECTIONS)) {
+    for (const [stopKey, stop] of Object.entries(dir.busStops)) {
+      if (!stop.stopNamePatterns) continue
+      const resolved = findStopIdsByName(stop.stopNamePatterns, stop.filterRoutes || null)
+      if (resolved.length > 0) {
+        stop.stopIds = resolved
+        console.log(`[GTFS] Resolved ${dirKey}/${stopKey} → [${resolved.join(', ')}] (${resolved.map(id => stopNamesMap[id]).join(' | ')})`)
+      } else {
+        stop.stopIds = stop.fallbackIds
+        console.warn(`[GTFS] ⚠️  Could not resolve ${dirKey}/${stopKey} by name — using fallback IDs [${stop.fallbackIds.join(', ')}]`)
+      }
+    }
+  }
+
+  // Resolve HBLR default stop IDs
+  for (const [dirKey, cfg] of Object.entries(HBLR_DEFAULTS)) {
+    const resolved = findStopIdsByName(cfg.namePatterns, ['HBLR'])
+    if (resolved.length > 0) {
+      hblrDefaultIds[dirKey] = resolved[0]
+      console.log(`[GTFS] Resolved HBLR default ${dirKey} → ${resolved[0]} (${stopNamesMap[resolved[0]]})`)
+    } else {
+      hblrDefaultIds[dirKey] = cfg.fallbackId
+      console.warn(`[GTFS] ⚠️  Could not resolve HBLR default ${dirKey} — using fallback ID ${cfg.fallbackId}`)
+    }
+  }
+
+  // Rebuild PABT_STOP_IDS from current GTFS — any stop whose name contains "PORT AUTHORITY"
+  // This keeps isPabtStop() accurate after NJT renumbers platform IDs.
+  for (const [stopId, name] of Object.entries(stopNamesMap)) {
+    if ((name || '').toUpperCase().includes('PORT AUTHORITY') && scheduleByStop[stopId]) {
+      PABT_STOP_IDS.add(stopId)
+    }
+  }
+  console.log(`[GTFS] PABT stop IDs: ${[...PABT_STOP_IDS].sort((a, b) => a - b).join(', ')}`)
+
+  // Validate: log routes served by each resolved stop so mismatches are obvious
+  console.log('[GTFS] Validating resolved stop IDs...')
+  for (const [dirKey, dir] of Object.entries(DIRECTIONS)) {
+    for (const [stopKey, stop] of Object.entries(dir.busStops)) {
+      for (const id of stop.stopIds) {
+        const entries = scheduleByStop[id] || []
+        const routes = [...new Set(entries.map(e => e.route))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+        const name = stopNamesMap[id] || '(unknown)'
+        if (routes.length === 0) {
+          console.warn(`[GTFS] ⚠️  Stop ${id} (${dirKey}/${stopKey}) — "${name}" — NO routes found!`)
+        } else {
+          const expected = stop.filterRoutes
+          const mismatch = expected && !expected.some(r => routes.includes(r))
+          const flag = mismatch ? ' ⚠️  EXPECTED ROUTES NOT FOUND' : ''
+          console.log(`[GTFS] Stop ${id} (${dirKey}/${stopKey}) — "${name}" — routes: ${routes.join(', ')}${flag}`)
+        }
+      }
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -527,7 +655,8 @@ const PABT_GATES_BY_ROUTE = {
   '356': { day: '217', late: '323', overnight: '79' },
 }
 
-// Known PABT GTFS stop IDs (Port Authority Bus Terminal has multiple platform IDs)
+// Known PABT GTFS stop IDs (Port Authority Bus Terminal has multiple platform IDs).
+// Seeded with historically known IDs as a fallback; rebuilt from GTFS after loadGTFS() runs.
 const PABT_STOP_IDS = new Set(['16977', '16012', '16049', '16808', '16809', '16803', '16856'])
 
 function isPabtStop(stopIds) {
@@ -546,6 +675,23 @@ function getPabtGateForRoutes(routes) {
 // ══════════════════════════════════════════════════════════
 // Bus endpoint
 // ══════════════════════════════════════════════════════════
+
+// HBLR default stop IDs — resolved from GTFS by name, used by frontend DEFAULT_SETTINGS
+// Returns the current GTFS stop IDs for the default outbound/inbound HBLR stops.
+// Frontend calls this on first load so defaults are always in sync with current GTFS data.
+app.get('/api/bus/hblr-defaults', async (req, res) => {
+  try {
+    await loadGTFS()
+    res.json({
+      outbound: hblrDefaultIds.outbound,
+      inbound: hblrDefaultIds.inbound,
+      outboundName: stopNamesMap[hblrDefaultIds.outbound] || 'Hoboken Terminal',
+      inboundName: stopNamesMap[hblrDefaultIds.inbound] || '9th St',
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
 
 // Route list — returns all bus route numbers
 let routeListCache = null
@@ -2049,7 +2195,7 @@ app.listen(PORT, () => {
     if (fs.existsSync(GTFS_ZIP)) {
       const ageDays = (Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000
       const sizeMB = (fs.statSync(GTFS_ZIP).size / 1e6).toFixed(1)
-      console.log(`[GTFS] Cache: ${sizeMB}MB, age: ${ageDays.toFixed(1)} days${ageDays > 7 ? ' ⚠️  consider refreshing' : ''}`)
+      console.log(`[GTFS] Cache: ${sizeMB}MB, age: ${ageDays.toFixed(1)} days${ageDays > 3 ? ' ⚠️  consider refreshing (NJT license: 3 business days)' : ''}`)
     }
   })
 })

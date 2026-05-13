@@ -685,7 +685,7 @@ await section('GTFS cache status endpoint', async () => {
   ok('Returns ageDays', data.ageDays === null || typeof data.ageDays === 'number')
   ok('Returns sizeMB', data.sizeMB === null || typeof data.sizeMB === 'number')
   ok('Returns stale flag', typeof data.stale === 'boolean')
-  ok('Cache is not stale (< 7 days)', data.stale === false)
+  ok('Cache is not stale (< 3 days)', data.stale === false)
   ok('GTFS is loaded', data.loaded === true)
 })
 
@@ -725,10 +725,10 @@ await section('NYC Ferry — correct GTFS URL', async () => {
 // ─────────────────────────────────────────────
 // NJT GTFS 7-day refresh
 // ─────────────────────────────────────────────
-await section('NJT GTFS — 7-day refresh interval', async () => {
+await section('NJT GTFS — 3-day refresh interval (updated from 7-day)', async () => {
   const serverSrc = readFileSync('server/index.js', 'utf8')
-  ok('Uses 7-day TTL (not 24h)', serverSrc.includes('7 * 24 * 60 * 60 * 1000'))
-  ok('Does not use 24h TTL', !serverSrc.includes('> 24 * 60 * 60 * 1000'))
+  ok('Uses 3-day TTL', serverSrc.includes('3 * 24 * 60 * 60 * 1000'))
+  ok('Does not use 7-day TTL', !serverSrc.includes('7 * 24 * 60 * 60 * 1000'))
 })
 
 // ─────────────────────────────────────────────
@@ -736,4 +736,209 @@ await section('NJT GTFS — 7-day refresh interval', async () => {
 // ─────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`)
 console.log(`Results: ${passed} passed, ${failed} failed, ${skipped} skipped`)
+if (failed > 0) process.exit(1)
+
+// ═══════════════════════════════════════════════════════════
+// v2.0 — GTFS auto-resolution, PABT gate fix, preset picker,
+//         HBLR name persistence, mobile layout, GTFS TTL
+// ═══════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────
+// GTFS stop ID auto-resolution
+// ─────────────────────────────────────────────
+await section('GTFS — stop ID auto-resolution from name patterns', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok('DIRECTIONS uses stopNamePatterns', serverSrc.includes('stopNamePatterns'))
+  ok('findStopIdsByName helper exists', serverSrc.includes('function findStopIdsByName'))
+  ok('fallbackIds defined for each stop', serverSrc.includes('fallbackIds'))
+  ok('Resolved IDs replace hardcoded ones after GTFS load', serverSrc.includes('stop.stopIds = resolved'))
+  ok('Warns when name resolution fails', serverSrc.includes('Could not resolve'))
+})
+
+await section('GTFS — outbound stops resolve to correct routes (live)', async () => {
+  // After GTFS loads, the /api/bus endpoint should return route 126 for all outbound stops
+  let data, attempts = 0
+  while (attempts < 3) {
+    try { data = await get('/api/bus?dir=outbound'); break }
+    catch { attempts++; await new Promise(r => setTimeout(r, 3000)) }
+  }
+  if (!data) { skip('Outbound stop route validation', 'GTFS still loading'); return }
+  const stops = Object.values(data.stops)
+  ok('At least one outbound stop returned', stops.length > 0)
+  // All buses across all stops should be route 126 (or 119/89/22 for willow/washington)
+  const allBuses = stops.flatMap(s => s.buses || [])
+  const bogusRoutes = allBuses.filter(b => !['126','119','89','22','23'].includes(b.route))
+  ok('No unexpected routes on outbound stops', bogusRoutes.length === 0,
+    bogusRoutes.length > 0 ? `Unexpected: ${[...new Set(bogusRoutes.map(b=>b.route))].join(',')}` : '')
+})
+
+await section('GTFS — HBLR defaults endpoint', async () => {
+  const data = await get('/api/bus/hblr-defaults')
+  ok('Returns outbound stop ID', typeof data.outbound === 'string' && data.outbound.length > 0)
+  ok('Returns inbound stop ID', typeof data.inbound === 'string' && data.inbound.length > 0)
+  ok('Returns outboundName', typeof data.outboundName === 'string' && data.outboundName.length > 0)
+  ok('Returns inboundName', typeof data.inboundName === 'string' && data.inboundName.length > 0)
+  ok('Outbound name contains HOBOKEN or TERMINAL', data.outboundName.toUpperCase().includes('HOBOKEN') || data.outboundName.toUpperCase().includes('TERMINAL'))
+  ok('Inbound name contains 9TH or STREET', data.inboundName.toUpperCase().includes('9TH') || data.inboundName.toUpperCase().includes('STREET'))
+  // Verify the returned IDs actually serve HBLR
+  const outCheck = await get(`/api/bus/stop-routes?id=${data.outbound}`)
+  ok('Outbound HBLR stop serves HBLR route', outCheck.routes.includes('HBLR'))
+  const inCheck = await get(`/api/bus/stop-routes?id=${data.inbound}`)
+  ok('Inbound HBLR stop serves HBLR route', inCheck.routes.includes('HBLR'))
+})
+
+await section('GTFS — 3-day refresh TTL (NJT license compliance)', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok('Uses 3-day TTL', serverSrc.includes('3 * 24 * 60 * 60 * 1000'))
+  ok('Does not use 7-day TTL', !serverSrc.includes('7 * 24 * 60 * 60 * 1000'))
+  ok('Stale warning threshold is 3 days', serverSrc.includes('ageDays > 3'))
+})
+
+// ─────────────────────────────────────────────
+// PABT gate fix — dynamic PABT stop detection
+// ─────────────────────────────────────────────
+await section('PABT — dynamic stop ID detection from GTFS', async () => {
+  const serverSrc = readFileSync('server/index.js', 'utf8')
+  ok('PABT_STOP_IDS rebuilt from GTFS after load', serverSrc.includes('PORT AUTHORITY') && serverSrc.includes('PABT_STOP_IDS.add'))
+  ok('Rebuild logs resolved IDs', serverSrc.includes('PABT stop IDs:'))
+})
+
+await section('PABT — gate shown for route 125 (live)', async () => {
+  // Find a PABT stop that serves route 125
+  const search = await get('/api/bus/stop-search?q=port+authority')
+  const pabtStop = search.stops.find(s => s.name.toUpperCase().includes('PORT AUTHORITY'))
+  if (!pabtStop) { skip('PABT gate for 125', 'no PABT stop in search results'); return }
+  const routeCheck = await get(`/api/bus/stop-routes?id=${pabtStop.id}`)
+  if (!routeCheck.routes.includes('125')) { skip('PABT gate for 125', 'route 125 not in GTFS for this stop'); return }
+  const data = await get(`/api/bus/stops?ids=${pabtStop.id}&routes=125`)
+  ok('isPabt is true for PABT stop', data.isPabt === true)
+  ok('Gate is returned for single-route 125 selection', data.gate !== null && data.gate !== undefined)
+  ok('GateSchedule has day/late/overnight', data.gateSchedule?.day && data.gateSchedule?.late && data.gateSchedule?.overnight)
+})
+
+await section('PABT — gate shown for route 126 (live)', async () => {
+  const search = await get('/api/bus/stop-search?q=port+authority')
+  const pabtStop = search.stops.find(s => s.name.toUpperCase().includes('PORT AUTHORITY'))
+  if (!pabtStop) { skip('PABT gate for 126', 'no PABT stop found'); return }
+  const data = await get(`/api/bus/stops?ids=${pabtStop.id}&routes=126`)
+  ok('isPabt true for 126', data.isPabt === true)
+  ok('Gate returned for 126', data.gate !== null && data.gate !== undefined)
+})
+
+// ─────────────────────────────────────────────
+// HBLR name persistence
+// ─────────────────────────────────────────────
+await section('HBLR — stop name persistence in frontend', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  ok('STOP_NAMES_KEY defined', src.includes("'hoboken-commuter-stop-names'"))
+  ok('persistDynamicStopName writes to localStorage', src.includes('localStorage.setItem(STOP_NAMES_KEY'))
+  ok('Stop names restored from localStorage on load', src.includes('Object.assign(dynamicStopNames'))
+  ok('STOP_NAMES_KEY cleared on reset', src.includes('localStorage.removeItem(STOP_NAMES_KEY)'))
+  ok('DynamicHblrCard backfills name via persistDynamicStopName', src.includes('persistDynamicStopName(stopId'))
+  ok('Default HBLR stops have fallback names in dynamicStopNames', src.includes("'hblr:15534': 'Hoboken Terminal'") || src.includes("'hblr:15534'"))
+})
+
+// ─────────────────────────────────────────────
+// Preset picker
+// ─────────────────────────────────────────────
+await section('Preset picker — structure and content', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  ok('PRESETS array defined', src.includes('const PRESETS = ['))
+  ok('PresetPickerModal component defined', src.includes('function PresetPickerModal('))
+  ok('applyPreset function defined', src.includes('function applyPreset('))
+  ok('presetPickerOpen state initialized from localStorage', src.includes('!localStorage.getItem(STORAGE_KEY)'))
+  ok('handlePresetSelect updates all relevant state', src.includes('function handlePresetSelect('))
+  ok('Picker shown when no saved settings', src.includes("!localStorage.getItem(STORAGE_KEY)"))
+  ok('Reset button shows picker instead of reloading', src.includes('onShowPresetPicker()') && !src.includes('window.location.reload()'))
+})
+
+await section('Preset picker — all 6 presets defined', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  ok("Hoboken preset defined", src.includes("id: 'hoboken'"))
+  ok("Newport/JC preset defined", src.includes("id: 'newport'"))
+  ok("Midtown preset defined", src.includes("id: 'midtown'"))
+  ok("Downtown preset defined", src.includes("id: 'downtown'"))
+  ok("Brooklyn preset defined", src.includes("id: 'brooklyn'"))
+  ok("Queens preset defined", src.includes("id: 'queens'"))
+})
+
+await section('Preset picker — each preset has required fields', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  const presetsStart = src.indexOf('const PRESETS = [')
+  const presetsEnd = src.indexOf('\n]', presetsStart) + 2
+  const presetsBlock = src.slice(presetsStart, presetsEnd)
+  ok('All presets have outboundStops', (presetsBlock.match(/outboundStops:/g) || []).length >= 6)
+  ok('All presets have inboundStops', (presetsBlock.match(/inboundStops:/g) || []).length >= 6)
+  ok('All presets have outboundCity', (presetsBlock.match(/outboundCity:/g) || []).length >= 6)
+  ok('All presets have stopNames map', (presetsBlock.match(/stopNames:/g) || []).length >= 6)
+  ok('All presets have emoji', (presetsBlock.match(/emoji:/g) || []).length >= 6)
+  ok('Midtown preset includes NYC Ferry stop', presetsBlock.includes("nycferry:17"))
+  ok('Downtown preset includes NYC Ferry stop', presetsBlock.includes("nycferry:87"))
+  ok('Newport preset includes HBLR stop', presetsBlock.includes("hblr:15497"))
+  ok('Newport preset includes PATH stop', presetsBlock.includes("path:861"))
+})
+
+await section('Preset picker — HBLR_DEFAULTS_FALLBACK defined before PRESETS', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  const fallbackIdx = src.indexOf('const HBLR_DEFAULTS_FALLBACK')
+  const presetsIdx = src.indexOf('const PRESETS')
+  ok('HBLR_DEFAULTS_FALLBACK defined before PRESETS', fallbackIdx < presetsIdx,
+    `fallback at ${fallbackIdx}, presets at ${presetsIdx}`)
+})
+
+await section('Preset picker — blur effect on dashboard', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  const css = readFileSync('src/App.css', 'utf8')
+  ok('dashboard gets dashboard-blurred class when preset picker or settings open', src.includes('dashboard-blurred'))
+  ok('Blur triggered by both presetPickerOpen and settingsOpen', src.includes('presetPickerOpen || settingsOpen'))
+  ok('CSS blur rule defined for dashboard-blurred', css.includes('.dashboard.dashboard-blurred'))
+  ok('CSS applies filter: blur', css.includes('filter: blur'))
+  ok('Both modals rendered outside dashboard div', (() => {
+    // SettingsPanel and PresetPickerModal should both appear after the closing </div> of the dashboard
+    const lastDivClose = src.lastIndexOf('    </div>\n\n    <SettingsPanel')
+    return lastDivClose > 0
+  })())
+})
+
+await section('Settings panel — reset button two-step confirm', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  ok('confirmReset state initialized to false', src.includes('useState(false)') && src.includes('confirmReset'))
+  ok('confirmReset reset to false when panel opens', src.includes('setConfirmReset(false)') && src.includes('if (open)'))
+  ok('Reset button shows confirm UI only when confirmReset is true', src.includes('{confirmReset ?'))
+  ok('First step shows plain text button (not red)', src.includes("settings-reset-btn") && src.includes("onClick={() => setConfirmReset(true)"))
+  ok('Second step shows red confirm button', src.includes("settings-reset-confirm-btn"))
+  ok('Cancel button returns to first step', src.includes("onClick={() => setConfirmReset(false)"))
+})
+
+// ─────────────────────────────────────────────
+// Mobile layout (iPhone fix)
+// ─────────────────────────────────────────────
+await section('Mobile layout — iPhone viewport and safe area fixes', async () => {
+  const css = readFileSync('src/App.css', 'utf8')
+  const indexCss = readFileSync('src/index.css', 'utf8')
+  ok('Mobile media query exists (max-width: 480px)', css.includes('@media (max-width: 480px)'))
+  ok('Dashboard uses height: auto on mobile', css.includes('height: auto'))
+  ok('Dashboard uses min-height: 100dvh (dynamic viewport)', css.includes('100dvh'))
+  ok('Safe area inset padding applied', css.includes('safe-area-inset-bottom'))
+  ok('index.css overrides overflow: hidden on mobile', indexCss.includes('@media (max-width: 480px)'))
+  ok('html/body overflow set to visible on mobile', indexCss.includes('overflow: visible'))
+})
+// ─────────────────────────────────────────────
+await section('DEFAULT_SETTINGS — correct default card config', async () => {
+  const src = readFileSync('src/App.jsx', 'utf8')
+  ok('HBLR outbound stop in defaults', src.includes(`hblr:\${HBLR_DEFAULTS_FALLBACK.outbound}`) || src.includes("'hblr:15534'"))
+  ok('HBLR inbound stop in defaults', src.includes(`hblr:\${HBLR_DEFAULTS_FALLBACK.inbound}`) || src.includes("'hblr:15537'"))
+  ok('clinton in outbound defaults', src.includes("'clinton'"))
+  ok('path_hob33 in outbound defaults', src.includes("'path_hob33'"))
+  ok('ferry_hob14 in outbound defaults', src.includes("'ferry_hob14'"))
+  ok('pabt_willow in inbound defaults', src.includes("'pabt_willow'"))
+  ok('path_33hob in inbound defaults', src.includes("'path_33hob'"))
+  ok('ferry_w39 in inbound defaults', src.includes("'ferry_w39'"))
+})
+
+// ─────────────────────────────────────────────
+// Summary (final)
+// ─────────────────────────────────────────────
+console.log(`\n${'─'.repeat(50)}`)
+console.log(`Final results: ${passed} passed, ${failed} failed, ${skipped} skipped`)
 if (failed > 0) process.exit(1)

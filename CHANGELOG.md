@@ -1,5 +1,54 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v2.0.0 (2026-05-13)
+
+### Neighborhood Preset Picker
+- First-load onboarding modal: new users pick their neighborhood before seeing the dashboard
+- 6 presets: Hoboken, Newport/JC, Midtown Manhattan, Downtown Manhattan, Brooklyn, Queens
+- Each preset populates both outbound and inbound card lists with relevant transit stops
+- Midtown and Downtown presets include NYC Ferry stops (E34th St and Wall St/Pier 11)
+- Newport preset includes Bus 119, PATH (Newport + Grove St), HBLR Newport, NYW Ferry Paulus Hook
+- Dashboard blurs and dims behind the picker (`filter: blur(4px) brightness(0.7)`) to reduce distraction
+- Reset button in settings now shows the preset picker instead of doing a hard page reload
+- Stop names for all preset stops written to `dynamicStopNames` immediately — settings panel shows friendly labels without waiting for API responses
+
+### GTFS Stop ID Auto-Resolution
+- Hardcoded GTFS stop IDs replaced with name-pattern-based resolution
+- After each GTFS load, `findStopIdsByName()` searches `stops.txt` by name patterns (e.g. `['CLINTON', '11TH']`) and updates `DIRECTIONS` stop IDs automatically
+- HBLR default stops resolved the same way via `/api/bus/hblr-defaults` endpoint
+- Frontend fetches HBLR defaults on load and migrates stale IDs in localStorage
+- Fallback IDs used only if name resolution fails (logged as `⚠️` warning)
+- Fixes bus routes showing wrong numbers after NJT GTFS update (stop IDs had changed)
+
+### PABT Gate Fix for Dynamic Routes
+- `PABT_STOP_IDS` set rebuilt from GTFS after each load — any stop named "PORT AUTHORITY" is included
+- Previously, dynamically-added PABT routes (e.g. 125) showed no gate because new GTFS assigned different platform IDs not in the hardcoded set
+- Gate info now works correctly for all PABT routes added via the picker
+
+### HBLR Stop Name Persistence
+- Dynamic stop names (HBLR, bus, PATH, etc.) now persisted to `localStorage` under `hoboken-commuter-stop-names`
+- Settings panel shows friendly names after page reload (was showing raw IDs like `hblr:15534`)
+- `persistDynamicStopName()` helper writes to both in-memory cache and localStorage
+- `DynamicHblrCard` backfills name from API response on first load
+- Reset clears both `hoboken-commuter-settings` and `hoboken-commuter-stop-names`
+
+### Mobile Layout Fixes (iPhone)
+- `100dvh` (dynamic viewport height) replaces `100vh` — fixes content cut off by iOS Safari browser chrome
+- `env(safe-area-inset-bottom)` padding added — fixes content hidden behind iPhone home indicator
+- `html/body/#root` overflow overridden to `visible` on mobile — was blocking scroll
+- Dashboard height set to `auto` on mobile with `min-height: 100dvh`
+
+### GTFS Cache TTL Reduced to 3 Days
+- Changed from 7 days to 3 days to comply with NJT license (download within 3 business days of update)
+- Stale warning threshold updated to match
+
+### Integration Test Suite Expanded
+- New test sections: GTFS auto-resolution, HBLR defaults endpoint, PABT gate detection, preset picker structure, HBLR name persistence, mobile layout CSS
+- Live runtime tests: verifies outbound stops return only expected routes, HBLR stop IDs serve HBLR route, PABT gate returned for routes 125 and 126
+- Static analysis tests: verifies HBLR_DEFAULTS_FALLBACK defined before PRESETS (prevents blank-page ReferenceError), blur CSS present, PresetPickerModal outside dashboard div
+
+---
+
 ## v1.9.0 (2026-04-26)
 
 ### Production Deployment (AWS Lightsail)
