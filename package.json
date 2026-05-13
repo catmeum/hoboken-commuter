@@ -19,7 +19,7 @@
     "express-rate-limit": "^8.4.1",
     "gtfs-realtime-bindings": "^1.1.1",
     "lucide-react": "^1.8.0",
-    "protobufjs": "^7.5.5",
+    "protobufjs": "^7.5.8",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
