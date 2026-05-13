@@ -42,6 +42,14 @@
 - Changed from 7 days to 3 days to comply with NJT license (download within 3 business days of update)
 - Stale warning threshold updated to match
 
+### Google Analytics
+- GA4 tag added to `index.html`
+- Custom `settings_saved` event fires on every Save Changes with full card config payload
+
+### Pull-to-Refresh
+- Pull-down gesture on mobile triggers a full data refresh across all cards
+- Blue progress bar indicator shown during refresh
+
 ### Integration Test Suite Expanded
 - New test sections: GTFS auto-resolution, HBLR defaults endpoint, PABT gate detection, preset picker structure, HBLR name persistence, mobile layout CSS
 - Live runtime tests: verifies outbound stops return only expected routes, HBLR stop IDs serve HBLR route, PABT gate returned for routes 125 and 126
