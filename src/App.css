@@ -185,6 +185,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(4px, 0.7vw, 12px);
+  max-height: clamp(100px, 16vh, 180px);
 }
 
 /* ── Tunnel Card (Lincoln + Holland) ── */
@@ -330,7 +331,7 @@
   grid-template-columns: 1fr 1fr 1fr;
   gap: clamp(4px, 0.7vw, 10px);
   height: 100%;
-  max-height: clamp(70px, 10vh, 130px);
+  overflow: hidden;
 }
 
 .weather-period {
@@ -338,10 +339,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(1px, 0.2vh, 3px);
+  gap: clamp(1px, 0.25vh, 4px);
   padding: clamp(3px, 0.4vw, 8px);
   background: var(--bg-subtle);
   border-radius: clamp(4px, 0.6vw, 12px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .weather-period-label {
@@ -1857,6 +1860,7 @@
   .top-row {
     grid-column: 1;
     grid-template-columns: 1fr;
+    max-height: none;
   }
 
   .transit-bottom-row {
@@ -1877,9 +1881,6 @@
   }
 
   /* Weather card: restore natural sizing on mobile */
-  .weather-periods {
-    max-height: none;
-  }
 
   /* Bus/transit lists: show all rows, no clipping */
   .bus-list,
