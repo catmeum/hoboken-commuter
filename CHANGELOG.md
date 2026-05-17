@@ -1,5 +1,36 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v2.1.0 (2026-05-17)
+
+### Bug Fixes
+- **MTA Subway station lines stuck on "Loading lines"** — server was caching the empty `{}` result from `mta_station_routes.json` on first read, so all subsequent calls returned empty even after the file was built. Fixed to only cache non-empty results. Frontend retry loop replaced single 3-second retry with up to 10 attempts at increasing backoff (3s–10s).
+- **NJT Rail showing stale past times** — API returns all scheduled trains including already-departed ones. Old code clamped `eta` to `Math.max(0, ...)` making departed trains show as `0 min` with their past scheduled time. Now filters out trains with `eta < -1` before slicing results.
+- **Tunnel inline alerts ignoring "Ticker only" setting** — `TunnelCard` was missing the `inlineAlertDuration !== 0` guard that all other card types use. Added explicit check so "Ticker only" correctly suppresses inline alerts on the tunnel card.
+
+### Weather Card Redesign
+- Stripped down to label + icon + temp + humidity per sub-card (removed wind and description)
+- Temp and humidity displayed on the same row with a `|` separator: `84° | 💧40%`
+- Humidity sourced from NWS `relativeHumidity.value` field (was unused before)
+- Card sizes to its own content (`flex: none` on card-body) — no longer fights for vertical space
+
+### GTFS Age in Settings
+- Settings panel footer now shows NJT Bus data age: e.g. `NJT Bus data: 4.6d old`
+- Turns orange with ⚠️ warning if data is over 3 days old (NJT license threshold)
+- Fetched fresh each time the settings panel opens
+
+### Mobile Layout
+- Transit cards use `height: auto` and `min-height: 80px` on mobile — no longer collapse to zero
+- Card body uses `overflow: visible` on mobile so content is never clipped
+- Bus/transit lists set to `overflow: visible` — all rows show regardless of card height
+
+### Runtime Test Suite
+- Added 11 new runtime test sections covering every card mode end-to-end
+- Each verifies the endpoint returns a valid response, non-negative ETAs, and properly formatted time strings (`/\d+:\d+ (AM|PM)/`)
+- Covers: NJT Bus, NJT Rail, PATH, MTA Subway, LIRR, Metro-North, NYC Ferry, NYW Ferry, MTA Bus, HBLR
+- Total: 362 tests, 0 failures
+
+---
+
 ## v2.0.0 (2026-05-13)
 
 ### Neighborhood Preset Picker
