@@ -328,8 +328,9 @@
 .weather-periods {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: clamp(4px, 0.7vw, 14px);
+  gap: clamp(4px, 0.7vw, 10px);
   height: 100%;
+  max-height: clamp(80px, 12vh, 160px);
 }
 
 .weather-period {
@@ -337,26 +338,26 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(1px, 0.3vh, 5px);
-  padding: clamp(3px, 0.5vw, 12px);
+  gap: clamp(1px, 0.2vh, 3px);
+  padding: clamp(3px, 0.4vw, 8px);
   background: var(--bg-subtle);
   border-radius: clamp(4px, 0.6vw, 12px);
 }
 
 .weather-period-label {
-  font-size: clamp(8px, 1vw, 15px);
+  font-size: clamp(7px, 0.85vw, 12px);
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .weather-icon {
-  font-size: clamp(18px, 2.8vw, 48px);
+  font-size: clamp(14px, 1.8vw, 28px);
   line-height: 1;
 }
 
 .weather-temp {
-  font-size: clamp(16px, 2.6vw, 44px);
+  font-size: clamp(13px, 1.8vw, 28px);
   font-weight: 700;
   line-height: 1;
 }
@@ -1842,5 +1843,28 @@
   .transit-bottom-row {
     grid-column: 1;
     grid-template-columns: 1fr;
+  }
+
+  /* Cards on mobile: auto height, sized to their content */
+  .card {
+    height: auto;
+    min-height: 80px;
+  }
+
+  /* Card body: don't clip content, let it grow naturally */
+  .card-body {
+    overflow: visible;
+    flex: none;
+  }
+
+  /* Weather card: restore natural sizing on mobile */
+  .weather-periods {
+    max-height: none;
+  }
+
+  /* Bus/transit lists: show all rows, no clipping */
+  .bus-list,
+  .transit-list {
+    overflow: visible;
   }
 }

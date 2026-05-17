@@ -937,6 +937,143 @@ await section('DEFAULT_SETTINGS — correct default card config', async () => {
 })
 
 // ─────────────────────────────────────────────
+// Runtime transit card endpoint smoke tests
+// Verifies every card mode can return data without crashing
+// ─────────────────────────────────────────────
+await section('Runtime — NJT Bus card endpoint', async () => {
+  const data = await get('/api/bus/stops?ids=7931&routes=126')
+  ok('Returns buses array', Array.isArray(data.buses))
+  ok('Returns stop name', typeof data.stop === 'string')
+  if (data.buses.length > 0) {
+    const b = data.buses[0]
+    ok('eta is a non-negative number', typeof b.eta === 'number' && b.eta >= 0)
+    ok('etaTime is a time string (e.g. "7:30 AM")', /\d+:\d+ (AM|PM)/.test(b.etaTime))
+    ok('source is realtime or schedule', b.source === 'realtime' || b.source === 'schedule')
+  } else {
+    skip('NJT Bus departure fields', 'no buses currently running')
+  }
+})
+
+await section('Runtime — NJT Rail card endpoint (Madison)', async () => {
+  const data = await get('/api/rail/query?station=MDSN')
+  ok('Returns departures array', Array.isArray(data.departures))
+  ok('Returns stationName', typeof data.stationName === 'string')
+  if (data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+    ok('etaTime is a time string', /\d+:\d+ (AM|PM)/.test(d.etaTime))
+    ok('No departed trains (eta not wildly negative)', d.eta >= 0)
+    // Verify times are not in the past by checking eta is reasonable (< 3 hours)
+    ok('eta is within 3 hours (not stale past data)', d.eta <= 180)
+  } else {
+    skip('NJT Rail departure fields', 'no trains currently running')
+  }
+})
+
+await section('Runtime — PATH card endpoint', async () => {
+  const data = await get('/api/path/query?route=862,1024&direction=1&stop=26729')
+  ok('Returns departures array', Array.isArray(data.departures))
+  if (data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+    ok('etaTime is a time string', /\d+:\d+ (AM|PM)/.test(d.etaTime))
+  } else {
+    skip('PATH departure fields', 'no trains in feed')
+  }
+})
+
+await section('Runtime — MTA Subway card endpoint (Herald Square)', async () => {
+  const data = await get('/api/mta/query?stop=D17S,R17S&lines=B,D,F,M,N,Q,R,W')
+  ok('Returns departures array', Array.isArray(data.departures))
+  if (data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+    ok('etaTime is a time string', /\d+:\d+ (AM|PM)/.test(d.etaTime))
+    ok('route is a string', typeof d.route === 'string')
+  } else {
+    skip('MTA Subway departure fields', 'no trains in feed right now')
+  }
+})
+
+await section('Runtime — MTA Subway station-lines (no stuck loading)', async () => {
+  const data = await get('/api/mta/station-lines?ids=D17,R17')
+  ok('Returns lines array (not stuck building)', Array.isArray(data.lines))
+  ok('Has lines when cache exists', data.building === true || data.lines.length > 0)
+  ok('building flag is boolean', typeof data.building === 'boolean' || data.building === undefined)
+})
+
+await section('Runtime — LIRR card endpoint (Penn Station)', async () => {
+  const data = await get('/api/lirr/query?stop=8')
+  ok('Returns departures array', Array.isArray(data.departures))
+  ok('Returns stationName', typeof data.stationName === 'string')
+  if (data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+    ok('etaTime is a time string', /\d+:\d+ (AM|PM)/.test(d.etaTime))
+    ok('lineColor is a hex color', d.lineColor && d.lineColor.startsWith('#'))
+  } else {
+    skip('LIRR departure fields', 'no trains in feed')
+  }
+})
+
+await section('Runtime — Metro-North card endpoint (Grand Central)', async () => {
+  const data = await get('/api/mnr/query?stop=1')
+  ok('Returns departures array', Array.isArray(data.departures))
+  ok('Returns stationName', typeof data.stationName === 'string')
+  if (data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+    ok('etaTime is a time string', /\d+:\d+ (AM|PM)/.test(d.etaTime))
+  } else {
+    skip('MNR departure fields', 'no trains in feed')
+  }
+})
+
+await section('Runtime — NYC Ferry card endpoint', async () => {
+  const data = await get('/api/nycferry/query?stop=113')
+  ok('Returns departures array', Array.isArray(data.departures))
+  ok('Returns stationName', typeof data.stationName === 'string')
+  if (data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+    ok('dest is not empty or "?"', d.dest && d.dest !== '?')
+  } else {
+    skip('NYC Ferry departure fields', 'no ferries running')
+  }
+})
+
+await section('Runtime — NYW Ferry card endpoint', async () => {
+  const data = await get('/api/ferry?dir=outbound')
+  ok('Returns departures array', Array.isArray(data.departures))
+  if (data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+  } else {
+    skip('NYW Ferry departure fields', 'no ferries running')
+  }
+})
+
+await section('Runtime — MTA Bus card endpoint (M15)', async () => {
+  const data = await get('/api/mtabus/query?stop=MTA_305423&route=MTA+NYCT_M15')
+  ok('Returns departures array or timeout flag', Array.isArray(data.departures) || data.timeout === true)
+  if (Array.isArray(data.departures) && data.departures.length > 0) {
+    const d = data.departures[0]
+    ok('eta is a non-negative number', typeof d.eta === 'number' && d.eta >= 0)
+  } else {
+    skip('MTA Bus departure fields', 'no buses or feed timed out')
+  }
+})
+
+await section('Runtime — HBLR card endpoint', async () => {
+  const data = await get('/api/bus/hblr-defaults')
+  ok('Returns outbound stop ID', typeof data.outbound === 'string')
+  ok('Returns inbound stop ID', typeof data.inbound === 'string')
+  const stopData = await get(`/api/bus/stops?ids=${data.outbound}&routes=HBLR`)
+  ok('HBLR stop returns buses array', Array.isArray(stopData.buses))
+  ok('HBLR stop returns stop name', typeof stopData.stop === 'string')
+})
+
+// ─────────────────────────────────────────────
 // Summary (final)
 // ─────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`)

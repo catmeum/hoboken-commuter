@@ -1430,11 +1430,17 @@ app.get('/api/mta/stations', async (req, res) => {
 let stationRoutesMap = null
 
 function loadStationRoutes() {
-  if (stationRoutesMap) return stationRoutesMap
+  // Don't cache empty results — retry on every call until the file is ready
+  if (stationRoutesMap && Object.keys(stationRoutesMap).length > 0) return stationRoutesMap
   try {
     const data = fs.readFileSync(path.join(__dirname, '..', '.cache', 'mta_station_routes.json'), 'utf8')
-    stationRoutesMap = JSON.parse(data)
-    console.log('[MTA] Loaded station routes for', Object.keys(stationRoutesMap).length, 'stations')
+    const parsed = JSON.parse(data)
+    if (Object.keys(parsed).length > 0) {
+      stationRoutesMap = parsed
+      console.log('[MTA] Loaded station routes for', Object.keys(stationRoutesMap).length, 'stations')
+    } else {
+      stationRoutesMap = {}
+    }
   } catch {
     stationRoutesMap = {}
   }
@@ -1670,34 +1676,37 @@ app.get('/api/rail/query', strictLimiter, async (req, res) => {
     })
 
     const now = new Date()
-    const departures = items.slice(0, 10).map(item => {
-      const secLate = parseInt(item.SEC_LATE) || 0
-      const status = item.STATUS || ''
-      // Parse ETA from STATUS field (e.g. "in 5 Min")
-      const etaMatch = status.match(/in (\d+) Min/i)
-      let eta = etaMatch ? parseInt(etaMatch[1]) : null
-      if (eta === null) {
-        // Try to compute from scheduled time
+    const departures = items
+      .map(item => {
+        const secLate = parseInt(item.SEC_LATE) || 0
+        const status = item.STATUS || ''
+        // Parse ETA from STATUS field (e.g. "in 5 Min")
+        const etaMatch = status.match(/in (\d+) Min/i)
+        let eta = etaMatch ? parseInt(etaMatch[1]) : null
         const schedDate = new Date(item.SCHED_DEP_DATE)
-        eta = Math.max(0, Math.round((schedDate.getTime() + secLate * 1000 - now.getTime()) / 60000))
-      }
-      const schedDate = new Date(item.SCHED_DEP_DATE)
-      const etaTime = formatTimeFromDate(schedDate)
+        if (eta === null) {
+          // Compute from scheduled time + delay
+          eta = Math.round((schedDate.getTime() + secLate * 1000 - now.getTime()) / 60000)
+        }
+        const etaTime = formatTimeFromDate(schedDate)
 
-      return {
-        dest: item.DESTINATION,
-        line: item.LINECODE,
-        lineName: NJT_RAIL_LINES[item.LINECODE]?.abbr || item.LINEABBREVIATION || item.LINE,
-        lineColor: NJT_RAIL_LINES[item.LINECODE]?.color || '#666',
-        trainId: item.TRAIN_ID,
-        track: item.TRACK,
-        eta,
-        etaTime,
-        status,
-        secLate,
-        source: secLate > 0 || status.includes('Min') ? 'realtime' : 'schedule',
-      }
-    })
+        return {
+          dest: item.DESTINATION,
+          line: item.LINECODE,
+          lineName: NJT_RAIL_LINES[item.LINECODE]?.abbr || item.LINEABBREVIATION || item.LINE,
+          lineColor: NJT_RAIL_LINES[item.LINECODE]?.color || '#666',
+          trainId: item.TRAIN_ID,
+          track: item.TRACK,
+          eta,
+          etaTime,
+          status,
+          secLate,
+          source: secLate > 0 || status.includes('Min') ? 'realtime' : 'schedule',
+        }
+      })
+      .filter(d => d.eta >= -1) // drop trains that departed more than 1 min ago
+      .map(d => ({ ...d, eta: Math.max(0, d.eta) })) // clamp to 0 for display
+      .slice(0, 10)
 
     // Extract alerts from station messages
     const alerts = (data?.STATIONMSGS || [])

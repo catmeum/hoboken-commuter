@@ -1722,25 +1722,29 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     setSelectedStation(station)
     setStationLines([])
     setSelectedSubwayLines(new Set())
-    // Load which lines serve this station
-    try {
-      const res = await fetch(`/api/mta/station-lines?ids=${station.ids.join(',')}`)
-      const data = await res.json()
-      if (data.building) {
-        // Cache still building — retry after 3 seconds
-        setTimeout(async () => {
-          try {
-            const res2 = await fetch(`/api/mta/station-lines?ids=${station.ids.join(',')}`)
-            const data2 = await res2.json()
-            setStationLines(data2.lines || [])
-            setSelectedSubwayLines(new Set(data2.lines || []))
-          } catch {}
-        }, 3000)
-      } else {
-        setStationLines(data.lines || [])
-        setSelectedSubwayLines(new Set(data.lines || []))
+    // Load which lines serve this station — retry with backoff if cache is still building
+    const fetchLines = async (attempt = 0) => {
+      try {
+        const res = await fetch(`/api/mta/station-lines?ids=${station.ids.join(',')}`)
+        const data = await res.json()
+        if (data.lines && data.lines.length > 0) {
+          setStationLines(data.lines)
+          setSelectedSubwayLines(new Set(data.lines))
+        } else if (data.building && attempt < 10) {
+          // Cache still building — retry with increasing delay (3s, 5s, 8s, ...)
+          const delay = Math.min(3000 + attempt * 2000, 10000)
+          setTimeout(() => fetchLines(attempt + 1), delay)
+        } else if (!data.building && data.lines) {
+          // Cache ready but this station has no lines (shouldn't happen, but handle gracefully)
+          setStationLines(data.lines)
+          setSelectedSubwayLines(new Set(data.lines))
+        }
+      } catch {
+        if (attempt < 3) setTimeout(() => fetchLines(attempt + 1), 3000)
+        else setStationLines([])
       }
-    } catch { setStationLines([]) }
+    }
+    fetchLines()
   }
 
   function toggleSubwayLine(line) {
