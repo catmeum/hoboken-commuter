@@ -185,7 +185,6 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: clamp(4px, 0.7vw, 12px);
-  max-height: clamp(100px, 16vh, 180px);
 }
 
 /* ── Tunnel Card (Lincoln + Holland) ── */
@@ -326,12 +325,14 @@
   height: clamp(8px, 0.9vw, 14px);
 }
 
+.weather-card .card-body {
+  flex: none;
+}
+
 .weather-periods {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: clamp(4px, 0.7vw, 10px);
-  height: 100%;
-  overflow: hidden;
 }
 
 .weather-period {
@@ -339,12 +340,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: clamp(1px, 0.25vh, 4px);
-  padding: clamp(3px, 0.4vw, 8px);
+  gap: clamp(2px, 0.3vh, 5px);
+  padding: clamp(4px, 0.5vw, 10px) clamp(3px, 0.4vw, 8px);
   background: var(--bg-subtle);
   border-radius: clamp(4px, 0.6vw, 12px);
-  min-height: 0;
-  overflow: hidden;
 }
 
 .weather-period-label {
@@ -1860,7 +1859,6 @@
   .top-row {
     grid-column: 1;
     grid-template-columns: 1fr;
-    max-height: none;
   }
 
   .transit-bottom-row {
