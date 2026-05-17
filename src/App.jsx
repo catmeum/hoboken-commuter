@@ -345,7 +345,7 @@ function ThemeToggle({ theme, onToggle }) {
 
 function TunnelCard({ data, alertSettings, activeAlertSources, inlineAlertDuration }) {
   const on = (id) => activeAlertSources.has(id) && alertSettings[id] !== false
-  const maxAge = inlineAlertDuration === 0 ? 0 : inlineAlertDuration === Infinity ? Infinity : (inlineAlertDuration ?? 60)
+  const maxAge = inlineAlertDuration === Infinity ? Infinity : (inlineAlertDuration ?? 60)
   return (
     <div className="card tunnel-card">
       <div className="card-header">
@@ -358,7 +358,7 @@ function TunnelCard({ data, alertSettings, activeAlertSources, inlineAlertDurati
         <div className="tunnel-grid">
           {data.tunnels.map((t) => {
             const alertId = t.name.toLowerCase() === 'lincoln' ? 'lincoln_tunnel' : 'holland_tunnel'
-            const inlineAlerts = on(alertId) && t.alertsWithAge
+            const inlineAlerts = inlineAlertDuration !== 0 && on(alertId) && t.alertsWithAge
               ? t.alertsWithAge.filter(a => maxAge === Infinity || a.ageMinutes < maxAge)
               : []
             return (
@@ -406,10 +406,13 @@ function WeatherCard({ weatherData, location }) {
             <div key={p.label} className="weather-period">
               <span className="weather-period-label">{p.label}</span>
               <span className="weather-icon">{p.icon}</span>
-              <span className="weather-temp">{p.temp}°</span>
-              <span className="weather-detail">
-                <Droplets className="weather-detail-icon" /> {p.humidity}
-              </span>
+              <div className="weather-temp-row">
+                <span className="weather-temp">{p.temp}°</span>
+                <span className="weather-temp-sep">|</span>
+                <span className="weather-humidity">
+                  <Droplets className="weather-detail-icon" />{p.humidity}
+                </span>
+              </div>
             </div>
           ))}
         </div>

@@ -364,6 +364,27 @@
   line-height: 1;
 }
 
+.weather-temp-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(3px, 0.4vw, 6px);
+}
+
+.weather-temp-sep {
+  font-size: clamp(8px, 1vw, 14px);
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+.weather-humidity {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: clamp(9px, 1.1vw, 16px);
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
 .weather-desc {
   font-size: clamp(7px, 0.9vw, 14px);
   color: var(--text-secondary);
