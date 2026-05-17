@@ -120,6 +120,7 @@ function pickPeriods(hourlyPeriods) {
       desc: period.shortForecast,
       wind: period.windSpeed,
       precip: `${period.probabilityOfPrecipitation?.value ?? 0}%`,
+      humidity: `${period.relativeHumidity?.value ?? '--'}%`,
     }
   }
 

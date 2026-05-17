@@ -117,9 +117,9 @@ const TUNNEL_FALLBACK = {
 const WEATHER_FALLBACK = {
   label: 'Hoboken',
   periods: [
-    { label: 'Now', icon: '⏳', temp: '--', desc: 'Loading…', wind: '--', precip: '--' },
-    { label: 'Midday', icon: '⏳', temp: '--', desc: 'Loading…', wind: '--', precip: '--' },
-    { label: 'Evening', icon: '⏳', temp: '--', desc: 'Loading…', wind: '--', precip: '--' },
+    { label: 'Now', icon: '⏳', temp: '--', desc: 'Loading…', wind: '--', precip: '--', humidity: '--' },
+    { label: 'Midday', icon: '⏳', temp: '--', desc: 'Loading…', wind: '--', precip: '--', humidity: '--' },
+    { label: 'Evening', icon: '⏳', temp: '--', desc: 'Loading…', wind: '--', precip: '--', humidity: '--' },
   ],
 }
 
@@ -407,12 +407,8 @@ function WeatherCard({ weatherData, location }) {
               <span className="weather-period-label">{p.label}</span>
               <span className="weather-icon">{p.icon}</span>
               <span className="weather-temp">{p.temp}°</span>
-              <span className="weather-desc">{p.desc}</span>
               <span className="weather-detail">
-                <Wind className="weather-detail-icon" /> {p.wind}
-              </span>
-              <span className="weather-detail">
-                <Droplets className="weather-detail-icon" /> {p.precip}
+                <Droplets className="weather-detail-icon" /> {p.humidity}
               </span>
             </div>
           ))}
@@ -2226,6 +2222,7 @@ function PresetPickerModal({ open, onSelect }) {
 }
 
 function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops, inboundStops, alertSettings, activeAlertSources, inlineAlertDuration, tickerSpeed, outboundWeather, inboundWeather, showTunnels, showWeather, selectedTunnels, onSave, onShowPresetPicker }) {
+  const [gtfsStatus, setGtfsStatus] = useState(null)
   const [draftOutStops, setDraftOutStops] = useState(outboundStops)
   const [draftInStops, setDraftInStops] = useState(inboundStops)
   const [draftOutCity, setDraftOutCity] = useState(outboundCity)
@@ -2266,6 +2263,8 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
       setDraftShowWeather(showWeather)
       setDraftTunnels([...selectedTunnels])
       setConfirmReset(false)
+      // Fetch GTFS cache status
+      fetch('/api/bus/gtfs-status').then(r => r.json()).then(setGtfsStatus).catch(() => {})
     }
   }, [open])
 
@@ -2515,6 +2514,13 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
           </div>
 
           <div className="settings-footer">
+            {gtfsStatus && (
+              <div className={`settings-gtfs-status ${gtfsStatus.stale ? 'stale' : ''}`}>
+                <span>NJT Bus data:</span>
+                <span>{gtfsStatus.ageDays != null ? `${gtfsStatus.ageDays}d old` : 'unknown'}</span>
+                {gtfsStatus.stale && <span className="settings-gtfs-stale">⚠️ stale</span>}
+              </div>
+            )}
             <button className="settings-save-btn" onClick={() => {
             onSave({
               outboundStops: draftOutStops,

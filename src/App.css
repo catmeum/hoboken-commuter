@@ -330,7 +330,7 @@
   grid-template-columns: 1fr 1fr 1fr;
   gap: clamp(4px, 0.7vw, 10px);
   height: 100%;
-  max-height: clamp(80px, 12vh, 160px);
+  max-height: clamp(70px, 10vh, 130px);
 }
 
 .weather-period {
@@ -352,12 +352,12 @@
 }
 
 .weather-icon {
-  font-size: clamp(14px, 1.8vw, 28px);
+  font-size: clamp(14px, 1.8vw, 26px);
   line-height: 1;
 }
 
 .weather-temp {
-  font-size: clamp(13px, 1.8vw, 28px);
+  font-size: clamp(13px, 1.8vw, 26px);
   font-weight: 700;
   line-height: 1;
 }
@@ -1622,6 +1622,25 @@
   padding: 14px 20px;
   border-top: 1px solid var(--border-color);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-gtfs-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.settings-gtfs-status.stale {
+  color: var(--accent-orange);
+}
+
+.settings-gtfs-stale {
+  font-weight: 600;
 }
 
 .settings-save-btn {
