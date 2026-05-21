@@ -3,7 +3,7 @@
 ## v2.1.0 (2026-05-17)
 
 ### Bug Fixes
-- **MTA Subway station lines stuck on "Loading lines"** — server was caching the empty `{}` result from `mta_station_routes.json` on first read, so all subsequent calls returned empty even after the file was built. Fixed to only cache non-empty results. Frontend retry loop replaced single 3-second retry with up to 10 attempts at increasing backoff (3s–10s).
+- **MTA Subway station lines stuck on "Loading lines"** — root cause was the API server being unreachable (502 from Vite proxy) while the frontend silently swallowed the error and stayed on "Loading lines…" forever. Fixed with: explicit `!res.ok` check throwing on non-200 responses, 3 auto-retries at 2s intervals, and a visible error state with a Retry button if all retries fail. Also fixed a logic bug where an empty `data.lines` array (truthy in JS) would short-circuit the building-state retry path.
 - **NJT Rail showing stale past times** — API returns all scheduled trains including already-departed ones. Old code clamped `eta` to `Math.max(0, ...)` making departed trains show as `0 min` with their past scheduled time. Now filters out trains with `eta < -1` before slicing results.
 - **Tunnel inline alerts ignoring "Ticker only" setting** — `TunnelCard` was missing the `inlineAlertDuration !== 0` guard that all other card types use. Added explicit check so "Ticker only" correctly suppresses inline alerts on the tunnel card.
 

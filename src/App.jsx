@@ -1347,6 +1347,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
   const [subwayResults, setSubwayResults] = useState([])
   const [selectedStation, setSelectedStation] = useState(null)
   const [stationLines, setStationLines] = useState([])
+  const [stationLinesError, setStationLinesError] = useState(false)
   const [selectedSubwayLines, setSelectedSubwayLines] = useState(new Set())
   const [selectedDirection, setSelectedDirection] = useState('S')
   // Bus stop search → line selection (MTA-style)
@@ -1720,27 +1721,30 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
   async function selectSubwayStation(station) {
     setSelectedStation(station)
     setStationLines([])
+    setStationLinesError(false)
     setSelectedSubwayLines(new Set())
-    // Load which lines serve this station — retry with backoff if cache is still building
     const fetchLines = async (attempt = 0) => {
       try {
         const res = await fetch(`/api/mta/station-lines?ids=${station.ids.join(',')}`)
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         if (data.lines && data.lines.length > 0) {
           setStationLines(data.lines)
           setSelectedSubwayLines(new Set(data.lines))
         } else if (data.building && attempt < 10) {
-          // Cache still building — retry with increasing delay (3s, 5s, 8s, ...)
           const delay = Math.min(3000 + attempt * 2000, 10000)
           setTimeout(() => fetchLines(attempt + 1), delay)
-        } else if (!data.building && data.lines) {
-          // Cache ready but this station has no lines (shouldn't happen, but handle gracefully)
-          setStationLines(data.lines)
-          setSelectedSubwayLines(new Set(data.lines))
+        } else {
+          // Cache ready but empty, or unknown state — just set whatever came back
+          setStationLines(data.lines || [])
+          setSelectedSubwayLines(new Set(data.lines || []))
         }
       } catch {
-        if (attempt < 3) setTimeout(() => fetchLines(attempt + 1), 3000)
-        else setStationLines([])
+        if (attempt < 3) {
+          setTimeout(() => fetchLines(attempt + 1), 2000)
+        } else {
+          setStationLinesError(true)
+        }
       }
     }
     fetchLines()
@@ -2147,7 +2151,12 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
           {step === 'subway-dir' && selectedStation && (
             <div className="subway-dir-picker">
-              {stationLines.length > 0 ? (
+              {stationLinesError ? (
+                <div className="settings-stop-empty" style={{ fontSize: '12px' }}>
+                  Could not load lines — server may be starting up.{' '}
+                  <button className="new-card-back" style={{ display: 'inline' }} onClick={() => selectSubwayStation(selectedStation)}>Retry</button>
+                </div>
+              ) : stationLines.length > 0 ? (
                 <>
                   <div className="subway-lines-label">Lines at this station</div>
                   <div className="subway-lines-row">
