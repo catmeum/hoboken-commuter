@@ -292,6 +292,23 @@
   height: clamp(10px, 1.2vw, 18px);
 }
 
+.inline-alert-dismiss {
+  flex-shrink: 0;
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--alert-text);
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 2px;
+  line-height: 1;
+  border-radius: 3px;
+}
+.inline-alert-dismiss:hover {
+  opacity: 1;
+  background: var(--alert-border);
+}
+
 /* ── Weather Card ── */
 .weather-card .card-icon { color: var(--accent-blue); }
 
@@ -334,6 +351,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: clamp(4px, 0.7vw, 10px);
+  flex: 1;
 }
 
 .weather-period {
@@ -342,9 +360,10 @@
   align-items: center;
   justify-content: center;
   gap: clamp(2px, 0.3vh, 5px);
-  padding: clamp(4px, 0.5vw, 10px) clamp(3px, 0.4vw, 8px);
+  padding: clamp(6px, 0.8vw, 14px) clamp(3px, 0.4vw, 8px);
   background: var(--bg-subtle);
   border-radius: clamp(4px, 0.6vw, 12px);
+  flex: 1;
 }
 
 .weather-period-label {

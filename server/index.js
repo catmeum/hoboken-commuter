@@ -2155,6 +2155,42 @@ app.get('/api/bus/gtfs-status', (req, res) => {
   })
 })
 
+// System status endpoint — easter egg diagnostics panel
+const SERVER_START_TIME = Date.now()
+app.get('/api/system-status', (req, res) => {
+  const uptimeMs = Date.now() - SERVER_START_TIME
+  const uptimeH = (uptimeMs / 3600_000).toFixed(1)
+
+  // NJT Bus GTFS
+  const busGtfsExists = fs.existsSync(GTFS_ZIP)
+  const busGtfsAge = busGtfsExists ? parseFloat(((Date.now() - fs.statSync(GTFS_ZIP).mtimeMs) / 86400_000).toFixed(1)) : null
+
+  // MTA Subway GTFS
+  const subwayZip = path.join(GTFS_CACHE, 'gtfs_subway.zip')
+  const subwayExists = fs.existsSync(subwayZip)
+  const subwayAge = subwayExists ? parseFloat(((Date.now() - fs.statSync(subwayZip).mtimeMs) / 86400_000).toFixed(1)) : null
+
+  // MTA Station routes cache
+  const routesFile = path.join(__dirname, '..', '.cache', 'mta_station_routes.json')
+  const routesExists = fs.existsSync(routesFile)
+  const routesStations = stationRoutesMap ? Object.keys(stationRoutesMap).length : 0
+
+  // NJT tokens
+  const busTokenOk = cachedToken && Date.now() < tokenExpiry
+  const busTokenAge = busTokenOk ? parseFloat(((tokenExpiry - Date.now()) / 3600_000).toFixed(1)) : null
+  const railTokenOk = railToken && Date.now() < railTokenExpiry
+  const railTokenAge = railTokenOk ? parseFloat(((railTokenExpiry - Date.now()) / 3600_000).toFixed(1)) : null
+
+  res.json({
+    uptime: `${uptimeH}h`,
+    busGtfs: { ageDays: busGtfsAge, loaded: gtfsLoaded, stale: busGtfsAge > 7 },
+    subwayGtfs: { ageDays: subwayAge, stale: subwayAge > 7 },
+    stationRoutes: { loaded: routesExists, stations: routesStations },
+    njtBusToken: { valid: !!busTokenOk, expiresInH: busTokenAge },
+    njtRailToken: { valid: !!railTokenOk, expiresInH: railTokenAge },
+  })
+})
+
 // ══════════════════════════════════════════════════════════
 // Production mode — serve built frontend + proxy external APIs
 // In dev, Vite handles these. In prod (NODE_ENV=production),

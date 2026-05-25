@@ -294,12 +294,20 @@ function buildTickerItems(tunnelData, ferryData, pathData, busData, mtaAlerts, r
 }
 
 // ── Shared inline alert ──
+// Dismissed alerts are tracked in-memory (session only, resets on page refresh).
+// The alert still shows in the ticker — only the inline card display is suppressed.
+const _dismissedAlerts = new Set()
+
 function InlineAlert({ text }) {
-  if (!text) return null
+  const [dismissed, setDismissed] = useState(() => _dismissedAlerts.has(text))
+  if (!text || dismissed) return null
   return (
     <div className="inline-alert">
       <AlertTriangle className="inline-alert-icon" />
       <span>{text}</span>
+      <button className="inline-alert-dismiss" onClick={() => { _dismissedAlerts.add(text); setDismissed(true) }} title="Dismiss this alert">
+        <X size={12} />
+      </button>
     </div>
   )
 }
@@ -2434,6 +2442,10 @@ function PresetPickerModal({ open, onSelect }) {
 
 function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops, inboundStops, alertSettings, activeAlertSources, inlineAlertDuration, tickerSpeed, outboundWeather, inboundWeather, showTunnels, showWeather, selectedTunnels, onSave, onShowPresetPicker }) {
   const [gtfsStatus, setGtfsStatus] = useState(null)
+  const [showSystemStatus, setShowSystemStatus] = useState(false)
+  const [systemStatus, setSystemStatus] = useState(null)
+  const gearClickCount = useRef(0)
+  const gearClickTimer = useRef(null)
   const [draftOutStops, setDraftOutStops] = useState(outboundStops)
   const [draftInStops, setDraftInStops] = useState(inboundStops)
   const [draftOutCity, setDraftOutCity] = useState(outboundCity)
@@ -2476,6 +2488,8 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
       setConfirmReset(false)
       // Fetch GTFS cache status
       fetch('/api/bus/gtfs-status').then(r => r.json()).then(setGtfsStatus).catch(() => {})
+      // Fetch system status (for easter egg panel)
+      fetch('/api/system-status').then(r => r.json()).then(setSystemStatus).catch(() => {})
     }
   }, [open])
 
@@ -2566,7 +2580,18 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
       <div className="settings-overlay" onClick={onClose}>
         <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
           <div className="settings-header">
-            <h2 className="settings-title">Settings</h2>
+            <h2 className="settings-title">
+              <Settings size={18} style={{ opacity: 0.4, verticalAlign: 'middle', marginRight: '6px', pointerEvents: 'auto' }} onClick={() => {
+                gearClickCount.current++
+                clearTimeout(gearClickTimer.current)
+                gearClickTimer.current = setTimeout(() => { gearClickCount.current = 0 }, 600)
+                if (gearClickCount.current >= 3) {
+                  gearClickCount.current = 0
+                  setShowSystemStatus(v => !v)
+                }
+              }} />
+              Settings
+            </h2>
             <button className="settings-close" onClick={onClose}>
               <X className="settings-close-icon" />
             </button>
@@ -2725,11 +2750,22 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
           </div>
 
           <div className="settings-footer">
-            {gtfsStatus && (
-              <div className={`settings-gtfs-status ${gtfsStatus.stale ? 'stale' : ''}`}>
-                <span>NJT Bus data:</span>
-                <span>{gtfsStatus.ageDays != null ? `${gtfsStatus.ageDays}d old` : 'unknown'}</span>
-                {gtfsStatus.stale && <span className="settings-gtfs-stale">⚠️ stale</span>}
+            {showSystemStatus && (
+              <div className="settings-gtfs-status" style={{ flexWrap: 'wrap', gap: '4px 8px', fontSize: '12px', opacity: 0.7 }}>
+                {gtfsStatus && (
+                  <span title={`NJT Bus GTFS: ${gtfsStatus.ageDays != null ? gtfsStatus.ageDays + ' days old' : 'unknown'}${gtfsStatus.stale ? ' (stale — over 7 days)' : ''}`}>
+                    🚌 Bus GTFS: {gtfsStatus.ageDays != null ? `${gtfsStatus.ageDays}d` : '–'}{gtfsStatus.stale ? ' ⚠️' : ''}
+                  </span>
+                )}
+                {systemStatus && (
+                  <>
+                    <span title={`Server uptime: ${systemStatus.uptime}`}>⏱ Uptime: {systemStatus.uptime}</span>
+                    <span title={`MTA Subway GTFS: ${systemStatus.subwayGtfs.ageDays != null ? systemStatus.subwayGtfs.ageDays + ' days old' : 'not loaded'}${systemStatus.subwayGtfs.stale ? ' (stale — over 7 days)' : ''}`}>🚇 MTA GTFS: {systemStatus.subwayGtfs.ageDays != null ? `${systemStatus.subwayGtfs.ageDays}d` : '–'}{systemStatus.subwayGtfs.stale ? ' ⚠️' : ''}</span>
+                    <span title={`MTA station routes: ${systemStatus.stationRoutes.stations} stations loaded`}>📍 Stations: {systemStatus.stationRoutes.stations}</span>
+                    <span title={`NJT Bus token: ${systemStatus.njtBusToken.valid ? 'valid, expires in ' + systemStatus.njtBusToken.expiresInH + ' hours' : 'expired or not yet authenticated'}`}>🔑 Bus token: {systemStatus.njtBusToken.valid ? `${systemStatus.njtBusToken.expiresInH}h` : '✗'}</span>
+                    <span title={`NJT Rail token: ${systemStatus.njtRailToken.valid ? 'valid, expires in ' + systemStatus.njtRailToken.expiresInH + ' hours' : 'expired or not yet authenticated'}`}>🚂 Rail token: {systemStatus.njtRailToken.valid ? `${systemStatus.njtRailToken.expiresInH}h` : '✗'}</span>
+                  </>
+                )}
               </div>
             )}
             <button className="settings-save-btn" onClick={() => {

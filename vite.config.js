@@ -59,6 +59,10 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/api/system-status': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
     },
   },
 })
