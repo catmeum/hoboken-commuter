@@ -158,8 +158,9 @@
 }
 
 .card-icon {
-  width: clamp(12px, 1.6vw, 28px);
-  height: clamp(12px, 1.6vw, 28px);
+  width: clamp(14px, 1.8vw, 32px);
+  height: clamp(22px, 2.8vw, 48px);
+  flex-shrink: 0;
   flex-shrink: 0;
 }
 
@@ -1907,3 +1908,39 @@
     overflow: visible;
   }
 }
+
+/* ── New transit icon dark mode effects ── */
+
+/* NJT Rail headlight — dark mode only */
+.njt-rail-headlight { display: none; }
+[data-theme="dark"] .njt-rail-headlight { display: block; }
+
+/* NJT Bus destination sign — glows red in dark mode */
+[data-theme="dark"] .njt-bus-sign { fill: #E8001C; filter: drop-shadow(0 0 2px #FF2040); }
+
+/* MTA Bus destination sign — glows orange in dark mode */
+[data-theme="dark"] .mta-bus-sign { fill: #FF6B00; filter: drop-shadow(0 0 2px #FF8C00); }
+
+/* PATH — WTC spire blinks red in dark mode */
+.wtc-blink { display: none; }
+[data-theme="dark"] .wtc-blink { display: block; animation: spire-blink 2s step-start infinite; }
+@keyframes spire-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+/* PATH — Oculus ribs: white with gray outline in light, pure white in dark */
+.oc-rib { stroke: #F0F0F0; }
+.oc-rib-outline { stroke: #999; }
+[data-theme="dark"] .oc-rib-outline { stroke: transparent; }
+
+/* NYW Ferry running lights — dark mode only */
+.nyw-running-light { display: none; }
+[data-theme="dark"] .nyw-running-light { display: block; }
+
+/* NYC Ferry running lights — dark mode only */
+.nycf-running-light { display: none; }
+[data-theme="dark"] .nycf-running-light { display: block; }
+
+/* NYC Ferry — Statue of Liberty flame: green in light, orange glow in dark */
+.sol-flame-light { fill: #8AAE80; }
+.sol-flame-dark { display: none; }
+[data-theme="dark"] .sol-flame-light { display: none; }
+[data-theme="dark"] .sol-flame-dark { display: block; }
