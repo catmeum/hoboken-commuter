@@ -8,7 +8,7 @@
 
 ## Feature Backlog
 
-- [ ] **Rename app to "My Stop Now"** — rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com or shorter alternative). Update app title, header, page title, README, all docs, and any hardcoded references. Consider shorter domain alternatives: nextstop.app, boardnow.app, transitnow.app.
+- [ ] **Rename app to "My Stop Now"** — rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, header, page title, README, all docs, and any hardcoded references. Consider shorter domain alternatives: nextstop.app, boardnow.app, transitnow.app.
 - [ ] **iPhone app (Flighty-style UI)** — wrap as PWA first (`manifest.json`, service worker, iOS meta tags for home screen install). Then review UI design inspiration on Mobbin for a Flighty-like aesthetic before any visual redesign. Longer term: Capacitor wrapper for a native App Store build.
 - [ ] **Welcome page — zip code auto-setup** — on the preset picker, add a zip code input field. When submitted, use the NWS zip→grid resolution (already built) plus a nearby-stops lookup to auto-select up to 6 relevant transit stops around that location and pre-populate the dashboard. No new API needed if using GTFS stop coordinates.
 - [ ] **Welcome page — "Random 6 stops" easter egg** — hidden trigger on the preset picker (e.g. long-press the logo, or a specific tap sequence) that picks 6 random transit stops and loads them as a demo. Good for showing off the app without committing to a real location. Integration approach TBD — could be a hidden button that appears after 5 seconds of inactivity on the picker, or a konami-code style input.
