@@ -1732,12 +1732,17 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
           setStationLines(data.lines)
           setSelectedSubwayLines(new Set(data.lines))
         } else if (data.building && attempt < 10) {
+          // Cache is still being built — keep retrying
           const delay = Math.min(3000 + attempt * 2000, 10000)
           setTimeout(() => fetchLines(attempt + 1), delay)
+        } else if (data.building && attempt >= 10) {
+          // Exhausted retries while cache was building
+          setStationLinesError(true)
         } else {
-          // Cache ready but empty, or unknown state — just set whatever came back
-          setStationLines(data.lines || [])
-          setSelectedSubwayLines(new Set(data.lines || []))
+          // Cache is ready but no lines found for this station's IDs —
+          // treat as an error so the user gets a retry button instead of
+          // being stuck on the "loading" spinner forever
+          setStationLinesError(true)
         }
       } catch {
         if (attempt < 3) {
@@ -2139,7 +2144,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
               <input className="new-card-search-input" type="text" placeholder="Search for a subway station…" value={subwaySearch} onChange={(e) => searchSubwayStations(e.target.value)} autoFocus />
               <div className="new-card-lines" style={{ maxHeight: '280px', overflowY: 'auto' }}>
                 {subwayResults.map((s) => (
-                  <button key={s.id} className="new-card-line-btn" onClick={() => selectSubwayStation(s)}>
+                  <button key={s.name} className="new-card-line-btn" onClick={() => selectSubwayStation(s)}>
                     <span className="new-card-line-name">{s.name}</span>
                   </button>
                 ))}
@@ -2153,7 +2158,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
             <div className="subway-dir-picker">
               {stationLinesError ? (
                 <div className="settings-stop-empty" style={{ fontSize: '12px' }}>
-                  Could not load lines — server may be starting up.{' '}
+                  Could not load lines for this station.{' '}
                   <button className="new-card-back" style={{ display: 'inline' }} onClick={() => selectSubwayStation(selectedStation)}>Retry</button>
                 </div>
               ) : stationLines.length > 0 ? (
@@ -2168,7 +2173,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
                   </div>
                 </>
               ) : (
-                <div className="settings-stop-empty" style={{ fontSize: '12px' }}>Loading lines… (station data building, please wait)</div>
+                <div className="settings-stop-empty" style={{ fontSize: '12px' }}>Loading lines…</div>
               )}
               <div className="subway-lines-label" style={{ marginTop: '12px' }}>Direction</div>
               <div className="subway-dir-options">

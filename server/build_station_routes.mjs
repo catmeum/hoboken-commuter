@@ -9,18 +9,31 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const CACHE_DIR = path.join(__dirname, '.cache')
+// Cache lives at <project-root>/.cache — one level up from server/
+const CACHE_DIR = path.join(__dirname, '..', '.cache')
 const OUT_FILE = path.join(CACHE_DIR, 'mta_station_routes.json')
 
-console.log('[build] Downloading MTA subway GTFS...')
-const resp = await fetch('https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip')
-if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-const buf = Buffer.from(await resp.arrayBuffer())
 fs.mkdirSync(CACHE_DIR, { recursive: true })
 
-const tmpZip = path.join(CACHE_DIR, 'gtfs_subway_tmp.zip')
-fs.writeFileSync(tmpZip, buf)
-const zip = new AdmZip(tmpZip)
+// Reuse cached zip if it's less than 7 days old — avoids redundant downloads
+// and ensures station IDs match between the routes cache and the station list
+const SUBWAY_ZIP = path.join(CACHE_DIR, 'gtfs_subway.zip')
+const ZIP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+const needsDownload = !fs.existsSync(SUBWAY_ZIP) ||
+  (Date.now() - fs.statSync(SUBWAY_ZIP).mtimeMs > ZIP_MAX_AGE_MS)
+
+if (needsDownload) {
+  console.log('[build] Downloading MTA subway GTFS...')
+  const resp = await fetch('https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip')
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+  const buf = Buffer.from(await resp.arrayBuffer())
+  fs.writeFileSync(SUBWAY_ZIP, buf)
+  console.log('[build] Saved', (buf.length / 1e6).toFixed(1), 'MB to cache')
+} else {
+  console.log('[build] Using cached MTA subway GTFS')
+}
+
+const zip = new AdmZip(SUBWAY_ZIP)
 
 // Parse stops.txt — we want parent stations (location_type=1)
 const stopsText = zip.readAsText('stops.txt').trim().split('\n')
@@ -81,5 +94,4 @@ for (const [stopId, routes] of Object.entries(stopRoutes)) {
 }
 
 fs.writeFileSync(OUT_FILE, JSON.stringify(result))
-fs.unlinkSync(tmpZip)
 console.log('[build] Written', Object.keys(result).length, 'stations to', OUT_FILE)

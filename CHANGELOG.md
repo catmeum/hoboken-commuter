@@ -1,5 +1,17 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v2.2.0 (2026-05-25)
+
+### Bug Fixes
+- **MTA Subway station lines stuck on "Loading lines" (again)** — four separate root causes identified and fixed:
+  1. **Wrong cache write path** — `build_station_routes.mjs` was writing `mta_station_routes.json` to `server/.cache/` but the server reads from `<root>/.cache/`. On a fresh deploy where the file is missing, the server triggers a rebuild, but the rebuilt file landed in the wrong directory and was never found. Fixed `CACHE_DIR` to use `path.join(__dirname, '..', '.cache')`.
+  2. **Station ID mismatch between station list and routes cache** — `loadMtaStations()` downloaded a fresh MTA GTFS zip on every server restart, while the routes cache was built from a separate download. If the GTFS data changed between the two downloads, station IDs could differ and lookups would return empty. Fixed by sharing a single cached zip (`gtfs_subway.zip`, refreshed every 7 days) between both `loadMtaStations` and `build_station_routes.mjs`.
+  3. **Frontend stuck on "Loading lines…" forever** — when the server returned `{ lines: [], building: false }` (cache ready but no routes found for the station's IDs), the frontend set `stationLines` to `[]` with `stationLinesError` still `false`. The UI showed the loading spinner with no way out. Fixed by treating the empty-but-not-building case as an error, which surfaces the "Retry" button.
+  4. **`key={s.id}` on search results used `undefined`** — consolidated station objects from `/api/mta/stations` have `{ name, ids: [] }` with no `id` field. React list used `key={s.id}` (always `undefined`). Fixed to use `key={s.name}`.
+- **`stationRoutesBuilding` flag not tracked** — server always returned `building: true` when the cache was empty, even after a build failed or completed. Added a `stationRoutesBuilding` module-level flag that is set `true` when a build starts and `false` when it finishes (success or failure), so the frontend gets accurate status and stops retrying unnecessarily.
+
+---
+
 ## v2.1.0 (2026-05-17)
 
 ### Bug Fixes

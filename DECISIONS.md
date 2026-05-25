@@ -178,6 +178,12 @@ The original URL (`https://nycferry.connexionz.net/rtt/public/resource/gtfs.zip`
 
 The station-to-route mapping is built by parsing the full MTA subway GTFS static data (stop_times.txt has ~500k rows). This takes several seconds and shouldn't happen on every server restart. Storing it in `.cache/mta_station_routes.json` means it's built once and reused. The server auto-builds it on startup if the file is missing (e.g. after a fresh clone). The `server/build_station_routes.mjs` script can also be run manually.
 
+## Why the MTA subway GTFS zip is cached and shared
+
+Both `loadMtaStations()` (station search) and `build_station_routes.mjs` (routes cache builder) need the same MTA subway GTFS zip. Originally, `loadMtaStations` downloaded a fresh copy on every server restart while the routes cache was built from a separate download. If the GTFS data changed between the two downloads, station IDs could differ and the routes lookup would silently return empty lines.
+
+The fix: both functions share a single cached zip at `.cache/gtfs_subway.zip`, refreshed every 7 days. This guarantees the station IDs in the search results always match the keys in `mta_station_routes.json`. It also avoids a redundant 5MB download on every server restart.
+
 ## Why PATH matching changed from stop ID to route+direction
 
 The PATH GTFS-RT community feed only reports each train's next stop — not the full trip sequence. Filtering by `stopId === '26729'` (Hoboken) would only catch trains still sitting at Hoboken, missing all trains already en route. The fix matches on `routeId + directionId` only and takes the earliest reported stop time as the ETA. This correctly captures all trains heading in the right direction regardless of where they currently are.

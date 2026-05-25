@@ -1326,8 +1326,25 @@ let mnrStationsCache = null
 async function loadMtaStations() {
   if (mtaStationsCache) return mtaStationsCache
   try {
-    const resp = await fetch('https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip')
-    const buf = Buffer.from(await resp.arrayBuffer())
+    // Reuse the cached subway zip (shared with build_station_routes.mjs) so
+    // station IDs always match the routes cache. Refresh if older than 7 days.
+    const SUBWAY_ZIP = path.join(GTFS_CACHE, 'gtfs_subway.zip')
+    const ZIP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+    const needsDownload = !fs.existsSync(SUBWAY_ZIP) ||
+      (Date.now() - fs.statSync(SUBWAY_ZIP).mtimeMs > ZIP_MAX_AGE_MS)
+
+    let buf
+    if (needsDownload) {
+      console.log('[MTA] Downloading subway GTFS...')
+      const resp = await fetch('https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip')
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      buf = Buffer.from(await resp.arrayBuffer())
+      fs.mkdirSync(GTFS_CACHE, { recursive: true })
+      fs.writeFileSync(SUBWAY_ZIP, buf)
+    } else {
+      buf = fs.readFileSync(SUBWAY_ZIP)
+    }
+
     const zip = new AdmZip(buf)
     const lines = zip.readAsText('stops.txt').trim().split('\n')
     const header = lines[0].split(',')
@@ -1428,6 +1445,7 @@ app.get('/api/mta/stations', async (req, res) => {
 
 // Get lines serving a station — uses static GTFS mapping
 let stationRoutesMap = null
+let stationRoutesBuilding = false
 
 function loadStationRoutes() {
   // Don't cache empty results — retry on every call until the file is ready
@@ -1437,6 +1455,7 @@ function loadStationRoutes() {
     const parsed = JSON.parse(data)
     if (Object.keys(parsed).length > 0) {
       stationRoutesMap = parsed
+      stationRoutesBuilding = false
       console.log('[MTA] Loaded station routes for', Object.keys(stationRoutesMap).length, 'stations')
     } else {
       stationRoutesMap = {}
@@ -1454,14 +1473,14 @@ app.get('/api/mta/station-lines', async (req, res) => {
   const map = loadStationRoutes()
   // If the cache file hasn't been built yet, signal the frontend
   if (Object.keys(map).length === 0) {
-    return res.json({ lines: [], building: true })
+    return res.json({ lines: [], building: stationRoutesBuilding })
   }
   const lines = new Set()
   for (const id of ids) {
     const routes = map[id]
     if (routes) routes.forEach(r => lines.add(r))
   }
-  res.json({ lines: [...lines].sort() })
+  res.json({ lines: [...lines].sort(), building: false })
 })
 
 // Query MTA departures — accepts stop (base ID), direction (N/S/all), and optional lines filter
@@ -2198,7 +2217,10 @@ app.listen(PORT, () => {
     const stationRoutesFile = path.join(__dirname, '..', '.cache', 'mta_station_routes.json')
     if (!fs.existsSync(stationRoutesFile)) {
       console.log('[MTA] Station routes cache missing — building...')
-      import('./build_station_routes.mjs').catch(err => console.error('[MTA] Build error:', err.message))
+      stationRoutesBuilding = true
+      import('./build_station_routes.mjs')
+        .then(() => { stationRoutesBuilding = false })
+        .catch(err => { stationRoutesBuilding = false; console.error('[MTA] Build error:', err.message) })
     }
     
     if (fs.existsSync(GTFS_ZIP)) {
