@@ -2414,12 +2414,68 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
 // ── Preset Picker Modal ──
 function PresetPickerModal({ open, onSelect }) {
+  const [zipInput, setZipInput] = useState('')
+  const [zipLoading, setZipLoading] = useState(false)
+  const [zipError, setZipError] = useState('')
+  const titleClickCount = useRef(0)
+  const titleClickTimer = useRef(null)
+
   if (!open) return null
+
+  // Zip code → find nearest preset by lat/lon
+  async function handleZipSubmit(e) {
+    e.preventDefault()
+    const zip = zipInput.replace(/\D/g, '').slice(0, 5)
+    if (zip.length !== 5) { setZipError('Enter a 5-digit zip code'); return }
+    setZipLoading(true)
+    setZipError('')
+    try {
+      const res = await fetch(`/api/weather/resolve-zip?zip=${zip}`)
+      if (!res.ok) { setZipError('Zip code not found'); setZipLoading(false); return }
+      const data = await res.json()
+      const lat = parseFloat(data.lat)
+      const lon = parseFloat(data.lon)
+      // Find nearest preset by haversine-ish distance
+      const PRESET_COORDS = {
+        hoboken:  { lat: 40.744, lon: -74.032 },
+        newport:  { lat: 40.727, lon: -74.038 },
+        midtown:  { lat: 40.755, lon: -73.987 },
+        downtown: { lat: 40.709, lon: -74.009 },
+        brooklyn: { lat: 40.686, lon: -73.978 },
+        queens:   { lat: 40.742, lon: -73.923 },
+      }
+      let closest = PRESETS[0], minDist = Infinity
+      for (const preset of PRESETS) {
+        const c = PRESET_COORDS[preset.id]
+        if (!c) continue
+        const d = Math.sqrt((lat - c.lat) ** 2 + (lon - c.lon) ** 2)
+        if (d < minDist) { minDist = d; closest = preset }
+      }
+      onSelect(closest)
+    } catch {
+      setZipError('Could not resolve zip code')
+    }
+    setZipLoading(false)
+  }
+
+  // Triple-click easter egg — random 6 stops
+  function handleTitleClick() {
+    titleClickCount.current++
+    clearTimeout(titleClickTimer.current)
+    titleClickTimer.current = setTimeout(() => { titleClickCount.current = 0 }, 600)
+    if (titleClickCount.current >= 3) {
+      titleClickCount.current = 0
+      // Pick a random preset
+      const randomPreset = PRESETS[Math.floor(Math.random() * PRESETS.length)]
+      onSelect(randomPreset)
+    }
+  }
+
   return (
     <div className="settings-overlay preset-picker-overlay">
       <div className="preset-picker-modal">
         <div className="preset-picker-header">
-          <span className="preset-picker-title">Where do you commute from?</span>
+          <span className="preset-picker-title" onClick={handleTitleClick}>Where do you commute from?</span>
           <p className="preset-picker-subtitle">Pick a neighborhood to set up your dashboard. You can customize everything in Settings.</p>
         </div>
         <div className="preset-picker-grid">
@@ -2435,6 +2491,21 @@ function PresetPickerModal({ open, onSelect }) {
             </button>
           ))}
         </div>
+        <form className="preset-picker-zip" onSubmit={handleZipSubmit}>
+          <input
+            type="text"
+            className="preset-picker-zip-input"
+            placeholder="Or enter your zip code…"
+            value={zipInput}
+            onChange={(e) => setZipInput(e.target.value)}
+            maxLength={5}
+            inputMode="numeric"
+          />
+          <button type="submit" className="preset-picker-zip-btn" disabled={zipLoading}>
+            {zipLoading ? '…' : 'Go'}
+          </button>
+          {zipError && <span className="preset-picker-zip-error">{zipError}</span>}
+        </form>
       </div>
     </div>
   )

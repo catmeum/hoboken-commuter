@@ -2,14 +2,15 @@
 
 ## Active
 
-(No active bugs — all cleared as of v2.3.0)
+- [ ] **Nearby-stop auto-lookup** — enhance the zip code flow to find the 3-6 closest transit stops using GTFS stop coordinates (MTA subway, NJT bus, PATH, ferry). Requires a new `/api/nearby-stops?lat=X&lon=Y` endpoint that searches stop coordinates. Falls back to premade presets if no nearby stops found.
+- [ ] **500 premade presets spreadsheet** — import a user-provided spreadsheet of ~500 zip→preset mappings as a fallback layer between the automatic GTFS lookup and the "pick manually" message.
 
 ## Feature Backlog
 
 - [ ] **Rename app to "My Stop Now"** — rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, header, page title, README, all docs, and any hardcoded references. 
 - [ ] **iPhone app (Flighty-style UI)** — wrap as PWA first (`manifest.json`, service worker, iOS meta tags for home screen install). Then review UI design inspiration on Mobbin for a Flighty-like aesthetic before any visual redesign. Longer term: Capacitor wrapper for a native App Store build.
-- [ ] **Welcome page — zip code auto-setup** — on the preset picker, add a zip code input field. When submitted, use the NWS zip→grid resolution (already built) plus a nearby-stops lookup to auto-select up to 6 relevant transit stops around that location and pre-populate the dashboard. No new API needed if using GTFS stop coordinates.
-- [ ] **Welcome page — "Random 6 stops" easter egg** — hidden trigger on the preset picker (e.g. long-press the logo, or a specific tap sequence) that picks 6 random transit stops and loads them as a demo. Good for showing off the app without committing to a real location. Integration approach TBD — could be a hidden button that appears after 5 seconds of inactivity on the picker, or a konami-code style input.
+- [x] **Welcome page — zip code auto-setup** — on the preset picker, add a zip code input field. When submitted, use the NWS zip→grid resolution (already built) plus a nearby-stops lookup to auto-select up to 6 relevant transit stops around that location and pre-populate the dashboard. No new API needed if using GTFS stop coordinates.
+- [x] **Welcome page — "Random 6 stops" easter egg** — hidden trigger on the preset picker (e.g. long-press the logo, or a specific tap sequence) that picks 6 random transit stops and loads them as a demo. Good for showing off the app without committing to a real location. Integration approach TBD — could be a hidden button that appears after 5 seconds of inactivity on the picker, or a konami-code style input.
 - [ ] **Dashboard theme refresh** — current theme feels generic/AI-generated. Redesign with a more distinct visual identity — consider a transit-inspired aesthetic (think MTA signage, NJT colors, or a clean commuter board look). Review Mobbin for inspiration alongside the iPhone app work.
 
 ## UX / Loading State (Future)
