@@ -1,5 +1,41 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v2.3.0 (2026-05-25)
+
+### Custom Transit Icons
+- **NJT Bus** — XD60 Xcelsior with blue/magenta/orange arch livery (matches current fleet)
+- **NJT Rail** — Comet V / Multilevel car, blue nose, red bottom stripe, headlight glows in dark mode
+- **PATH** — WTC Oculus (white ribs with gray outline in light, pure white in dark) + One World Trade Center (triangular glass facets, blinking red spire in dark mode)
+- **NYW Ferry** — White hull with red waterline stripe, pilot house, running lights in dark mode
+- **NYC Ferry** — Teal-stripe vessel with Statue of Liberty (chest-up, crown spikes, torch with orange glow in dark mode)
+- **MTA Bus** — New Flyer XD40 with MTA blue top/bottom bands, orange destination sign glow in dark mode
+- Replaces generic Lucide Bus/Ship/TrainFront icons on both dashboard cards and settings picker
+- Existing custom icons (MTA Globe, HBLR clocktower, LIRR M7, Metro-North clock) unchanged
+
+### Dismissable Inline Alerts
+- Every inline alert on transit cards now has an X button to dismiss
+- Dismissed alerts are session-only (in-memory Set, not persisted to localStorage)
+- Alert still shows in the scrolling ticker — only the card display is hidden
+- Full page refresh resets all dismissed alerts
+
+### System Status Easter Egg
+- Triple-click the gear icon in the settings panel header to reveal diagnostics
+- Shows: server uptime, NJT Bus GTFS age, MTA Subway GTFS age, station routes count, NJT Bus/Rail token status
+- Hover any item for verbose tooltip
+- Hidden by default — no UI clutter for normal users
+
+### Settings & UX
+- **Minimum card requirement reduced to 1** (was 3) — users can now run with a single transit card
+- Remove buttons no longer disabled at 3 cards — can delete down to 0
+- Save Changes button disabled + grayed out when total cards < 1
+- Weather period cards now flex to fill available card height (no more collapsed sub-cards)
+
+### Bug Fixes
+- **MTA Subway station lines stuck on "Loading lines" (again)** — four root causes fixed (cache path, ID mismatch, stuck loading state, undefined React key)
+- **Vite proxy missing for `/api/system-status`** — added proxy rule so the endpoint works in dev mode
+
+---
+
 ## v2.2.0 (2026-05-25)
 
 ### Bug Fixes

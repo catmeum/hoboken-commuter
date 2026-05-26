@@ -2,10 +2,7 @@
 
 ## Active
 
-- [x] **Dismissable inline alerts** — add an "X" button to inline alerts on transit cards. Clicking it hides that specific alert from the card for the rest of the session (in-memory state, not persisted). The alert should still appear in the scrolling ticker. A full page refresh resets dismissed alerts.
-- [ ] **Bus time timezone bug** — dashboard shows wrong times (e.g. "5 min, 11:35am" when it's 7:30am). Server is likely running in UTC on Lightsail and formatting departure times without converting to Eastern Time. Fix: ensure `formatTime()` in `server/index.js` uses Eastern timezone, or pass a timezone offset. Affects all NJT bus schedule fallback times.
-- [ ] **Fix weather card height** — card still doesn't size consistently across viewport heights. Needs a reliable compact layout that doesn't clip or over-expand regardless of screen size.
-- [x] **Remove minimum 3 stops requirement** — dashboard currently enforces a minimum of 3 transit cards. Remove this constraint so users can run with as few cards as they want (even just 1). Save button disabled if total cards < 1.
+(No active bugs — all cleared as of v2.3.0)
 
 ## Feature Backlog
 
