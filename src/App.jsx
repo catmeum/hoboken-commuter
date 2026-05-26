@@ -2670,7 +2670,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                     }}>{zipLoading === 'out' ? '…' : 'Set'}</button>
                     <span className="settings-section-hint">{draftOutStops.length}/6</span>
                   </div>
-                  {renderStopList(draftOutStops, setDraftOutStops, 3)}
+                  {renderStopList(draftOutStops, setDraftOutStops, 0)}
                   {draftOutStops.length < 6 && (
                     <button className="new-card-btn" onClick={() => setNewCardTarget('outbound')}>
                       <Plus size={14} /> New transit card
@@ -2696,7 +2696,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                     }}>{zipLoading === 'in' ? '…' : 'Set'}</button>
                     <span className="settings-section-hint">{draftInStops.length}/6</span>
                   </div>
-                  {renderStopList(draftInStops, setDraftInStops, 3)}
+                  {renderStopList(draftInStops, setDraftInStops, 0)}
                   {draftInStops.length < 6 && (
                     <button className="new-card-btn" onClick={() => setNewCardTarget('inbound')}>
                       <Plus size={14} /> New transit card
@@ -2768,7 +2768,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                 )}
               </div>
             )}
-            <button className="settings-save-btn" onClick={() => {
+            <button className="settings-save-btn" disabled={draftOutStops.length + draftInStops.length < 1} onClick={() => {
             onSave({
               outboundStops: draftOutStops,
               inboundStops: draftInStops,
