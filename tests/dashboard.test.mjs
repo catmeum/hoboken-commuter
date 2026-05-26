@@ -433,7 +433,6 @@ await section('Card ID format conventions', async () => {
 // ─────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`)
 console.log(`Results: ${passed} passed, ${failed} failed, ${skipped} skipped`)
-if (failed > 0) process.exit(1)
 
 // ═══════════════════════════════════════════════════════════
 // REGRESSION TESTS
@@ -736,7 +735,6 @@ await section('NJT GTFS — 3-day refresh interval (updated from 7-day)', async 
 // ─────────────────────────────────────────────
 console.log(`\n${'─'.repeat(50)}`)
 console.log(`Results: ${passed} passed, ${failed} failed, ${skipped} skipped`)
-if (failed > 0) process.exit(1)
 
 // ═══════════════════════════════════════════════════════════
 // v2.0 — GTFS auto-resolution, PABT gate fix, preset picker,
@@ -1071,6 +1069,61 @@ await section('Runtime — HBLR card endpoint', async () => {
   const stopData = await get(`/api/bus/stops?ids=${data.outbound}&routes=HBLR`)
   ok('HBLR stop returns buses array', Array.isArray(stopData.buses))
   ok('HBLR stop returns stop name', typeof stopData.stop === 'string')
+})
+
+// ─────────────────────────────────────────────
+// System Status endpoint
+// ─────────────────────────────────────────────
+await section('System Status — /api/system-status endpoint', async () => {
+  const data = await get('/api/system-status')
+  ok('Returns uptime string', typeof data.uptime === 'string' && data.uptime.includes('h'))
+  ok('Returns busGtfs object', typeof data.busGtfs === 'object')
+  ok('busGtfs has ageDays', data.busGtfs.ageDays === null || typeof data.busGtfs.ageDays === 'number')
+  ok('busGtfs has loaded flag', typeof data.busGtfs.loaded === 'boolean')
+  ok('busGtfs has stale flag', typeof data.busGtfs.stale === 'boolean')
+  ok('Returns subwayGtfs object', typeof data.subwayGtfs === 'object')
+  ok('subwayGtfs has ageDays', data.subwayGtfs.ageDays === null || typeof data.subwayGtfs.ageDays === 'number')
+  ok('Returns stationRoutes object', typeof data.stationRoutes === 'object')
+  ok('stationRoutes has stations count', typeof data.stationRoutes.stations === 'number')
+  ok('Returns njtBusToken object', typeof data.njtBusToken === 'object')
+  ok('njtBusToken has valid flag', typeof data.njtBusToken.valid === 'boolean')
+  ok('Returns njtRailToken object', typeof data.njtRailToken === 'object')
+  ok('njtRailToken has valid flag', typeof data.njtRailToken.valid === 'boolean')
+})
+
+// ─────────────────────────────────────────────
+// Settings — minimum card requirement
+// ─────────────────────────────────────────────
+await section('Settings — minimum 1 card requirement', async () => {
+  const src2 = readFileSync('src/App.jsx', 'utf8')
+  ok('Save button has disabled prop', src2.includes('disabled={draftOutStops.length + draftInStops.length < 1}'))
+  ok('renderStopList called with minCount 0 for outbound', src2.includes('renderStopList(draftOutStops, setDraftOutStops, 0)'))
+  ok('renderStopList called with minCount 0 for inbound', src2.includes('renderStopList(draftInStops, setDraftInStops, 0)'))
+  ok('Remove button disabled when stops.length <= minCount', src2.includes('disabled={stops.length <= minCount}'))
+})
+
+// ─────────────────────────────────────────────
+// Dismissable inline alerts
+// ─────────────────────────────────────────────
+await section('Dismissable inline alerts', async () => {
+  const src2 = readFileSync('src/App.jsx', 'utf8')
+  ok('_dismissedAlerts Set defined', src2.includes('const _dismissedAlerts = new Set()'))
+  ok('InlineAlert checks dismissed state', src2.includes('_dismissedAlerts.has(text)'))
+  ok('Dismiss button adds to Set', src2.includes('_dismissedAlerts.add(text)'))
+  ok('Dismiss button has X icon', src2.includes('inline-alert-dismiss'))
+  ok('CSS for dismiss button exists', readFileSync('src/App.css', 'utf8').includes('.inline-alert-dismiss'))
+})
+
+// ─────────────────────────────────────────────
+// System status easter egg
+// ─────────────────────────────────────────────
+await section('System status easter egg — triple-click gear', async () => {
+  const src2 = readFileSync('src/App.jsx', 'utf8')
+  ok('Gear icon in settings header', src2.includes('<Settings size={18}'))
+  ok('Triple-click detection (count >= 3)', src2.includes('gearClickCount.current >= 3'))
+  ok('showSystemStatus state toggle', src2.includes('setShowSystemStatus'))
+  ok('System status fetched on panel open', src2.includes("fetch('/api/system-status')"))
+  ok('Status hidden by default', src2.includes('showSystemStatus && ('))
 })
 
 // ─────────────────────────────────────────────
