@@ -2477,6 +2477,21 @@ function PresetPickerModal({ open, onSelect }) {
         <div className="preset-picker-header">
           <span className="preset-picker-title" onClick={handleTitleClick}>Where do you commute from?</span>
           <p className="preset-picker-subtitle">Pick a neighborhood to set up your dashboard. You can customize everything in Settings.</p>
+          <form className="preset-picker-zip" onSubmit={handleZipSubmit}>
+            <input
+              type="text"
+              className="preset-picker-zip-input"
+              placeholder="Enter your zip code…"
+              value={zipInput}
+              onChange={(e) => setZipInput(e.target.value)}
+              maxLength={5}
+              inputMode="numeric"
+            />
+            <button type="submit" className="preset-picker-zip-btn" disabled={zipLoading}>
+              {zipLoading ? '…' : 'Go'}
+            </button>
+            {zipError && <span className="preset-picker-zip-error">{zipError}</span>}
+          </form>
         </div>
         <div className="preset-picker-grid">
           {PRESETS.map(preset => (
@@ -2491,21 +2506,6 @@ function PresetPickerModal({ open, onSelect }) {
             </button>
           ))}
         </div>
-        <form className="preset-picker-zip" onSubmit={handleZipSubmit}>
-          <input
-            type="text"
-            className="preset-picker-zip-input"
-            placeholder="Or enter your zip code…"
-            value={zipInput}
-            onChange={(e) => setZipInput(e.target.value)}
-            maxLength={5}
-            inputMode="numeric"
-          />
-          <button type="submit" className="preset-picker-zip-btn" disabled={zipLoading}>
-            {zipLoading ? '…' : 'Go'}
-          </button>
-          {zipError && <span className="preset-picker-zip-error">{zipError}</span>}
-        </form>
       </div>
     </div>
   )
