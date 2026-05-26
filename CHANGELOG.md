@@ -12,6 +12,12 @@
 - Replaces generic Lucide Bus/Ship/TrainFront icons on both dashboard cards and settings picker
 - Existing custom icons (MTA Globe, HBLR clocktower, LIRR M7, Metro-North clock) unchanged
 
+### Preset Picker — Zip Code Input
+- Zip code input field added to the preset picker modal (between subtitle and neighborhood cards)
+- Resolves zip via NWS API → finds nearest preset by lat/lon distance
+- Triple-click the title "Where do you commute from?" to load a random preset (easter egg)
+- TODO: distance threshold validation, nearby-stop GTFS lookup, 500 premade presets
+
 ### Dismissable Inline Alerts
 - Every inline alert on transit cards now has an X button to dismiss
 - Dismissed alerts are session-only (in-memory Set, not persisted to localStorage)
