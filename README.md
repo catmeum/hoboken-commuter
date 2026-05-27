@@ -2,12 +2,13 @@
 
 A real-time commuter dashboard for the NY/NJ metro area. Built for Hoboken-based commuters, it aggregates live transit data from a dozen sources into a single, clean interface — tunnels, buses, trains, ferries, subway, and weather, all in one place. Visit the live version of this dashboard at: [https://commute.stroszeck.com](https://commute.stroszeck.com)
 
-![Version](https://img.shields.io/badge/version-1.8.0-blue) ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20Express-lightgrey)
+![Version](https://img.shields.io/badge/version-2.4.0-blue) ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20Express-lightgrey)
 
 ---
 
 ## What It Does
 
+- **Zip code auto-setup** — enter your zip code and the dashboard auto-detects the 3–6 closest transit stops across all modes (subway, bus, rail, PATH, ferry, light rail). No manual configuration needed.
 - **Bidirectional** — toggle between Hoboken → NYC and NYC → Hoboken with a single click. All data sources flip instantly.
 - **Fully customizable** — settings panel lets you add/remove/drag-reorder transit cards, configure alerts, and set your home/work cities. Settings persist across sessions.
 - **Live data everywhere** — real-time ETAs, not just schedules. Falls back to static GTFS when live data isn't available.
@@ -117,6 +118,9 @@ Browser (React SPA)  ←→  localStorage (settings)
 
 ## Key Features
 
+### Zip Code Auto-Setup
+Enter your zip code on the welcome screen and the dashboard automatically finds the closest transit stops — MTA subway, NJT bus, NJT Rail, PATH, ferry, and HBLR. Works for any zip in the NY/NJ metro area. Out-of-area zips get a clear error message.
+
 ### Settings Panel
 Add any transit card from the full picker — search by stop name, station, or route. Drag cards to reorder using the grip handle. Separate outbound and inbound columns, up to 6 cards each. All settings persist in localStorage. Reset to defaults via the button at the bottom of the panel.
 
@@ -139,7 +143,7 @@ On weekends and holidays, PATH runs JSQ-33 via Hoboken as route `1024`. The dash
 
 ## Version History
 
-See [CHANGELOG.md](CHANGELOG.md) for full version history. Current version: **v1.8.0** (April 2026).
+See [CHANGELOG.md](CHANGELOG.md) for full version history. Current version: **v2.4.0** (May 2026).
 
 ---
 
