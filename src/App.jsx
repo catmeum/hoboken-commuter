@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { version as APP_VERSION } from '../package.json'
 import {
   Car,
   Bus,
@@ -3608,6 +3609,8 @@ export default function App() {
         <span>We ❤️ public transit</span>
         <span className="footer-sep">·</span>
         <span>Like this dashboard? <a href="https://venmo.com/u/IanStroz" target="_blank" rel="noopener noreferrer">Buy me a coffee ☕</a></span>
+        <span className="footer-sep">·</span>
+        <span className="footer-version">v{APP_VERSION}</span>
       </footer>
 
     </div>
