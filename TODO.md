@@ -2,7 +2,7 @@
 
 ## Active
 
-- [ ] **MTA station name disambiguation** — when searching for stations manually (settings panel), stations with the same name (e.g. "72 St" appears 4 times across NYC) should show their line letters to disambiguate: "72 St (N, Q, R)" vs "72 St (1, 2, 3)" vs "72 St (B, C)".
+*(No active items — pick from Feature Backlog or Backlog)*
 
 
 ## Feature Backlog
@@ -24,3 +24,11 @@
 - [ ] **PABT gate accuracy for sub-routes** — route 126 has two gates (213 for Washington, 214 for Willow) but the dynamic card only shows the primary gate. Headsign-based lookup would be more accurate but adds complexity. See DECISIONS.md for tradeoff analysis
 - [ ] **Clothing recommendation card** — square card that sits between the tunnel and weather cards. Shows a single icon for what to bring outside based on current conditions: umbrella (rain), winter coat (cold), sunscreen (hot/sunny), light jacket (mild), etc. Derived from the weather data already fetched — no new API needed.
 - [ ] **Phone / iPad app** — see "iPhone app (Flighty-style UI)" in Feature Backlog above.
+
+## Completed
+
+- [x] **Welcome page — zip code auto-setup** — zip code input resolves to lat/lon, calls `/api/nearby-stops` to auto-select up to 6 relevant transit stops.
+- [x] **Welcome page — "Random 6 stops" easter egg** — triple-click title picks one random stop from each transit mode.
+- [x] **Nearby-stop auto-lookup** — `/api/nearby-stops?lat=X&lon=Y` endpoint searches GTFS stop coordinates across all transit types (MTA subway, NJT bus, PATH, ferry, NJT Rail, HBLR). Consolidates nearby MTA stations into complexes.
+- [x] **Zip code picker validation** — out-of-area zips show clear error message instead of silently selecting a wrong preset.
+- [x] **MTA station name disambiguation** — stations with the same name but different physical locations (e.g. "72 St") show line letters in search results. Uses coordinate-based clustering to distinguish complexes from separate stations.
