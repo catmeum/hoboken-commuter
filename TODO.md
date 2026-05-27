@@ -5,6 +5,7 @@
 - [ ] **Nearby-stop auto-lookup** — enhance the zip code flow to find the 3-6 closest transit stops using GTFS stop coordinates (MTA subway, NJT bus, PATH, ferry). Requires a new `/api/nearby-stops?lat=X&lon=Y` endpoint that searches stop coordinates. Falls back to premade presets if no nearby stops found.
 - [ ] **500 premade presets spreadsheet** — import a user-provided spreadsheet of ~500 zip→preset mappings as a fallback layer between the automatic GTFS lookup and the "pick manually" message.
 - [ ] **Zip code picker validation** — currently accepts any US zip code (including California) and matches to the nearest preset even if it's hundreds of miles away. Add a distance threshold (~0.05° / ~3 miles) — if the nearest preset is too far, show "No nearby transit coverage — pick a neighborhood manually" instead of silently selecting a wrong preset. Also add test cases for out-of-range zips.
+- [ ] **MTA station name disambiguation** — when searching for stations manually (settings panel), stations with the same name (e.g. "72 St" appears 4 times across NYC) should show their line letters to disambiguate: "72 St (N, Q, R)" vs "72 St (1, 2, 3)" vs "72 St (B, C)".
 
 ## Feature Backlog
 

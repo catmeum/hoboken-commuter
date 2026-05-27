@@ -211,6 +211,7 @@ let tripRouteMap = {}
 let tripHeadsignMap = {}
 let scheduleByStop = {}
 let stopNamesMap = {}
+let stopCoordsMap = {} // stop_id → { lat, lon }
 let gtfsLoaded = false
 const GTFS_CACHE = path.join(__dirname, '..', '.cache')
 const GTFS_ZIP = path.join(GTFS_CACHE, 'gtfs.zip')
@@ -267,11 +268,20 @@ async function loadGTFS() {
   const stopsHeader = stopsCsv[0].split(',')
   const sIdIdx = stopsHeader.indexOf('stop_id')
   const sNameIdx = stopsHeader.indexOf('stop_name')
+  const sLatIdx = stopsHeader.indexOf('stop_lat')
+  const sLonIdx = stopsHeader.indexOf('stop_lon')
   for (let i = 1; i < stopsCsv.length; i++) {
     const cols = stopsCsv[i].split(',')
     stopNamesMap[cols[sIdIdx]] = cols[sNameIdx]
+    if (sLatIdx >= 0 && sLonIdx >= 0) {
+      const lat = parseFloat(cols[sLatIdx])
+      const lon = parseFloat(cols[sLonIdx])
+      if (!isNaN(lat) && !isNaN(lon)) {
+        stopCoordsMap[cols[sIdIdx]] = { lat, lon }
+      }
+    }
   }
-  console.log('[GTFS] Loaded', Object.keys(stopNamesMap).length, 'stop names')
+  console.log('[GTFS] Loaded', Object.keys(stopNamesMap).length, 'stop names,', Object.keys(stopCoordsMap).length, 'with coordinates')
 
   const allStopIds = getAllStopIds() // null = all stops
   const stCsv = zip.readAsText('stop_times.txt').trim().split('\n')
@@ -1320,6 +1330,7 @@ function getMtaAlertsForLines(allAlerts, lines) {
 
 // MTA subway station list (loaded from GTFS static)
 let mtaStationsCache = null
+let mtaStationsCoordsCache = null // id → { lat, lon }
 let lirrStationsCache = null
 let mnrStationsCache = null
 
@@ -1351,17 +1362,26 @@ async function loadMtaStations() {
     const idIdx = header.indexOf('stop_id')
     const nameIdx = header.indexOf('stop_name')
     const typeIdx = header.indexOf('location_type')
+    const latIdx = header.indexOf('stop_lat')
+    const lonIdx = header.indexOf('stop_lon')
 
     const stations = []
+    const coords = {}
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(',')
       if (cols[typeIdx] === '1') {
         stations.push({ id: cols[idIdx], name: cols[nameIdx] })
+        const lat = parseFloat(cols[latIdx])
+        const lon = parseFloat(cols[lonIdx])
+        if (!isNaN(lat) && !isNaN(lon)) {
+          coords[cols[idIdx]] = { lat, lon }
+        }
       }
     }
     stations.sort((a, b) => a.name.localeCompare(b.name))
     mtaStationsCache = stations
-    console.log('[MTA] Loaded', stations.length, 'subway stations')
+    mtaStationsCoordsCache = coords
+    console.log('[MTA] Loaded', stations.length, 'subway stations with', Object.keys(coords).length, 'coordinates')
     return stations
   } catch (err) {
     console.error('[MTA] Failed to load stations:', err.message)
@@ -2137,6 +2157,305 @@ app.get('/api/mtabus/query', strictLimiter, async (req, res) => {
     else console.error('[MTA Bus]', err.message)
     // Return empty gracefully — card will show "No upcoming buses" instead of error
     res.json({ departures: [], alerts: [], timeout: isTimeout, timestamp: new Date().toISOString() })
+  }
+})
+
+// ══════════════════════════════════════════════════════════
+// Nearby Stops — geo-lookup across all transit types
+// ══════════════════════════════════════════════════════════
+
+// Hardcoded PATH station coordinates
+const PATH_STATION_COORDS = {
+  '26722': { lat: 40.7355, lon: -74.1641, name: 'Newark' },
+  '26723': { lat: 40.7393, lon: -74.1557, name: 'Harrison' },
+  '26724': { lat: 40.7328, lon: -74.0629, name: 'Journal Square' },
+  '26725': { lat: 40.7191, lon: -74.0431, name: 'Grove St' },
+  '26726': { lat: 40.7167, lon: -74.0347, name: 'Exchange Place' },
+  '26727': { lat: 40.7328, lon: -74.0070, name: 'Christopher St' },
+  '26728': { lat: 40.7270, lon: -74.0340, name: 'Newport' },
+  '26729': { lat: 40.7355, lon: -74.0298, name: 'Hoboken' },
+  '26730': { lat: 40.7115, lon: -74.0134, name: 'World Trade Center' },
+  '26731': { lat: 40.7342, lon: -74.0005, name: '9th St' },
+  '26732': { lat: 40.7375, lon: -73.9967, name: '14th St' },
+  '26733': { lat: 40.7428, lon: -73.9930, name: '23rd St' },
+  '26734': { lat: 40.7490, lon: -73.9882, name: '33rd St' },
+}
+
+// NJT Rail station coordinates with 2-char codes and lines
+// Codes verified against NJT Rail API getStationList endpoint.
+// Lines: AC=Atlantic City, BC=Bergen County, GS=Gladstone, MC=Montclair-Boonton,
+//        ME=Morris & Essex, ML=Main, NC=North Jersey Coast, NE=Northeast Corridor,
+//        PV=Pascack Valley, PR=Princeton, RV=Raritan Valley
+const NJT_RAIL_STATIONS = [
+  // Morris & Essex / Gladstone Branch
+  { code: 'HB', name: 'Hoboken', lat: 40.7355, lon: -74.0298, lines: ['ME', 'MC', 'BC', 'ML', 'PV'] },
+  { code: 'SE', name: 'Secaucus Upper Lvl', lat: 40.7614, lon: -74.0756, lines: ['ME', 'MC', 'ML', 'NE', 'NC'] },
+  { code: 'TS', name: 'Secaucus Lower Lvl', lat: 40.7614, lon: -74.0756, lines: ['BC', 'PV'] },
+  { code: 'NY', name: 'New York Penn Station', lat: 40.7505, lon: -73.9935, lines: ['NE', 'NC', 'ME', 'MC', 'RV', 'ML', 'BC', 'PV', 'GS', 'AC'] },
+  { code: 'MW', name: 'Maplewood', lat: 40.7313, lon: -74.2730, lines: ['ME', 'GS'] },
+  { code: 'SO', name: 'South Orange', lat: 40.7480, lon: -74.2620, lines: ['ME', 'GS'] },
+  { code: 'OG', name: 'Orange', lat: 40.7710, lon: -74.2330, lines: ['ME'] },
+  { code: 'MB', name: 'Millburn', lat: 40.7260, lon: -74.3040, lines: ['ME', 'GS'] },
+  { code: 'SH', name: 'Short Hills', lat: 40.7250, lon: -74.3250, lines: ['ME', 'GS'] },
+  { code: 'ST', name: 'Summit', lat: 40.7162, lon: -74.3580, lines: ['ME', 'GS'] },
+  { code: 'CM', name: 'Chatham', lat: 40.7410, lon: -74.3830, lines: ['ME', 'GS'] },
+  { code: 'MA', name: 'Madison', lat: 40.7590, lon: -74.4160, lines: ['ME', 'GS'] },
+  { code: 'CN', name: 'Convent Station', lat: 40.7780, lon: -74.4410, lines: ['ME', 'GS'] },
+  { code: 'MR', name: 'Morristown', lat: 40.7970, lon: -74.4770, lines: ['ME', 'GS'] },
+  { code: 'MH', name: 'Murray Hill', lat: 40.6948, lon: -74.4029, lines: ['GS'] },
+  { code: 'NV', name: 'New Providence', lat: 40.6990, lon: -74.3820, lines: ['GS'] },
+  { code: 'BY', name: 'Berkeley Heights', lat: 40.6820, lon: -74.4310, lines: ['GS'] },
+  { code: 'GL', name: 'Gladstone', lat: 40.7230, lon: -74.6650, lines: ['GS'] },
+  { code: 'DO', name: 'Dover', lat: 40.8830, lon: -74.5620, lines: ['ME'] },
+  { code: 'MX', name: 'Morris Plains', lat: 40.8290, lon: -74.4810, lines: ['ME'] },
+  { code: 'DV', name: 'Denville', lat: 40.8680, lon: -74.4780, lines: ['ME'] },
+  { code: 'BU', name: 'Brick Church', lat: 40.7630, lon: -74.2520, lines: ['ME', 'GS'] },
+  { code: 'EO', name: 'East Orange', lat: 40.7670, lon: -74.2150, lines: ['ME'] },
+  // Northeast Corridor
+  { code: 'NP', name: 'Newark Penn Station', lat: 40.7345, lon: -74.1645, lines: ['NE', 'NC', 'RV'] },
+  { code: 'NA', name: 'Newark Airport', lat: 40.7040, lon: -74.1910, lines: ['NE', 'NC'] },
+  { code: 'EZ', name: 'Elizabeth', lat: 40.6680, lon: -74.2150, lines: ['NE', 'NC'] },
+  { code: 'LI', name: 'Linden', lat: 40.6320, lon: -74.2490, lines: ['NE', 'NC'] },
+  { code: 'RH', name: 'Rahway', lat: 40.6080, lon: -74.2770, lines: ['NE', 'NC'] },
+  { code: 'MP', name: 'Metropark', lat: 40.5680, lon: -74.3300, lines: ['NE', 'NC'] },
+  { code: 'MU', name: 'Metuchen', lat: 40.5430, lon: -74.3630, lines: ['NE'] },
+  { code: 'NB', name: 'New Brunswick', lat: 40.4960, lon: -74.4440, lines: ['NE'] },
+  { code: 'PJ', name: 'Princeton Junction', lat: 40.3170, lon: -74.6220, lines: ['NE'] },
+  { code: 'PR', name: 'Princeton', lat: 40.3440, lon: -74.6590, lines: ['NE'] },
+  { code: 'ED', name: 'Edison', lat: 40.5180, lon: -74.4120, lines: ['NE'] },
+  { code: 'NZ', name: 'North Elizabeth', lat: 40.6810, lon: -74.2200, lines: ['NE', 'NC'] },
+  // North Jersey Coast
+  { code: 'AM', name: 'Aberdeen-Matawan', lat: 40.4180, lon: -74.2320, lines: ['NC'] },
+  { code: 'HZ', name: 'Hazlet', lat: 40.4160, lon: -74.1900, lines: ['NC'] },
+  { code: 'MI', name: 'Middletown NJ', lat: 40.3900, lon: -74.1160, lines: ['NC'] },
+  { code: 'RB', name: 'Red Bank', lat: 40.3480, lon: -74.0740, lines: ['NC'] },
+  { code: 'LB', name: 'Long Branch', lat: 40.2960, lon: -73.9880, lines: ['NC'] },
+  { code: 'AP', name: 'Asbury Park', lat: 40.2130, lon: -74.0120, lines: ['NC'] },
+  { code: 'LS', name: 'Little Silver', lat: 40.3340, lon: -74.0410, lines: ['NC'] },
+  { code: 'PP', name: 'Point Pleasant Beach', lat: 40.0920, lon: -74.0480, lines: ['NC'] },
+  { code: 'CH', name: 'South Amboy', lat: 40.4840, lon: -74.2780, lines: ['NC'] },
+  // Raritan Valley
+  { code: 'PF', name: 'Plainfield', lat: 40.6190, lon: -74.4210, lines: ['RV'] },
+  { code: 'WF', name: 'Westfield', lat: 40.6520, lon: -74.3470, lines: ['RV'] },
+  { code: 'XC', name: 'Cranford', lat: 40.6580, lon: -74.3030, lines: ['RV'] },
+  { code: 'GW', name: 'Garwood', lat: 40.6520, lon: -74.3240, lines: ['RV'] },
+  { code: 'SM', name: 'Somerville', lat: 40.5740, lon: -74.6140, lines: ['RV'] },
+  { code: 'BW', name: 'Bridgewater', lat: 40.5930, lon: -74.5530, lines: ['RV'] },
+  { code: 'BK', name: 'Bound Brook', lat: 40.5680, lon: -74.5380, lines: ['RV'] },
+  { code: 'DN', name: 'Dunellen', lat: 40.5930, lon: -74.4720, lines: ['RV'] },
+  { code: 'FW', name: 'Fanwood', lat: 40.6420, lon: -74.3830, lines: ['RV'] },
+  { code: 'NE', name: 'Netherwood', lat: 40.6310, lon: -74.4000, lines: ['RV'] },
+  { code: 'RL', name: 'Roselle Park', lat: 40.6640, lon: -74.2640, lines: ['RV'] },
+  // Main / Bergen / Pascack Valley
+  { code: 'RF', name: 'Rutherford', lat: 40.8280, lon: -74.1010, lines: ['BC'] },
+  { code: 'PV', name: 'Park Ridge', lat: 41.0370, lon: -74.0420, lines: ['ML'] },
+  { code: 'RW', name: 'Ridgewood', lat: 40.9790, lon: -74.1160, lines: ['ML', 'BC'] },
+  { code: 'RS', name: 'Glen Rock Main Line', lat: 40.9590, lon: -74.1310, lines: ['ML'] },
+  { code: 'GK', name: 'Glen Rock Boro Hall', lat: 40.9560, lon: -74.1240, lines: ['BC'] },
+  { code: 'HD', name: 'Hillsdale', lat: 41.0060, lon: -74.0430, lines: ['PV'] },
+  { code: 'WL', name: 'Woodcliff Lake', lat: 41.0230, lon: -74.0560, lines: ['PV'] },
+  { code: 'WK', name: 'Waldwick', lat: 41.0110, lon: -74.1190, lines: ['ML', 'BC'] },
+  { code: 'MZ', name: 'Mahwah', lat: 41.0890, lon: -74.1440, lines: ['ML'] },
+  { code: 'SF', name: 'Suffern', lat: 41.1150, lon: -74.1490, lines: ['ML'] },
+  // Montclair-Boonton
+  { code: 'UV', name: 'Montclair State U', lat: 40.8630, lon: -74.1990, lines: ['MC'] },
+  { code: 'HS', name: 'Montclair Heights', lat: 40.8470, lon: -74.2020, lines: ['MC'] },
+  { code: 'BM', name: 'Bloomfield', lat: 40.7920, lon: -74.2000, lines: ['MC'] },
+  { code: 'GG', name: 'Glen Ridge', lat: 40.8040, lon: -74.2040, lines: ['MC'] },
+  { code: 'WT', name: 'Watsessing Avenue', lat: 40.7870, lon: -74.1930, lines: ['MC'] },
+  { code: 'BN', name: 'Boonton', lat: 40.9030, lon: -74.4070, lines: ['MC'] },
+  { code: 'LP', name: 'Lincoln Park', lat: 40.9240, lon: -74.3020, lines: ['MC'] },
+  { code: 'MV', name: 'Mountain View', lat: 40.9080, lon: -74.2600, lines: ['MC'] },
+  // Atlantic City
+  { code: 'AC', name: 'Atlantic City Rail Terminal', lat: 39.3640, lon: -74.4420, lines: ['AC'] },
+  { code: 'LW', name: 'Lindenwold', lat: 39.8240, lon: -74.9960, lines: ['AC'] },
+  { code: 'CY', name: 'Cherry Hill', lat: 39.9340, lon: -75.0230, lines: ['AC'] },
+]
+
+// Hardcoded ferry terminal coordinates
+const FERRY_TERMINAL_COORDS = {
+  '4':  { lat: 40.7133, lon: -74.0154, name: 'Brookfield Place' },
+  '5':  { lat: 40.8270, lon: -73.9750, name: 'Edgewater Ferry Landing' },
+  '9':  { lat: 40.7520, lon: -74.0270, name: 'Hoboken 14th Street' },
+  '10': { lat: 40.7360, lon: -74.0290, name: 'Hoboken / NJ Transit Terminal' },
+  '11': { lat: 40.7730, lon: -74.0130, name: 'Port Imperial / Weehawken' },
+  '12': { lat: 40.7130, lon: -74.0380, name: 'Liberty Harbor / Marin Blvd.' },
+  '13': { lat: 40.7620, lon: -74.0180, name: 'Lincoln Harbor' },
+  '14': { lat: 40.7610, lon: -73.9990, name: 'Midtown / W. 39th St.' },
+  '17': { lat: 40.7140, lon: -74.0340, name: 'Paulus Hook / Jersey City' },
+  '18': { lat: 40.7010, lon: -74.0090, name: 'Pier 11 / Wall St.' },
+  '20': { lat: 40.6930, lon: -74.0550, name: 'Port Liberté' },
+}
+
+// Haversine distance in miles
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 3959 // Earth radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+app.get('/api/nearby-stops', async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat)
+    const lon = parseFloat(req.query.lon)
+    if (isNaN(lat) || isNaN(lon)) return res.status(400).json({ error: 'Invalid lat/lon' })
+
+    const maxDistance = parseFloat(req.query.maxDistance) || 3 // miles
+    const maxResults = parseInt(req.query.max) || 6
+
+    const candidates = [] // { type, id, name, distance, stopKey, routes }
+
+    // 1. NJT Bus stops (from GTFS)
+    if (gtfsLoaded) {
+      for (const [stopId, coords] of Object.entries(stopCoordsMap)) {
+        const dist = haversineDistance(lat, lon, coords.lat, coords.lon)
+        if (dist > maxDistance) continue
+        const name = stopNamesMap[stopId] || stopId
+        // Skip large terminals unless very close — they serve too many routes and aren't useful as "nearby" stops
+        const schedule = scheduleByStop[stopId]
+        const routes = schedule ? [...new Set(schedule.map(s => s.route))].sort() : []
+
+        // Identify Light Rail stations
+        const isLightRail = name.toUpperCase().includes('LIGHT RAIL STATION')
+        if (isLightRail) {
+          const stationName = name.replace(/\s*LIGHT RAIL STATION\s*/i, '').trim()
+          candidates.push({ type: 'hblr', id: stopId, name: stationName || name, distance: dist, stopKey: `hblr:${stopId}`, routes: routes.slice(0, 5) })
+          continue
+        }
+
+        if (!schedule || schedule.length === 0) continue
+        if (routes.length > 20 && dist > 0.5) continue // large terminal far away, skip
+        // Check if it's HBLR by route name
+        const isHblr = routes.some(r => r === 'HBLR' || r.toLowerCase().includes('hblr'))
+        const type = isHblr ? 'hblr' : 'bus'
+        const stopKey = isHblr ? `hblr:${stopId}` : `bus:${stopId}:${routes.slice(0, 3).join(',')}`
+        candidates.push({ type, id: stopId, name, distance: dist, stopKey, routes: routes.slice(0, 5) })
+      }
+    }
+
+    // 2. MTA Subway stations
+    await loadMtaStations()
+    if (mtaStationsCoordsCache) {
+      const routesMap = loadStationRoutes()
+      const mtaCandidates = []
+      for (const [stationId, coords] of Object.entries(mtaStationsCoordsCache)) {
+        const dist = haversineDistance(lat, lon, coords.lat, coords.lon)
+        if (dist > maxDistance) continue
+        const station = mtaStationsCache?.find(s => s.id === stationId)
+        const name = station?.name || stationId
+        const routes = routesMap[stationId] || []
+        if (routes.length === 0) continue
+        mtaCandidates.push({ id: stationId, name, lat: coords.lat, lon: coords.lon, distance: dist, routes })
+      }
+      // Consolidate nearby MTA stations into complexes (within 0.15 miles)
+      mtaCandidates.sort((a, b) => a.distance - b.distance)
+      const merged = []
+      const used = new Set()
+      for (const station of mtaCandidates) {
+        if (used.has(station.id)) continue
+        used.add(station.id)
+        const complex = { ids: [station.id], name: station.name, distance: station.distance, routes: new Set(station.routes) }
+        // Find other stations within 0.15 miles of this one to merge
+        for (const other of mtaCandidates) {
+          if (used.has(other.id)) continue
+          const interDist = haversineDistance(station.lat, station.lon, other.lat, other.lon)
+          if (interDist <= 0.15) {
+            used.add(other.id)
+            complex.ids.push(other.id)
+            other.routes.forEach(r => complex.routes.add(r))
+            // Use the shorter/more recognizable name
+            if (other.name.length < complex.name.length) complex.name = other.name
+          }
+        }
+        const allRoutes = [...complex.routes].sort()
+        const idsStr = complex.ids.join(',')
+        const linesStr = allRoutes.join(',')
+        const stopKeyS = `mta:${idsStr}:S:${linesStr}`
+        const stopKeyN = `mta:${idsStr}:N:${linesStr}`
+        merged.push({ type: 'mta', id: idsStr, name: complex.name, distance: complex.distance, stopKey: stopKeyS, stopKeyN, routes: allRoutes })
+      }
+      candidates.push(...merged)
+    }
+
+    // 3. PATH stations
+    for (const [stationId, info] of Object.entries(PATH_STATION_COORDS)) {
+      const dist = haversineDistance(lat, lon, info.lat, info.lon)
+      if (dist > maxDistance) continue
+      const routes = PATH_STATION_ROUTES[stationId] || []
+      const routeStr = routes.join(',')
+      // PATH stop key format: path:ROUTES:DIR:STATION_ID
+      const stopKeyOut = `path:${routeStr}:1:${stationId}`
+      const stopKeyIn = `path:${routeStr}:0:${stationId}`
+      candidates.push({ type: 'path', id: stationId, name: info.name, distance: dist, stopKey: stopKeyOut, stopKeyIn, routes })
+    }
+
+    // 4. Ferry terminals
+    for (const [tag, info] of Object.entries(FERRY_TERMINAL_COORDS)) {
+      const dist = haversineDistance(lat, lon, info.lat, info.lon)
+      if (dist > maxDistance) continue
+      candidates.push({ type: 'ferry', id: tag, name: info.name, distance: dist, stopKey: `ferry:${tag}`, routes: [] })
+    }
+
+    // 5. NJT Rail stations
+    for (const station of NJT_RAIL_STATIONS) {
+      const dist = haversineDistance(lat, lon, station.lat, station.lon)
+      if (dist > maxDistance) continue
+      const linesStr = station.lines.join(',')
+      const stopKey = `rail:${station.code}:${linesStr}`
+      candidates.push({ type: 'rail', id: station.code, name: station.name, distance: dist, stopKey, routes: station.lines })
+    }
+
+    // Sort by distance and pick closest, with light diversity preference
+    candidates.sort((a, b) => a.distance - b.distance)
+
+    // Pick up to maxResults — prefer diversity but don't pick far-away stops over close ones
+    // Only enforce diversity if candidates of different types are within 2x the distance of the closest
+    const selected = []
+    const typeCounts = {}
+
+    for (const c of candidates) {
+      if (selected.length >= maxResults) break
+      const count = typeCounts[c.type] || 0
+      // Allow up to 4 of same type (don't over-restrict when one type dominates the area)
+      if (count >= 4 && selected.length < maxResults) {
+        // Check if there's a different-type candidate within reasonable distance
+        const altExists = candidates.some(alt =>
+          !selected.includes(alt) && alt.type !== c.type && alt.distance < c.distance * 2
+        )
+        if (altExists) continue
+      }
+      selected.push(c)
+      typeCounts[c.type] = count + 1
+    }
+
+    // If we haven't filled up, add remaining closest regardless of type
+    if (selected.length < maxResults) {
+      for (const c of candidates) {
+        if (selected.length >= maxResults) break
+        if (selected.includes(c)) continue
+        selected.push(c)
+      }
+    }
+
+    // Build response with stop keys and display names
+    const stops = selected.map(s => ({
+      type: s.type,
+      id: s.id,
+      name: s.name,
+      distance: Math.round(s.distance * 100) / 100,
+      stopKey: s.stopKey,
+      stopKeyReverse: s.stopKeyN || s.stopKeyIn || s.stopKey,
+      routes: s.routes,
+    }))
+
+    res.json({ stops, lat, lon, timestamp: new Date().toISOString() })
+  } catch (err) {
+    console.error('[Nearby] Error:', err.message)
+    res.status(500).json({ error: err.message })
   }
 })
 

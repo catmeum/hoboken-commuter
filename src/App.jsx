@@ -2422,7 +2422,7 @@ function PresetPickerModal({ open, onSelect }) {
 
   if (!open) return null
 
-  // Zip code → find nearest preset by lat/lon
+  // Zip code → find nearby stops via GTFS coordinates, fallback to nearest preset
   async function handleZipSubmit(e) {
     e.preventDefault()
     const zip = zipInput.replace(/\D/g, '').slice(0, 5)
@@ -2435,7 +2435,52 @@ function PresetPickerModal({ open, onSelect }) {
       const data = await res.json()
       const lat = parseFloat(data.lat)
       const lon = parseFloat(data.lon)
-      // Find nearest preset by haversine-ish distance
+
+      // Try nearby-stops endpoint first
+      try {
+        const nearbyRes = await fetch(`/api/nearby-stops?lat=${lat}&lon=${lon}&max=6`)
+        if (nearbyRes.ok) {
+          const nearbyData = await nearbyRes.json()
+          if (nearbyData.stops && nearbyData.stops.length >= 3) {
+            // Build a dynamic preset from nearby stops
+            const outboundStops = nearbyData.stops.map(s => s.stopKey)
+            const inboundStops = nearbyData.stops.map(s => s.stopKeyReverse)
+            const stopNames = {}
+            for (const s of nearbyData.stops) {
+              stopNames[s.stopKey] = s.name + (s.routes.length ? ` (${s.routes.slice(0, 3).join(', ')})` : '')
+              if (s.stopKeyReverse !== s.stopKey) {
+                stopNames[s.stopKeyReverse] = s.name + (s.routes.length ? ` (${s.routes.slice(0, 3).join(', ')})` : '')
+              }
+            }
+            const dynamicPreset = {
+              id: 'nearby',
+              label: data.label || zip,
+              emoji: '📍',
+              description: `Auto-detected stops near ${data.label || zip}`,
+              outboundCity: data.label || zip,
+              inboundCity: 'NYC',
+              outboundWeather: { label: data.label || zip, url: data.url },
+              inboundWeather: { label: 'NYC', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+              outboundStops,
+              inboundStops,
+              stopNames,
+            }
+            onSelect(dynamicPreset)
+            setZipLoading(false)
+            return
+          }
+        }
+      } catch { /* fall through to preset matching */ }
+
+      // Fallback: check if zip is in NY/NJ area, then find nearest preset
+      // Rough bounding box for NY/NJ metro area: lat 40.4–41.3, lon -74.5–-73.5
+      const inNYNJ = lat >= 40.4 && lat <= 41.3 && lon >= -74.5 && lon <= -73.5
+      if (!inNYNJ) {
+        setZipError('Transit service information is not available at this zip code. Try a zip code closer to NYC.')
+        setZipLoading(false)
+        return
+      }
+
       const PRESET_COORDS = {
         hoboken:  { lat: 40.744, lon: -74.032 },
         newport:  { lat: 40.727, lon: -74.038 },
@@ -2458,15 +2503,90 @@ function PresetPickerModal({ open, onSelect }) {
     setZipLoading(false)
   }
 
-  // Triple-click easter egg — random 6 stops
+  // Triple-click easter egg — random stops, one per transit mode
   function handleTitleClick() {
     titleClickCount.current++
     clearTimeout(titleClickTimer.current)
     titleClickTimer.current = setTimeout(() => { titleClickCount.current = 0 }, 600)
     if (titleClickCount.current >= 3) {
       titleClickCount.current = 0
-      // Pick a random preset
-      const randomPreset = PRESETS[Math.floor(Math.random() * PRESETS.length)]
+      // Pick one random stop from each transit mode
+      const pick = arr => arr[Math.floor(Math.random() * arr.length)]
+      const mtaStations = [
+        { key: 'mta:127,725,902,R16:S:1,2,3,7,7X,GS,N,Q,R,W', name: 'Times Sq-42 St' },
+        { key: 'mta:631,723,901:S:4,5,6,6X,7,7X,GS', name: 'Grand Central-42 St' },
+        { key: 'mta:A41,R29:S:A,C,F,FX,N,R,W', name: 'Jay St-MetroTech' },
+        { key: 'mta:G14:S:E,F,FX,M,R', name: 'Jackson Hts-Roosevelt Av' },
+        { key: 'mta:L06:S:L', name: '1 Av' },
+        { key: 'mta:235,D24,R31:S:2,3,4,5,B,D,N,Q,R,W', name: 'Atlantic Av-Barclays Ctr' },
+        { key: 'mta:629:S:4,5,6,6X', name: '59 St' },
+        { key: 'mta:D15:S:B,D,F,FX,M', name: '47-50 Sts-Rockefeller Ctr' },
+        { key: 'mta:Q01:S:N,Q,R,W', name: '57 St-7 Av' },
+        { key: 'mta:A32:S:A,C,E', name: '14 St-8 Av' },
+      ]
+      const pathStations = [
+        { key: 'path:862,1024:1:26729', name: 'Hoboken' },
+        { key: 'path:860,861,1024:1:26728', name: 'Newport' },
+        { key: 'path:859,861,1024:1:26725', name: 'Grove St' },
+        { key: 'path:861,862,1024:1:26734', name: '33rd St' },
+        { key: 'path:859,860:1:26730', name: 'World Trade Center' },
+        { key: 'path:859,861,1024:1:26724', name: 'Journal Square' },
+      ]
+      const ferryStops = [
+        { key: 'ferry:9', name: 'Hoboken 14th St' },
+        { key: 'ferry:10', name: 'Hoboken / NJ Transit' },
+        { key: 'ferry:11', name: 'Port Imperial' },
+        { key: 'ferry:17', name: 'Paulus Hook' },
+        { key: 'ferry:18', name: 'Pier 11 / Wall St' },
+        { key: 'ferry:4', name: 'Brookfield Place' },
+      ]
+      const railStations = [
+        { key: 'rail:ST:ME,GS', name: 'Summit' },
+        { key: 'rail:MR:ME,GS', name: 'Morristown' },
+        { key: 'rail:NP:NE,NC,RV', name: 'Newark Penn' },
+        { key: 'rail:HB:ME,MC,BC,ML,PV', name: 'Hoboken' },
+        { key: 'rail:SE:ME,MC,ML,NE,NC', name: 'Secaucus' },
+        { key: 'rail:RB:NC', name: 'Red Bank' },
+        { key: 'rail:WF:RV', name: 'Westfield' },
+      ]
+      const busStops = [
+        { key: 'bus:7928:126', name: 'Washington & 11th (126)' },
+        { key: 'bus:7937:126', name: 'Willow & 15th (126)' },
+        { key: 'bus:15888:119', name: 'JFK Blvd / Bayview (119)' },
+      ]
+      const hblrStops = [
+        { key: 'hblr:15496', name: 'Hoboken Terminal' },
+        { key: 'hblr:15497', name: 'Newport' },
+        { key: 'hblr:15494', name: '9th Street' },
+        { key: 'hblr:15498', name: 'Harborside' },
+      ]
+
+      const mta = pick(mtaStations)
+      const path = pick(pathStations)
+      const ferry = pick(ferryStops)
+      const rail = pick(railStations)
+      const bus = pick(busStops)
+      const hblr = pick(hblrStops)
+
+      const stops = [mta, path, ferry, rail, bus, hblr]
+      const outboundStops = stops.map(s => s.key)
+      const inboundStops = stops.map(s => s.key)
+      const stopNames = {}
+      stops.forEach(s => { stopNames[s.key] = s.name })
+
+      const randomPreset = {
+        id: 'random',
+        label: 'Random Mix',
+        emoji: '🎲',
+        description: 'One of each transit mode',
+        outboundCity: 'NYC Metro',
+        inboundCity: 'NYC Metro',
+        outboundWeather: { label: 'NYC', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+        inboundWeather: { label: 'NYC', url: '/api/nws/gridpoints/OKX/34,44/forecast/hourly' },
+        outboundStops,
+        inboundStops,
+        stopNames,
+      }
       onSelect(randomPreset)
     }
   }
