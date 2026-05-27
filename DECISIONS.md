@@ -186,6 +186,59 @@ Port Authority Bus Terminal has 20+ routes and appears in the NJT GTFS with coor
 
 The original TODO suggested a distance threshold from the nearest preset. But with the nearby-stops endpoint, the fallback only triggers when the endpoint returns fewer than 3 results — meaning there genuinely isn't transit coverage nearby. A simple bounding box (lat 40.4–41.3, lon -74.5 to -73.5) cleanly separates the NY/NJ metro area from out-of-region zips without needing to compute distances to presets. Zips inside the box but far from transit still get the nearest preset as a reasonable default.
 
+## Adding Support for Other Metro Areas (Chicago CTA, WMATA, etc.)
+
+If expanding beyond NY/NJ to support other transit systems, the following areas need updates:
+
+### Frontend (`src/App.jsx`)
+
+1. **Zip code bounding box** — the `inNYNJ` check in `handleZipSubmit` uses a hardcoded bounding box (lat 40.4–41.3, lon -74.5 to -73.5). This must be expanded to include new metro areas, or replaced with a "did we find any stops?" check that removes the geographic restriction entirely (the nearby-stops endpoint already returns empty for areas with no transit data).
+
+2. **Fallback preset matching** — the `PRESET_COORDS` object and `PRESETS` array are NY/NJ-specific. New metro areas would need their own presets or the fallback should be removed in favor of always using the nearby-stops endpoint.
+
+3. **Weather inbound city default** — the dynamic preset hardcodes `inboundCity: 'NYC'` and `inboundWeather` to the NYC NWS grid. This should derive from the resolved zip's metro area or let the user configure it.
+
+4. **Random stops easter egg** — the hardcoded stop pools in `handleTitleClick` are all NY/NJ stops. Would need pools per metro area or a server-side random endpoint.
+
+### Server (`server/index.js`)
+
+5. **`/api/nearby-stops` endpoint** — currently searches NJT GTFS, MTA subway GTFS, PATH, ferry, and NJT Rail. New transit systems need:
+   - Their GTFS stop coordinates loaded into memory (like `stopCoordsMap` for NJT)
+   - A new section in the endpoint's candidate-building loop
+   - A stop key format that the frontend knows how to render (new `DynamicXxxCard` component)
+
+6. **`NJT_RAIL_STATIONS` array** — hardcoded station coordinates. Other rail systems (Metra, MARC, VRE) would need similar arrays with verified station codes.
+
+7. **`PATH_STATION_COORDS` and `FERRY_TERMINAL_COORDS`** — hardcoded. New cities' equivalent systems (CTA L stations, DC Metro stations) would need their own coordinate arrays.
+
+8. **GTFS data loading** — `loadGTFS()` downloads NJT-specific data. Each new agency needs its own GTFS loader, or a generalized multi-agency loader that downloads and indexes stops from multiple GTFS feeds.
+
+### Vite Config (`vite.config.js`)
+
+9. **Proxy routes** — any new `/api/cta`, `/api/wmata`, etc. endpoints need proxy entries for dev mode.
+
+### General Architecture Considerations
+
+10. **Stop key prefixes** — each new transit system needs a unique prefix (`cta:`, `wmata:`, `bart:`, etc.) and a corresponding `DynamicXxxCard` component that knows how to fetch and render departures.
+
+11. **Alert sources** — the alert filtering system (`deriveActiveAlertSources`) would need new source IDs for each transit system.
+
+12. **Rate limits** — some transit APIs have strict rate limits (NJT Rail: 40K/day). New APIs may have their own limits that affect polling intervals.
+
+13. **Auth tokens** — NJT requires username/password, MTA Bus requires an API key. New systems may need additional `.env` variables and token management.
+
+14. **The `haversineDistance` function and 3-mile default radius** — these are transit-system-agnostic and will work for any US metro area without changes.
+
+### Recommended Approach
+
+Rather than modifying the monolithic `server/index.js`, consider:
+- A plugin/module pattern where each metro area is a separate file (`server/agencies/cta.js`, `server/agencies/wmata.js`)
+- Each module exports: `loadStops()` → coordinate array, `buildStopKey(stop)` → string, `queryDepartures(stopKey)` → departures
+- The nearby-stops endpoint iterates over all registered agency modules
+- The frontend card router dispatches based on stop key prefix
+
+This keeps the core nearby-stops logic unchanged while making it easy to add new cities incrementally.
+
 ## Why NJT GTFS refreshes every 7 days instead of 24 hours
 
 NJT publishes GTFS static data updates sporadically — not on a daily schedule. Refreshing every 24 hours was wasteful (downloading 31MB of identical data) and could cause unnecessary disruption if the NJT API was temporarily unavailable. 7 days is a reasonable cadence that catches most schedule changes. The `/api/bus/gtfs-status` endpoint shows cache age and a `stale: true` flag if it's been over 7 days, making it easy to monitor.
