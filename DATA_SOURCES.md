@@ -88,6 +88,7 @@ All data sources are live. No mock data.
 | Endpoint | Purpose |
 |---|---|
 | `GET /api/weather/resolve-zip?zip=` | Zip code → NWS grid resolution |
+| `GET /api/nearby-stops?lat=&lon=&max=&maxDistance=` | Geo-lookup: closest transit stops across all modes |
 
 ## External APIs
 

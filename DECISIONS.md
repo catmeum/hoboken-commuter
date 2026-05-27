@@ -166,6 +166,26 @@ Settings are user-specific and don't need to be shared or synced. localStorage i
 
 The MTA Bus Time SIRI API (`bustime.mta.info`) can hang indefinitely on weekends or during off-peak hours. Without a timeout, the card would show a loading spinner forever. An 8-second `AbortSignal.timeout` causes the fetch to abort and return `{ timeout: true }` in the response. The card then shows "Feed timed out — try again shortly" in orange rather than silently showing "No upcoming buses" (which would be misleading — the user can't tell if there are no buses or if the feed failed). There is no schedule fallback for MTA Bus since the SIRI API is the only data source.
 
+## Why nearby-stops uses hardcoded NJT Rail station coordinates
+
+The NJT Rail API (`getStationList`) returns station names and 2-char codes but no coordinates. The NJT bus GTFS `stops.txt` includes some rail stations as bus connection points, but only ~37 of the 173 rail stations appear there. Rather than making an extra API call at search time or maintaining a fragile name-matching heuristic, we hardcode ~75 major NJT Rail stations with their coordinates and verified 2-char codes (validated against the live `getStationList` API). This is stable data — station locations don't change.
+
+## Why nearby-stops consolidates MTA stations within 0.15 miles
+
+MTA subway complexes (like Times Square or Herald Square) have multiple parent station IDs representing different platform groups. Without consolidation, a user near Herald Square would see two separate entries: "34 St-Herald Sq (B,D,F,M)" and "34 St-Herald Sq (N,Q,R,W)". The 0.15-mile merge radius combines these into a single entry showing all lines, matching how riders think about stations. The merge uses inter-station distance (not distance from the user) to avoid accidentally merging genuinely separate stations that happen to be near the same zip code.
+
+## Why nearby-stops has a diversity cap of 4 per type instead of strict equal distribution
+
+Early versions enforced `maxPerType = ceil(6/2) = 3`, which meant a user in midtown Manhattan (surrounded by subway stations) would get 3 subway stations plus 3 far-away NJT bus stops at Port Authority. The current approach allows up to 4 of the same type, only skipping a candidate if a different-type alternative exists within 2x the distance. This means areas dominated by one transit type (subway in Manhattan, NJT bus in suburban NJ) get relevant results instead of padding with distant irrelevant stops.
+
+## Why nearby-stops filters out large terminals beyond 0.5 miles
+
+Port Authority Bus Terminal has 20+ routes and appears in the NJT GTFS with coordinates in midtown Manhattan. Without filtering, PABT would show up for any zip code within 3 miles of Times Square, displacing more relevant nearby subway stations. The `routes.length > 20 && dist > 0.5` filter excludes large terminals unless the user is actually near them.
+
+## Why the zip code fallback uses a bounding box instead of a distance threshold
+
+The original TODO suggested a distance threshold from the nearest preset. But with the nearby-stops endpoint, the fallback only triggers when the endpoint returns fewer than 3 results — meaning there genuinely isn't transit coverage nearby. A simple bounding box (lat 40.4–41.3, lon -74.5 to -73.5) cleanly separates the NY/NJ metro area from out-of-region zips without needing to compute distances to presets. Zips inside the box but far from transit still get the nearest preset as a reasonable default.
+
 ## Why NJT GTFS refreshes every 7 days instead of 24 hours
 
 NJT publishes GTFS static data updates sporadically — not on a daily schedule. Refreshing every 24 hours was wasteful (downloading 31MB of identical data) and could cause unnecessary disruption if the NJT API was temporarily unavailable. 7 days is a reasonable cadence that catches most schedule changes. The `/api/bus/gtfs-status` endpoint shows cache age and a `stale: true` flag if it's been over 7 days, making it easy to monitor.

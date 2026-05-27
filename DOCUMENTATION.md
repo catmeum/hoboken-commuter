@@ -96,6 +96,8 @@ Register at https://developer.njtransit.com/registration/
 | `/api/mtabus` | `http://localhost:3001` | MTA Bus (via Express backend) |
 | `/api/nycferry` | `http://localhost:3001` | NYC Ferry (via Express backend) |
 | `/api/weather` | `http://localhost:3001` | Weather zip resolution (via Express backend) |
+| `/api/system-status` | `http://localhost:3001` | System diagnostics (via Express backend) |
+| `/api/nearby-stops` | `http://localhost:3001` | Geo-lookup for closest transit stops (via Express backend) |
 
 All backend endpoints accept `?dir=outbound` (default) or `?dir=inbound` to switch direction.
 
@@ -334,6 +336,30 @@ Station-to-route mapping stored in `.cache/mta_station_routes.json`. Auto-built 
 
 ---
 
+### 12. Nearby-Stop Auto-Lookup
+
+**On demand** — called during zip code setup flow.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/nearby-stops?lat=&lon=&max=&maxDistance=` | Find closest transit stops across all modes |
+
+Searches across:
+- **NJT Bus** — all 16,820 stops from GTFS `stops.txt` (lat/lon parsed at startup)
+- **MTA Subway** — 496 parent stations from MTA GTFS (lat/lon parsed at startup)
+- **PATH** — 13 stations (hardcoded coordinates)
+- **NY Waterway Ferry** — 11 terminals (hardcoded coordinates)
+- **NJT Rail** — ~75 major stations (hardcoded coordinates, 2-char codes verified against live API)
+
+Parameters:
+- `lat`, `lon` — required, center point for search
+- `max` — max results (default 6)
+- `maxDistance` — radius in miles (default 3)
+
+Returns stop keys in the format the frontend expects (`bus:`, `mta:`, `path:`, `ferry:`, `rail:`, `hblr:`), with display names and route lists. MTA stations within 0.15 miles of each other are consolidated into complexes showing all lines.
+
+---
+
 ## Settings Persistence
 
 Settings are stored in `localStorage` under key `hoboken-commuter-settings`. Includes:
@@ -352,6 +378,10 @@ Dynamic stop display names (for cards added via the picker) are stored separatel
 ## Neighborhood Presets
 
 On first load (no saved settings) or after a reset, a **preset picker modal** appears over the dashboard. The user picks their neighborhood and the dashboard populates with relevant transit cards.
+
+**Zip code auto-setup:** A zip code input field at the top of the picker resolves the zip to lat/lon, then calls `/api/nearby-stops` to find the 3–6 closest transit stops across all modes. If 3+ stops are found, a dynamic preset is built automatically. If the zip is outside the NY/NJ metro area, an error message is shown. Falls back to nearest preset matching if the endpoint returns fewer than 3 results.
+
+**Easter egg:** Triple-click the "Where do you commute from?" title to load a random mix of stops — one from each transit mode (MTA subway, PATH, ferry, NJT Rail, NJT bus, HBLR).
 
 | Preset | Outbound stops |
 |---|---|

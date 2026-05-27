@@ -1,5 +1,24 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v2.4.0 (2026-05-27)
+
+### Nearby-Stop Auto-Lookup
+- **New endpoint: `/api/nearby-stops?lat=X&lon=Y`** — searches GTFS stop coordinates across all transit types (MTA subway, NJT bus, PATH, ferry, NJT Rail, HBLR)
+- Zip code input now auto-detects the 3–6 closest transit stops and builds a custom dashboard
+- Consolidates nearby MTA stations into complexes (e.g. Lexington Av/63 St merges two station IDs to show F, M, N, Q, R, W)
+- NJT Rail stations included with verified 2-char codes from live API
+- Falls back to nearest preset if fewer than 3 stops found within 3 miles
+
+### Zip Code Validation
+- Out-of-area zips (outside NY/NJ metro) now show a clear error message instead of silently selecting a wrong preset
+- Bounding box check: lat 40.4–41.3, lon -74.5 to -73.5
+
+### Random Stops Easter Egg (Updated)
+- Triple-click easter egg now picks one random stop from each transit mode (MTA subway, PATH, ferry, NJT Rail, NJT bus, HBLR) instead of selecting a random preset
+
+### Bug Fixes
+- **PATH station names** — nearby-stops now uses station IDs instead of name slugs, fixing "grove_st" displaying instead of "Grove St"
+
 ## v2.3.0 (2026-05-25)
 
 ### Custom Transit Icons
