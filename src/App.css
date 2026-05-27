@@ -1801,6 +1801,17 @@
   font-size: 0.85em;
 }
 
+.station-lines-hint {
+  font-size: 0.8em;
+  opacity: 0.6;
+  margin-left: auto;
+  padding-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+
 /* Cards stretch to fill remaining column height */
 
 /* ── Preset Picker Modal ── */

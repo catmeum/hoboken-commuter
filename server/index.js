@@ -1452,15 +1452,67 @@ app.get('/api/mta/stations', async (req, res) => {
   const q = (req.query.q || '').toLowerCase()
   const filtered = q ? stations.filter(s => s.name.toLowerCase().includes(q)) : stations
 
-  // Consolidate stations with the same name — merge their stop IDs
+  // Group stations by name, then split groups where stations are physically far apart
+  // (same name but different locations = different stations, e.g. "72 St" on UES vs UWS)
+  const routesMap = loadStationRoutes()
   const byName = {}
   for (const s of filtered) {
-    if (!byName[s.name]) byName[s.name] = { name: s.name, ids: [] }
-    byName[s.name].ids.push(s.id)
+    if (!byName[s.name]) byName[s.name] = []
+    byName[s.name].push(s)
   }
 
-  const consolidated = Object.values(byName).slice(0, 30)
-  res.json({ stations: consolidated })
+  const results = []
+  for (const [name, group] of Object.entries(byName)) {
+    if (group.length === 1) {
+      // Single station — no disambiguation needed
+      const s = group[0]
+      const lines = (routesMap[s.id] || []).sort()
+      results.push({ name, ids: [s.id], lines, linesLabel: '' })
+    } else {
+      // Multiple stations with same name — cluster by proximity
+      // Stations within 0.15 miles are the same complex; farther apart are different stations
+      const clusters = []
+      const used = new Set()
+      for (const s of group) {
+        if (used.has(s.id)) continue
+        used.add(s.id)
+        const cluster = { ids: [s.id], lines: new Set(routesMap[s.id] || []) }
+        const sCoords = mtaStationsCoordsCache?.[s.id]
+        for (const other of group) {
+          if (used.has(other.id)) continue
+          const oCoords = mtaStationsCoordsCache?.[other.id]
+          if (sCoords && oCoords) {
+            const dist = haversineDistance(sCoords.lat, sCoords.lon, oCoords.lat, oCoords.lon)
+            if (dist <= 0.15) {
+              used.add(other.id)
+              cluster.ids.push(other.id)
+              ;(routesMap[other.id] || []).forEach(r => cluster.lines.add(r))
+            }
+          } else {
+            // No coords — assume same complex (legacy behavior)
+            used.add(other.id)
+            cluster.ids.push(other.id)
+            ;(routesMap[other.id] || []).forEach(r => cluster.lines.add(r))
+          }
+        }
+        clusters.push(cluster)
+      }
+
+      if (clusters.length === 1) {
+        // All stations are one complex — consolidate, no disambiguation
+        const lines = [...clusters[0].lines].sort()
+        results.push({ name, ids: clusters[0].ids, lines, linesLabel: '' })
+      } else {
+        // Multiple distinct stations — show lines for disambiguation
+        for (const cluster of clusters) {
+          const lines = [...cluster.lines].sort()
+          results.push({ name, ids: cluster.ids, lines, linesLabel: lines.join(', ') })
+        }
+      }
+    }
+  }
+
+  res.json({ stations: results.slice(0, 30) })
 })
 
 // Get lines serving a station — uses static GTFS mapping

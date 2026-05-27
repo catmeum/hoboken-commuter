@@ -2346,9 +2346,10 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
             <div className="new-card-search">
               <input className="new-card-search-input" type="text" placeholder="Search for a subway station…" value={subwaySearch} onChange={(e) => searchSubwayStations(e.target.value)} autoFocus />
               <div className="new-card-lines" style={{ maxHeight: '280px', overflowY: 'auto' }}>
-                {subwayResults.map((s) => (
-                  <button key={s.name} className="new-card-line-btn" onClick={() => selectSubwayStation(s)}>
+                {subwayResults.map((s, i) => (
+                  <button key={s.ids?.join(',') || i} className="new-card-line-btn" onClick={() => selectSubwayStation(s)}>
                     <span className="new-card-line-name">{s.name}</span>
+                    {s.linesLabel && <span className="station-lines-hint">{s.linesLabel}</span>}
                   </button>
                 ))}
                 {subwaySearch.length >= 2 && subwayResults.length === 0 && <div className="settings-stop-empty">No stations found</div>}

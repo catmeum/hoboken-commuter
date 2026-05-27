@@ -2,17 +2,13 @@
 
 ## Active
 
-- [ ] **500 premade presets spreadsheet** — import a user-provided spreadsheet of ~500 zip→preset mappings as a fallback layer between the automatic GTFS lookup and the "pick manually" message.
 - [ ] **MTA station name disambiguation** — when searching for stations manually (settings panel), stations with the same name (e.g. "72 St" appears 4 times across NYC) should show their line letters to disambiguate: "72 St (N, Q, R)" vs "72 St (1, 2, 3)" vs "72 St (B, C)".
+
 
 ## Feature Backlog
 
 - [ ] **Rename app to "My Stop Now"** — rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, header, page title, README, all docs, and any hardcoded references. 
 - [ ] **iPhone app (Flighty-style UI)** — wrap as PWA first (`manifest.json`, service worker, iOS meta tags for home screen install). Then review UI design inspiration on Mobbin for a Flighty-like aesthetic before any visual redesign. Longer term: Capacitor wrapper for a native App Store build.
-- [x] **Welcome page — zip code auto-setup** — on the preset picker, add a zip code input field. When submitted, use the NWS zip→grid resolution (already built) plus a nearby-stops lookup to auto-select up to 6 relevant transit stops around that location and pre-populate the dashboard. No new API needed if using GTFS stop coordinates.
-- [x] **Welcome page — "Random 6 stops" easter egg** — hidden trigger on the preset picker (e.g. long-press the logo, or a specific tap sequence) that picks 6 random transit stops and loads them as a demo. Good for showing off the app without committing to a real location. Integration approach TBD — could be a hidden button that appears after 5 seconds of inactivity on the picker, or a konami-code style input.
-- [x] **Nearby-stop auto-lookup** — `/api/nearby-stops?lat=X&lon=Y` endpoint searches GTFS stop coordinates across all transit types (MTA subway, NJT bus, PATH, ferry, NJT Rail, HBLR). Consolidates nearby MTA stations into complexes. Falls back to nearest preset if fewer than 3 stops found.
-- [x] **Zip code picker validation** — out-of-area zips (outside NY/NJ metro bounding box) show "Transit service information is not available at this zip code. Try a zip code closer to NYC." instead of silently selecting a wrong preset.
 - [ ] **Dashboard theme refresh** — current theme feels generic/AI-generated. Redesign with a more distinct visual identity — consider a transit-inspired aesthetic (think MTA signage, NJT colors, or a clean commuter board look). Review Mobbin for inspiration alongside the iPhone app work.
 
 ## UX / Loading State (Future)
