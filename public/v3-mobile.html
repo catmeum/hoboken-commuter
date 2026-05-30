@@ -308,7 +308,7 @@ body {
       <div class="set-stop-item set-stop-hidden"><span class="set-grip">⋮⋮</span><span class="ms-badge ms-badge-rail" style="background:#0369a1;min-width:18px;height:18px;font-size:8px">HBLR</span><span class="set-stop-name">Hoboken Terminal</span><button class="set-remove">✕</button></div>
     </div>
     <button class="set-expand-btn" id="expandStopsBtn" onclick="toggleExpandStops()">Show 2 more stops</button>
-    <button class="set-add-btn">+ Add Stop</button>
+    <button class="set-add-btn" onclick="openAddStop()">+ Add Stop</button>
   </section>
 
   <!-- Widgets -->
@@ -998,6 +998,225 @@ function restoreAlert(btn) {
   document.querySelector('.alerts-list').appendChild(alertCard)
   card.remove()
   updateDismissedCount()
+}
+</script>
+<!-- ═══ Add Stop Panel (slides up over settings) ═══ -->
+<div class="addstop-panel" id="addStopPanel">
+  <div class="addstop-header">
+    <button class="addstop-back" id="addStopBack" onclick="addStopGoBack()">←</button>
+    <span class="addstop-title" id="addStopTitle">Add a Stop</span>
+    <button class="set-close" onclick="closeAddStop()">✕</button>
+  </div>
+
+  <!-- Step 1: Pick transit mode -->
+  <div class="addstop-step" id="addStep1">
+    <div class="addstop-modes">
+      <button class="addstop-mode" onclick="pickMode('subway')"><span class="addstop-mode-icon">🚇</span><span>MTA Subway</span></button>
+      <button class="addstop-mode" onclick="pickMode('bus')"><span class="addstop-mode-icon">🚌</span><span>NJT Bus</span></button>
+      <button class="addstop-mode" onclick="pickMode('rail')"><span class="addstop-mode-icon">🚂</span><span>NJT Rail</span></button>
+      <button class="addstop-mode" onclick="pickMode('path')"><span class="addstop-mode-icon">🚂</span><span>PATH</span></button>
+      <button class="addstop-mode" onclick="pickMode('ferry')"><span class="addstop-mode-icon">⛴️</span><span>NY Waterway</span></button>
+      <button class="addstop-mode" onclick="pickMode('hblr')"><span class="addstop-mode-icon">🚈</span><span>HBLR Light Rail</span></button>
+      <button class="addstop-mode" onclick="pickMode('lirr')"><span class="addstop-mode-icon">🚂</span><span>LIRR</span></button>
+      <button class="addstop-mode" onclick="pickMode('mnr')"><span class="addstop-mode-icon">🚂</span><span>Metro-North</span></button>
+      <button class="addstop-mode" onclick="pickMode('mtabus')"><span class="addstop-mode-icon">🚌</span><span>MTA Bus</span></button>
+      <button class="addstop-mode" onclick="pickMode('nycferry')"><span class="addstop-mode-icon">⛴️</span><span>NYC Ferry</span></button>
+    </div>
+  </div>
+
+  <!-- Step 2: Search -->
+  <div class="addstop-step" id="addStep2" style="display:none">
+    <input type="text" class="addstop-search" id="addStopSearch" placeholder="Search for a station…" oninput="mockSearch(this.value)" />
+    <div class="addstop-results" id="addStopResults"></div>
+  </div>
+
+  <!-- Step 3: Select lines/direction -->
+  <div class="addstop-step" id="addStep3" style="display:none">
+    <p class="addstop-station-name" id="addStopStation">72 St (2nd Ave)</p>
+    <p class="addstop-step-hint">Select lines at this station</p>
+    <div class="addstop-lines" id="addStopLines"></div>
+    <div class="addstop-dir" id="addStopDir" style="display:none">
+      <p class="addstop-step-hint">Direction</p>
+      <div class="addstop-dir-btns">
+        <button class="addstop-dir-btn active" onclick="pickDir(this)">Downtown (S)</button>
+        <button class="addstop-dir-btn" onclick="pickDir(this)">Uptown (N)</button>
+      </div>
+    </div>
+    <button class="addstop-confirm" onclick="confirmAddStop()">Add to My Stops</button>
+  </div>
+</div>
+
+<style>
+/* ═══ Add Stop Panel ═══ */
+.addstop-panel {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg); z-index: 250;
+  padding: 16px;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+}
+.addstop-panel.open { transform: translateY(0); }
+.addstop-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.addstop-back {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(30,30,50,0.55); backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-muted); font-size: 16px; cursor: pointer;
+}
+[data-theme="light"] .addstop-back { background: rgba(255,255,255,0.7); border-color: rgba(0,0,0,0.08); }
+.addstop-back.hidden { visibility: hidden; }
+.addstop-title { flex: 1; font-size: 16px; font-weight: 700; }
+
+/* Step 1: Mode grid */
+.addstop-modes { display: flex; flex-direction: column; gap: 6px; }
+.addstop-mode {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 12px;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  font-size: 14px; font-weight: 500; cursor: pointer;
+  font-family: inherit; color: var(--text); transition: border-color 0.2s;
+}
+.addstop-mode:hover { border-color: var(--accent); }
+.addstop-mode-icon { font-size: 18px; width: 28px; text-align: center; }
+
+/* Step 2: Search */
+.addstop-search {
+  width: 100%; padding: 12px 16px; border-radius: 12px;
+  border: 1px solid var(--card-border); background: var(--card-bg);
+  color: var(--text); font-size: 14px; font-family: inherit;
+  margin-bottom: 12px;
+}
+.addstop-search::placeholder { color: var(--text-muted); }
+.addstop-search:focus { outline: none; border-color: var(--accent); }
+.addstop-results { display: flex; flex-direction: column; gap: 4px; }
+.addstop-result {
+  padding: 12px 14px; border-radius: 10px;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  font-size: 13px; cursor: pointer; transition: border-color 0.2s;
+}
+.addstop-result:hover { border-color: var(--accent); }
+.addstop-result-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Step 3: Lines + direction */
+.addstop-station-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+.addstop-step-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
+.addstop-lines { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.addstop-line {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: white; cursor: pointer;
+  opacity: 0.4; transition: opacity 0.2s, transform 0.15s;
+  border: 2px solid transparent;
+}
+.addstop-line.selected { opacity: 1; transform: scale(1.1); border-color: white; }
+.addstop-dir-btns { display: flex; gap: 8px; margin-bottom: 16px; }
+.addstop-dir-btn {
+  flex: 1; padding: 10px; border-radius: 10px;
+  border: 1px solid var(--card-border); background: var(--card-bg);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  font-family: inherit; color: var(--text); transition: all 0.2s;
+}
+.addstop-dir-btn.active { border-color: var(--accent); background: rgba(167,139,250,0.1); color: var(--accent); }
+.addstop-confirm {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--accent); color: white; font-size: 15px;
+  font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: transform 0.1s;
+}
+.addstop-confirm:active { transform: scale(0.98); }
+</style>
+
+<script>
+// Add Stop flow
+let addStopStep = 1
+let selectedMode = ''
+
+function openAddStop() {
+  addStopStep = 1
+  selectedMode = ''
+  document.getElementById('addStopPanel').classList.add('open')
+  document.getElementById('addStep1').style.display = 'block'
+  document.getElementById('addStep2').style.display = 'none'
+  document.getElementById('addStep3').style.display = 'none'
+  document.getElementById('addStopBack').classList.add('hidden')
+  document.getElementById('addStopTitle').textContent = 'Add a Stop'
+}
+
+function closeAddStop() {
+  document.getElementById('addStopPanel').classList.remove('open')
+}
+
+function addStopGoBack() {
+  if (addStopStep === 2) {
+    addStopStep = 1
+    document.getElementById('addStep1').style.display = 'block'
+    document.getElementById('addStep2').style.display = 'none'
+    document.getElementById('addStopBack').classList.add('hidden')
+    document.getElementById('addStopTitle').textContent = 'Add a Stop'
+  } else if (addStopStep === 3) {
+    addStopStep = 2
+    document.getElementById('addStep2').style.display = 'block'
+    document.getElementById('addStep3').style.display = 'none'
+    document.getElementById('addStopTitle').textContent = modeLabels[selectedMode] + ' — Search'
+  }
+}
+
+const modeLabels = { subway: 'MTA Subway', bus: 'NJT Bus', rail: 'NJT Rail', path: 'PATH', ferry: 'NY Waterway', hblr: 'HBLR', lirr: 'LIRR', mnr: 'Metro-North', mtabus: 'MTA Bus', nycferry: 'NYC Ferry' }
+const modePlaceholders = { subway: 'Search for a subway station…', bus: 'Search for a bus stop…', rail: 'Search for a rail station…', path: 'Search for a PATH station…', ferry: 'Search for a ferry terminal…', hblr: 'Search for a light rail stop…', lirr: 'Search for a LIRR station…', mnr: 'Search for a Metro-North station…', mtabus: 'Search for a bus route…', nycferry: 'Search for a ferry stop…' }
+
+function pickMode(mode) {
+  selectedMode = mode
+  addStopStep = 2
+  document.getElementById('addStep1').style.display = 'none'
+  document.getElementById('addStep2').style.display = 'block'
+  document.getElementById('addStopBack').classList.remove('hidden')
+  document.getElementById('addStopTitle').textContent = modeLabels[mode] + ' — Search'
+  document.getElementById('addStopSearch').placeholder = modePlaceholders[mode]
+  document.getElementById('addStopSearch').value = ''
+  document.getElementById('addStopResults').innerHTML = '<div class="addstop-result-sub" style="padding:12px;text-align:center">Type at least 2 characters to search</div>'
+  document.getElementById('addStopSearch').focus()
+}
+
+// Mock search results
+function mockSearch(q) {
+  const results = document.getElementById('addStopResults')
+  if (q.length < 2) { results.innerHTML = '<div class="addstop-result-sub" style="padding:12px;text-align:center">Type at least 2 characters to search</div>'; return }
+  // Simulated results
+  const mockData = {
+    subway: [{name:'72 St (2nd Ave)',sub:'N, Q, R'},{name:'72 St',sub:'1, 2, 3'},{name:'72 St',sub:'B, C'},{name:'77 St',sub:'4, 6'}],
+    bus: [{name:'WILLOW AVE AT 15TH ST',sub:'Routes: 89, 119, 126'},{name:'WASHINGTON ST AT 11TH ST',sub:'Routes: 22, 89, 126'}],
+    rail: [{name:'Summit',sub:'Morris & Essex, Gladstone'},{name:'Short Hills',sub:'Morris & Essex, Gladstone'}],
+    path: [{name:'Hoboken',sub:'HOB-WTC, HOB-33, JSQ-33 wknd'},{name:'Grove St',sub:'NWK-WTC, JSQ-33'}],
+  }
+  const items = (mockData[selectedMode] || [{name:'Result 1',sub:'Example'},{name:'Result 2',sub:'Example'}]).filter(r => r.name.toLowerCase().includes(q.toLowerCase()))
+  results.innerHTML = items.length ? items.map(r => `<div class="addstop-result" onclick="pickResult('${r.name}','${r.sub}')">${r.name}<div class="addstop-result-sub">${r.sub}</div></div>`).join('') : '<div class="addstop-result-sub" style="padding:12px;text-align:center">No results found</div>'
+}
+
+function pickResult(name, sub) {
+  addStopStep = 3
+  document.getElementById('addStep2').style.display = 'none'
+  document.getElementById('addStep3').style.display = 'block'
+  document.getElementById('addStopTitle').textContent = 'Select Lines'
+  document.getElementById('addStopStation').textContent = name
+  // Mock lines
+  const lines = sub.split(', ')
+  const colors = {'N':'#FCCC0A','Q':'#FCCC0A','R':'#FCCC0A','W':'#FCCC0A','1':'#EE352E','2':'#EE352E','3':'#EE352E','4':'#00933C','5':'#00933C','6':'#00933C','B':'#FF6319','C':'#0039A6','A':'#0039A6'}
+  document.getElementById('addStopLines').innerHTML = lines.map(l => `<div class="addstop-line selected" style="background:${colors[l]||'var(--accent)'}" onclick="this.classList.toggle('selected')">${l}</div>`).join('')
+  // Show direction for subway
+  document.getElementById('addStopDir').style.display = selectedMode === 'subway' ? 'block' : 'none'
+}
+
+function pickDir(btn) {
+  btn.parentElement.querySelectorAll('.addstop-dir-btn').forEach(b => b.classList.remove('active'))
+  btn.classList.add('active')
+}
+
+function confirmAddStop() {
+  closeAddStop()
+  // In real app: would add the stop to settings state
 }
 </script>
 </body>
