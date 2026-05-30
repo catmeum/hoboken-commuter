@@ -1,15 +1,33 @@
-# Hoboken Commuter Dashboard — TODO
+# My Stop Now (formerly Hoboken Commuter Dashboard) — TODO
 
-## Active
+## Active — Next Session
 
-*(No active items — pick from Feature Backlog or Backlog)*
+- [ ] **Convert mobile mockup to React** — take the approved `v3-mobile.html` design and implement as real React components on the `v3-rebrand` branch. Route via `/mobile`. Reuse v1's existing service layer (`src/services/*`), custom SVG icons, and localStorage persistence. Pages: Welcome, My Stops, Alerts, Settings + Add Stop flow.
 
+## v3 Mobile App — Implementation Tasks
+
+- [ ] **React shell** — tab routing, page transitions (slide-up settings), floating tab bar component
+- [ ] **Welcome page** — zip code onboarding with `/api/nearby-stops`, "Pick stops manually" → Add Stop flow
+- [ ] **My Stops page** — scrollable card list, weather/tunnel pills (tap-to-expand), pull-to-refresh, geolocation sorting
+- [ ] **Transit cards** — reuse v1 data fetching, render with custom SVG icons, route-colored badges, ETA hierarchy
+- [ ] **Alerts page** — swipe-to-dismiss, dismissed alerts section with restore, empty state, badge count
+- [ ] **Settings page** — slide-up panel, display settings (appearance, alert badge style, weather °F/°C, tunnels), stop management (drag-reorder, remove, expand/collapse >6), tunnel config (pick up to 2), presets with confirmation, widgets coming soon, danger zone reset
+- [ ] **Add Stop flow** — stepped picker (mode → search → select lines/direction → add), slides up over settings
+- [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
+- [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
+- [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
+- [ ] **Pull-to-refresh** — connect pull gesture to actual data refetch across all cards
+- [ ] **Custom SVG icons** — replace emoji placeholders with existing transit icons (NJT Bus XD60, PATH Oculus, MTA Globe, etc.)
+- [ ] **Tunnel pill glow** — orange glow when tunnel has active alert, remove glow when alert dismissed/resolved
+- [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
+- [ ] **PWA setup** — manifest.json, service worker, iOS meta tags for home screen install
 
 ## Feature Backlog
 
-- [ ] **Rename app to "My Stop Now"** — rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, header, page title, README, all docs, and any hardcoded references. 
-- [ ] **iPhone app (Flighty-style UI)** — wrap as PWA first (`manifest.json`, service worker, iOS meta tags for home screen install). Then review UI design inspiration on Mobbin for a Flighty-like aesthetic before any visual redesign. Longer term: Capacitor wrapper for a native App Store build.
-- [ ] **Dashboard theme refresh** — current theme feels generic/AI-generated. Redesign with a more distinct visual identity — consider a transit-inspired aesthetic (think MTA signage, NJT colors, or a clean commuter board look). Review Mobbin for inspiration alongside the iPhone app work.
+- [ ] **Rename app to "My Stop Now"** — rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias.
+- [ ] **Dashboard theme refresh (desktop)** — apply v3 visual language (rounded cards, accent purple, liquid glass elements) to the desktop dashboard. Keep existing functionality, just restyle.
+- [ ] **Explore page with map** — MapLibre GL map showing nearby transit stops as colored markers. Bottom sheet with list. Medium effort — add after list-based Add Stop flow is solid.
+- [ ] **iPhone app (Capacitor)** — wrap PWA as native iOS app for App Store. Longer term after PWA is stable.
 
 ## UX / Loading State (Future)
 
@@ -23,7 +41,6 @@
 - [ ] **Clinton St service note** — hardcoded hours; could derive from GTFS dynamically
 - [ ] **PABT gate accuracy for sub-routes** — route 126 has two gates (213 for Washington, 214 for Willow) but the dynamic card only shows the primary gate. Headsign-based lookup would be more accurate but adds complexity. See DECISIONS.md for tradeoff analysis
 - [ ] **Clothing recommendation card** — square card that sits between the tunnel and weather cards. Shows a single icon for what to bring outside based on current conditions: umbrella (rain), winter coat (cold), sunscreen (hot/sunny), light jacket (mild), etc. Derived from the weather data already fetched — no new API needed.
-- [ ] **Phone / iPad app** — see "iPhone app (Flighty-style UI)" in Feature Backlog above.
 
 ## Completed
 
@@ -32,16 +49,5 @@
 - [x] **Nearby-stop auto-lookup** — `/api/nearby-stops?lat=X&lon=Y` endpoint searches GTFS stop coordinates across all transit types (MTA subway, NJT bus, PATH, ferry, NJT Rail, HBLR). Consolidates nearby MTA stations into complexes.
 - [x] **Zip code picker validation** — out-of-area zips show clear error message instead of silently selecting a wrong preset.
 - [x] **MTA station name disambiguation** — stations with the same name but different physical locations (e.g. "72 St") show line letters in search results. Uses coordinate-based clustering to distinguish complexes from separate stations.
-
-## v3 Mobile App
-
-- [ ] **Presets in Settings** — add the curated neighborhood presets (Hoboken, Newport, Midtown, etc.) to the mobile Settings page as a quick-setup option
-- [ ] **Triple-tap logo easter egg** — triple-tap the MSN logo on the My Stops page to pick 6 random stops (one per transit mode) to demo the app
-- [ ] **Pinned cards** — allow pinning up to 6 transit cards (stops, tunnel, or weather) to the top of the My Stops list for quick-glance priority info
-- [ ] **Use actual custom SVG icons** — replace emoji placeholders with the existing custom transit icons (NJT Bus XD60, PATH Oculus, MTA Globe, etc.)
-- [ ] **Connect to live data** — wire up the static mockup cards to real API polling
-- [ ] **Alerts page** — dismissable notification cards with full alert text, timestamp, and swipe-to-dismiss
-- [ ] **Settings page** — back arrow navigation, dark/light/auto toggle, stop management, presets
-- [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
-- [ ] **Pull-to-refresh** — connect the pull gesture to actual data refetch across all cards
-- [ ] **Explore / Add flow** — port v1's mode→search→lines card-add picker to mobile
+- [x] **Desktop rebrand header** — replaced "Hoboken → NYC" with MYSTOPNOW logo, added Home/Alerts icons to header.
+- [x] **Mobile mockup (v3-mobile.html)** — complete static HTML mockup of all 4 pages (Welcome, My Stops, Alerts, Settings) with floating tab bar, swipe-to-dismiss, pull-to-refresh, add stop flow, tunnel/weather pills, and settings panel.
