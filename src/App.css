@@ -66,6 +66,16 @@
   letter-spacing: -0.02em;
 }
 
+.header-logo {
+  font-size: clamp(14px, 2vw, 36px);
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
+
+.header-logo-accent {
+  color: var(--accent-purple, #a78bfa);
+}
+
 /* ── Direction Toggle ── */
 .direction-toggle {
   display: flex;

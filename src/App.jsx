@@ -23,6 +23,7 @@ import {
   Minus,
   Bell,
   BellOff,
+  Home,
 } from 'lucide-react'
 import { fetchTunnels } from './services/tunnels'
 import { fetchWeather } from './services/weather'
@@ -3517,14 +3518,20 @@ export default function App() {
           <div className="status-dot" />
           <div>
             <button className="direction-toggle" onClick={handleDirectionToggle} title="Switch direction">
-              <span className="header-title">{dirLabel}</span>
+              <span className="header-logo">MY<span className="header-logo-accent">STOP</span>NOW</span>
               <ArrowLeftRight className="direction-toggle-icon" />
             </button>
-            <div className="header-subtitle">Commuter Dashboard</div>
+            <div className="header-subtitle">{dirLabel}</div>
           </div>
         </div>
         <div className="header-right">
           <CurrentTime />
+          <button className="settings-btn" onClick={() => { /* scroll to top / home */ window.scrollTo(0, 0) }} title="Home">
+            <Home className="settings-btn-icon" />
+          </button>
+          <button className="settings-btn" title="Alerts" onClick={() => { /* TODO: open alerts panel */ }}>
+            <Bell className="settings-btn-icon" />
+          </button>
           <ThemeToggle theme={theme} onToggle={handleThemeToggle} />
           <button className="settings-btn" onClick={() => setSettingsOpen(true)} title="Settings">
             <Settings className="settings-btn-icon" />

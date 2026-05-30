@@ -32,3 +32,16 @@
 - [x] **Nearby-stop auto-lookup** — `/api/nearby-stops?lat=X&lon=Y` endpoint searches GTFS stop coordinates across all transit types (MTA subway, NJT bus, PATH, ferry, NJT Rail, HBLR). Consolidates nearby MTA stations into complexes.
 - [x] **Zip code picker validation** — out-of-area zips show clear error message instead of silently selecting a wrong preset.
 - [x] **MTA station name disambiguation** — stations with the same name but different physical locations (e.g. "72 St") show line letters in search results. Uses coordinate-based clustering to distinguish complexes from separate stations.
+
+## v3 Mobile App
+
+- [ ] **Presets in Settings** — add the curated neighborhood presets (Hoboken, Newport, Midtown, etc.) to the mobile Settings page as a quick-setup option
+- [ ] **Triple-tap logo easter egg** — triple-tap the MSN logo on the My Stops page to pick 6 random stops (one per transit mode) to demo the app
+- [ ] **Pinned cards** — allow pinning up to 6 transit cards (stops, tunnel, or weather) to the top of the My Stops list for quick-glance priority info
+- [ ] **Use actual custom SVG icons** — replace emoji placeholders with the existing custom transit icons (NJT Bus XD60, PATH Oculus, MTA Globe, etc.)
+- [ ] **Connect to live data** — wire up the static mockup cards to real API polling
+- [ ] **Alerts page** — dismissable notification cards with full alert text, timestamp, and swipe-to-dismiss
+- [ ] **Settings page** — back arrow navigation, dark/light/auto toggle, stop management, presets
+- [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
+- [ ] **Pull-to-refresh** — connect the pull gesture to actual data refetch across all cards
+- [ ] **Explore / Add flow** — port v1's mode→search→lines card-add picker to mobile
