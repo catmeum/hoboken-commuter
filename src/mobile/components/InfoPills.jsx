@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { fetchWeather } from '../../services/weather'
 import { fetchTunnels } from '../../services/tunnels'
 
@@ -30,8 +30,18 @@ function severityColor(severity) {
   return '#fbbf24' // moderate / default
 }
 
+// F → C conversion
+function toC(f) {
+  return Math.round((f - 32) * 5 / 9)
+}
+
+function displayTemp(temp, unit) {
+  if (unit === 'C') return `${toC(temp)}°`
+  return `${temp}°`
+}
+
 // ── Info Pills Row (weather + tunnels) ──
-export default function InfoPills({ showWeather, showTunnels, tunnelFilter, activeAlerts }) {
+export default function InfoPills({ showWeather, showTunnels, tunnelFilter, activeAlerts, tempUnit }) {
   const [weatherExpanded, setWeatherExpanded] = useState(false)
   const [weatherLocation, setWeatherLocation] = useState('hoboken')
 
@@ -42,16 +52,11 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords
-        // NWS grid lookup — use the points endpoint to get the grid
-        // For simplicity, if user is near Hoboken/NYC area, use the closest known grid
-        // Hoboken: 40.744, -74.032 → OKX 32,43
-        // NYC Midtown: 40.758, -73.978 → OKX 34,44
         const distToHoboken = Math.abs(latitude - 40.744) + Math.abs(longitude + 74.032)
         const distToNyc = Math.abs(latitude - 40.758) + Math.abs(longitude + 73.978)
         if (distToNyc < distToHoboken) {
           setWeatherLocation('nyc')
         }
-        // Otherwise keep hoboken default
       },
       () => { /* denied or error — keep default */ },
       { timeout: 5000 }
@@ -59,16 +64,15 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
   }, [showWeather])
 
   const weatherFetcher = useCallback(() => fetchWeather(weatherLocation), [weatherLocation])
-  const tunnelFetcher = useCallback(() => fetchTunnels(), [])
+  const tunnelFetcher = useCallback(() => fetchTunnels('outbound', tunnelFilter), [tunnelFilter])
 
-  const { data: weatherData } = usePolling(weatherFetcher, 300_000) // 5 min
-  const { data: tunnelData } = usePolling(tunnelFetcher, 60_000) // 1 min
+  const { data: weatherData } = usePolling(weatherFetcher, 300_000)
+  const { data: tunnelData } = usePolling(tunnelFetcher, 60_000)
 
-  const filteredTunnels = tunnelData?.tunnels?.filter(t =>
-    tunnelFilter.includes(t.name.toLowerCase())
-  ) || []
+  const filteredTunnels = tunnelData?.tunnels || []
 
   const weatherNow = weatherData?.periods?.[0]
+  const unit = tempUnit || 'F'
 
   return (
     <>
@@ -78,14 +82,13 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
             className="ms-info-pill ms-weather-pill"
             onClick={() => setWeatherExpanded(v => !v)}
           >
-            {weatherNow.icon} {weatherNow.temp}° {weatherNow.desc}
+            {weatherNow.icon} {displayTemp(weatherNow.temp, unit)} {weatherNow.desc}
           </div>
         )}
         {showWeather && !weatherNow && (
           <div className="ms-info-pill ms-weather-pill">⏳ Loading…</div>
         )}
         {showTunnels && filteredTunnels.map(t => {
-          // Glow only if there's an undismissed alert for this tunnel in the alerts panel
           const tunnelName = t.name.toLowerCase()
           const hasActiveAlert = (activeAlerts || []).some(a =>
             a.id?.includes(`tunnel-${tunnelName}`) || a.text?.toLowerCase().includes(tunnelName)
@@ -96,35 +99,29 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
         })}
       </div>
 
-      {/* Weather expanded card — full width below the pill row */}
+      {/* Weather expanded card — Apple Weather style hourly scroll */}
       {showWeather && weatherExpanded && weatherData && (
         <div className="ms-weather-expand open">
           <div className="ms-wx-header">
-            <span className="ms-wx-temp">{weatherNow.temp}°F</span>
+            <span className="ms-wx-temp">{displayTemp(weatherNow.temp, unit)}</span>
             <span className="ms-wx-desc">{weatherNow.desc} · {weatherData.label}</span>
             <button className="ms-wx-close" onClick={() => setWeatherExpanded(false)}>✕</button>
           </div>
-          <div className="ms-wx-grid">
-            <div className="ms-wx-stat">
-              <span className="ms-wx-stat-val">{weatherNow.precip}</span>
-              <span className="ms-wx-stat-label">Precip</span>
-            </div>
-            <div className="ms-wx-stat">
-              <span className="ms-wx-stat-val">{weatherNow.humidity}</span>
-              <span className="ms-wx-stat-label">Humidity</span>
-            </div>
-            <div className="ms-wx-stat">
-              <span className="ms-wx-stat-val">{weatherNow.wind}</span>
-              <span className="ms-wx-stat-label">Wind</span>
-            </div>
+          <div className="ms-wx-stats">
+            <span className="ms-wx-stat-item">💧 {weatherNow.precip}</span>
+            <span className="ms-wx-stat-item">💨 {weatherNow.wind}</span>
+            <span className="ms-wx-stat-item">🌡 {weatherNow.humidity}</span>
           </div>
-          <div className="ms-wx-hours">
-            {weatherData.periods.map((p, i) => (
-              <div key={i} className="ms-wx-hour">
-                <span className="ms-wx-h-time">{p.label}</span>
-                <span className="ms-wx-h-icon">{p.icon}</span>
-                <span className="ms-wx-h-temp">{p.temp}°</span>
-              </div>
+          <div className="ms-wx-hourly">
+            {(weatherData.hourly || weatherData.periods).map((p, i) => (
+              <React.Fragment key={i}>
+                {p.hour === 0 && i > 0 && <div className="ms-wx-day-divider" />}
+                <div className="ms-wx-hour-card">
+                  <span className="ms-wx-h-time">{p.label}</span>
+                  <span className="ms-wx-h-icon">{p.icon}</span>
+                  <span className="ms-wx-h-temp">{displayTemp(p.temp, unit)}</span>
+                </div>
+              </React.Fragment>
             ))}
           </div>
         </div>
@@ -145,7 +142,6 @@ function TunnelPill({ tunnel, hasAlert }) {
       onClick={() => {
         setExpanded(v => !v)
         if (!expanded) {
-          // Auto-collapse after 3s
           setTimeout(() => setExpanded(false), 3000)
         }
       }}

@@ -109,6 +109,21 @@ export default function MobileApp() {
     return () => clearInterval(alertsInterval.current)
   }, [stops, dismissedAlerts])
 
+  // ── Remove tunnel alerts when tunnels toggled off or tunnel selection changes ──
+  useEffect(() => {
+    if (!showTunnels) {
+      // Remove all tunnel alerts from active alerts
+      setAlerts(prev => prev.filter(a => !a.id?.startsWith('tunnel-')))
+    } else {
+      // Remove alerts for tunnels no longer selected
+      setAlerts(prev => prev.filter(a => {
+        if (!a.id?.startsWith('tunnel-')) return true
+        // Keep only if the tunnel is in the current selection
+        return tunnels.some(t => a.id.includes(`tunnel-${t}`))
+      }))
+    }
+  }, [showTunnels, tunnels]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Navigation helpers ──
   const navigate = useCallback((p) => {
     if (p === 'settings') {

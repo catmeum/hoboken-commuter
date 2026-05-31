@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import TransitCard from '../components/TransitCard'
 import InfoPills from '../components/InfoPills'
 
-export default function MyStopsPage({ stops, stopNames, showWeather, showTunnels, tunnels, alerts }) {
+export default function MyStopsPage({ stops, stopNames, showWeather, showTunnels, tunnels, alerts, tempUnit }) {
   const [time, setTime] = useState(new Date())
   const [pullProgress, setPullProgress] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -73,6 +73,7 @@ export default function MyStopsPage({ stops, stopNames, showWeather, showTunnels
           showTunnels={showTunnels}
           tunnelFilter={tunnels}
           activeAlerts={alerts}
+          tempUnit={tempUnit}
         />
 
         {stops.length === 0 ? (

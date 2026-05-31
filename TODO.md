@@ -2,8 +2,13 @@
 
 ## Active — Next Session
 
-- [ ] **Settings page manual testing & polish** — verify all settings controls work end-to-end: theme cycling, weather/tunnel toggles, stop removal, expand/collapse, add stop flow, danger zone reset. Fix any issues found.
+- [ ] **Add/remove/edit stops** — test the full add stop flow end-to-end for all transit types. Verify removing a stop from Settings works. Ensure stop names persist correctly.
+- [ ] **Data fidelity audit** — compare mobile card data against desktop dashboard for the same stops. Fix any discrepancies in ETAs, route labels, headsigns, or missing departures.
+- [ ] **All transit types supported in Add Stop** — verify search endpoints work for every mode (MTA Subway, NJT Bus, NJT Rail, PATH, Ferry, HBLR, LIRR, Metro-North, MTA Bus, NYC Ferry). Fix any broken or unimplemented search handlers.
+- [ ] **Transit card icons per type** — ensure each card type renders its proper SVG icon (not emoji fallbacks). Verify ferry card has an icon (currently uses emoji ⛴️).
+- [ ] **Alerts page integration** — test alerts flow end-to-end: live alerts appear, swipe-to-dismiss works, dismissed section shows, restore works, badge count updates in tab bar, tunnel pill glow syncs with alert state.
 - [ ] **Fix duplicate alerts in Alerts panel** — the alerts polling can add the same alert multiple times across poll cycles. Deduplicate by alert ID before adding to state.
+- [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills tunnel/weather logic, MobileApp alert aggregation. Manual E2E walkthrough of full user flow including edge cases (no stops, max stops, GPS denied, network errors).
 
 ## v3 Mobile App — Implementation Tasks
 
@@ -22,7 +27,9 @@
 - [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
 - [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
 - [ ] **Add Stop — step 3 (line/direction picker)** — after selecting a station, let user pick specific lines and direction (N/S) before adding
+- [ ] **Tunnel direction picker + up to 4** — let user pick direction (NJ→NY or NY→NJ) per tunnel and allow up to 4 selections (e.g. Lincoln outbound + Lincoln inbound + Holland outbound + GWB inbound)
 - [ ] **Drag-reorder stops** — touch-based drag reorder in Settings stop list (grip handles rendered, logic TBD)
+- [ ] **Skeleton loading states** — replace all fallback/placeholder text with pulsing grey skeleton loaders (Facebook/iOS style). Transit cards, weather pill, tunnel pills should all show a shimmer skeleton while data loads instead of "Loading…" or empty states.
 - [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
 - [ ] **PWA setup** — manifest.json, service worker, iOS meta tags for home screen install
 

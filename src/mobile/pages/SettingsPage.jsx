@@ -1,13 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const TUNNEL_OPTIONS = [
   { id: 'lincoln', label: 'Lincoln Tunnel' },
   { id: 'holland', label: 'Holland Tunnel' },
-  { id: 'gw_upper', label: 'GW Bridge (Upper)' },
-  { id: 'gw_lower', label: 'GW Bridge (Lower)' },
+  { id: 'gwb_upper', label: 'GW Bridge (Upper)' },
+  { id: 'gwb_lower', label: 'GW Bridge (Lower)' },
   { id: 'goethals', label: 'Goethals Bridge' },
   { id: 'bayonne', label: 'Bayonne Bridge' },
 ]
+
+// Sort tunnel options: selected first, then the rest in original order
+function sortTunnelsForDisplay(selected) {
+  return [...TUNNEL_OPTIONS].sort((a, b) => {
+    const aS = selected.includes(a.id) ? 0 : 1
+    const bS = selected.includes(b.id) ? 0 : 1
+    return aS - bS
+  })
+}
 
 export default function SettingsPage({
   open, onClose,
@@ -23,6 +32,17 @@ export default function SettingsPage({
 }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [showAllStops, setShowAllStops] = useState(false)
+  const [showAllTunnels, setShowAllTunnels] = useState(false)
+  // Snapshot the tunnel order on open — selected float to top only on re-open
+  const [tunnelOrder, setTunnelOrder] = useState(() => sortTunnelsForDisplay(tunnels))
+  const prevOpen = useRef(false)
+  useEffect(() => {
+    if (open && !prevOpen.current) {
+      setTunnelOrder(sortTunnelsForDisplay(tunnels))
+      setShowAllTunnels(false)
+    }
+    prevOpen.current = open
+  }, [open, tunnels])
 
   const themeLabels = { auto: '🌓 Auto', dark: '🌙 Dark', light: '☀️ Light' }
   const themeOrder = ['auto', 'dark', 'light']
@@ -42,7 +62,7 @@ export default function SettingsPage({
   function toggleTunnel(id) {
     setTunnels(prev => {
       if (prev.includes(id)) return prev.filter(t => t !== id)
-      if (prev.length >= 2) return prev // max 2
+      if (prev.length >= 2) return prev // max 2, do nothing
       return [...prev, id]
     })
   }
@@ -97,23 +117,38 @@ export default function SettingsPage({
       </section>
 
       {/* Tunnel Configuration */}
-      {showTunnels && (
-        <section className="m-set-section">
-          <h3 className="m-set-label">Tunnel Configuration</h3>
-          <p className="m-set-hint">Select up to 2 tunnels to display</p>
-          <div className="m-set-tunnel-options">
-            {TUNNEL_OPTIONS.map(opt => (
-              <label
-                key={opt.id}
-                className={`m-set-tunnel-opt ${tunnels.includes(opt.id) ? 'selected' : ''}`}
-                onClick={() => toggleTunnel(opt.id)}
-              >
-                <span>{opt.label}</span>
-              </label>
-            ))}
-          </div>
-        </section>
-      )}
+      {showTunnels && (() => {
+        // Use the snapshotted order (re-sorted only on panel open)
+        const visible = showAllTunnels ? tunnelOrder : tunnelOrder.slice(0, Math.max(3, tunnels.length))
+        const hiddenCount = tunnelOrder.length - visible.length
+        return (
+          <section className="m-set-section">
+            <h3 className="m-set-label">Tunnels & Bridges</h3>
+            <p className="m-set-hint">Select up to 2 to display on My Stops</p>
+            <div className="m-set-tunnel-options">
+              {visible.map(opt => {
+                const isSelected = tunnels.includes(opt.id)
+                const isDisabled = !isSelected && tunnels.length >= 2
+                return (
+                  <button
+                    key={opt.id}
+                    className={`m-set-tunnel-opt ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={() => !isDisabled && toggleTunnel(opt.id)}
+                    disabled={isDisabled}
+                  >
+                    <span>{opt.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+            {hiddenCount > 0 && (
+              <button className="m-set-expand-btn" onClick={() => setShowAllTunnels(v => !v)}>
+                {showAllTunnels ? 'Show less' : `Show ${hiddenCount} more`}
+              </button>
+            )}
+          </section>
+        )
+      })()}
 
       {/* My Stops */}
       <section className="m-set-section">

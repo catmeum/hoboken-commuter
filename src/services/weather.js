@@ -179,6 +179,18 @@ export async function fetchWeather(location = 'hoboken') {
   return {
     label,
     periods: pickPeriods(hourly),
+    // First 12 hourly periods for mobile expanded view (swipeable)
+    hourly: hourly.slice(0, 12).map((p, i) => {
+      const d = new Date(p.startTime)
+      const hour = d.getHours()
+      const label = hour === new Date().getHours() && i === 0 ? 'Now' : `${hour % 12 || 12}${hour < 12 ? 'AM' : 'PM'}`
+      return {
+        label,
+        icon: forecastIcon(p.shortForecast, p.isDaytime, d),
+        temp: p.temperature,
+        hour, // raw hour for midnight divider detection
+      }
+    }),
   }
 }
 
