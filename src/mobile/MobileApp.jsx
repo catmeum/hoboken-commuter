@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import WelcomePage from './pages/WelcomePage'
 import MyStopsPage from './pages/MyStopsPage'
 import AlertsPage from './pages/AlertsPage'
 import SettingsPage from './pages/SettingsPage'
 import AddStopPanel from './pages/AddStopPanel'
 import TabBar from './components/TabBar'
+import { fetchAlerts } from './services/alerts'
 import './mobile.css'
 
 // ── localStorage keys ──
@@ -68,6 +69,45 @@ export default function MobileApp() {
     }
     document.documentElement.setAttribute('data-theme', resolved)
   }, [theme])
+
+  // ── Dev shortcut: press "t" to toggle light/dark ──
+  useEffect(() => {
+    function handleKey(e) {
+      if (e.key === 't' && !e.target.closest('input, textarea')) {
+        const current = document.documentElement.getAttribute('data-theme')
+        const next = current === 'light' ? 'dark' : 'light'
+        document.documentElement.setAttribute('data-theme', next)
+      }
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [])
+
+  // ── Alerts polling ──
+  const alertsInterval = useRef(null)
+  useEffect(() => {
+    if (stops.length === 0) return
+
+    const pollAlerts = async () => {
+      try {
+        const liveAlerts = await fetchAlerts(stops)
+        // Only add new alerts not already dismissed
+        setAlerts(prev => {
+          const dismissedIds = new Set(dismissedAlerts.map(a => a.id))
+          const existingIds = new Set(prev.map(a => a.id))
+          const newAlerts = liveAlerts.filter(a => !dismissedIds.has(a.id) && !existingIds.has(a.id))
+          if (newAlerts.length === 0) return prev
+          return [...prev, ...newAlerts]
+        })
+      } catch {
+        // Alert polling failed — silent
+      }
+    }
+
+    pollAlerts()
+    alertsInterval.current = setInterval(pollAlerts, 60_000) // poll every 60s
+    return () => clearInterval(alertsInterval.current)
+  }, [stops, dismissedAlerts])
 
   // ── Navigation helpers ──
   const navigate = useCallback((p) => {
@@ -143,7 +183,21 @@ export default function MobileApp() {
       {page === 'welcome' && (
         <WelcomePage
           onComplete={completeOnboarding}
-          onManual={() => { localStorage.setItem(STORAGE_KEYS.onboarded, '1'); setPage('stops') }}
+          onManual={() => {
+            localStorage.setItem(STORAGE_KEYS.onboarded, '1')
+            // Check GPS — if not available/denied, hide weather & tunnels
+            if (navigator.geolocation) {
+              navigator.geolocation.getCurrentPosition(
+                () => { /* GPS granted — keep weather/tunnels on */ },
+                () => { setShowWeather(false); setShowTunnels(false) },
+                { timeout: 3000 }
+              )
+            } else {
+              setShowWeather(false)
+              setShowTunnels(false)
+            }
+            setPage('stops')
+          }}
         />
       )}
       {page === 'stops' && (

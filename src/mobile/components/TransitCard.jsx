@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { SubwayBadge, MTA_COLORS } from '../../components/icons'
+import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon } from '../../components/icons'
 
 // ── Helpers ──
 function etaClass(min) {
@@ -114,7 +114,7 @@ export function MtaSubwayCard({ stopId, displayName }) {
 
   return (
     <CardShell
-      icon="🚇"
+      icon={<MtaGlobeIcon size={16} />}
       station={stationName}
       alert={alerts.length > 0}
       badges={
@@ -163,7 +163,7 @@ export function BusCard({ stopId, displayName }) {
 
   return (
     <CardShell
-      icon="🚌"
+      icon={<NjtBusIcon size={16} />}
       station={name}
       badges={
         <>
@@ -208,7 +208,7 @@ export function PathCard({ stopId, displayName }) {
 
   return (
     <CardShell
-      icon="🚂"
+      icon={<PathIcon size={16} />}
       station={name}
       alert={!!data?.alert}
       badges={<span className="ms-badge ms-badge-rail" style={{ background: '#0369a1' }}>PATH</span>}
@@ -280,7 +280,7 @@ export function RailCard({ stopId, displayName }) {
 
   return (
     <CardShell
-      icon="🚂"
+      icon={<NjtRailIcon size={16} />}
       station={name}
       badges={
         <>
@@ -324,7 +324,7 @@ export function HblrCard({ stopId, displayName }) {
 
   return (
     <CardShell
-      icon="🚈"
+      icon={<LightRailIcon size={16} />}
       station={name}
       badges={<span className="ms-badge ms-badge-rail" style={{ background: '#6B3FA0' }}>HBLR</span>}
     >

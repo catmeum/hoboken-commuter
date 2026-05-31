@@ -21,18 +21,17 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   const [searching, setSearching] = useState(false)
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
+  const prevOpenRef = useRef(false)
 
-  // Reset on open
+  // Reset only when panel opens (transition from closed to open)
   useEffect(() => {
-    if (open) {
-      // Use a microtask to avoid synchronous setState in effect body
-      queueMicrotask(() => {
-        setStep(1)
-        setMode(null)
-        setQuery('')
-        setResults([])
-      })
+    if (open && !prevOpenRef.current) {
+      setStep(1)
+      setMode(null)
+      setQuery('')
+      setResults([])
     }
+    prevOpenRef.current = open
   }, [open])
 
   // Focus search input on step 2

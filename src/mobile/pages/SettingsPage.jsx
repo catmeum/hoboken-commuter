@@ -9,15 +9,6 @@ const TUNNEL_OPTIONS = [
   { id: 'bayonne', label: 'Bayonne Bridge' },
 ]
 
-const PRESETS = [
-  { id: 'hoboken', label: '🚂 Hoboken' },
-  { id: 'newport', label: '🌊 Newport / JC' },
-  { id: 'midtown', label: '🗽 Midtown' },
-  { id: 'downtown', label: '🏙️ Downtown' },
-  { id: 'brooklyn', label: '🌉 Brooklyn' },
-  { id: 'queens', label: '✈️ Queens' },
-]
-
 export default function SettingsPage({
   open, onClose,
   theme, setTheme,
@@ -31,7 +22,6 @@ export default function SettingsPage({
   onOpenAddStop, onReset,
 }) {
   const [confirmReset, setConfirmReset] = useState(false)
-  const [confirmPreset, setConfirmPreset] = useState(null)
   const [showAllStops, setShowAllStops] = useState(false)
 
   const themeLabels = { auto: '🌓 Auto', dark: '🌙 Dark', light: '☀️ Light' }
@@ -151,31 +141,6 @@ export default function SettingsPage({
         <div className="m-set-coming-soon">
           <span className="m-set-cs-icon">📱</span>
           <span className="m-set-cs-text">Home screen widgets — coming soon</span>
-        </div>
-      </section>
-
-      {/* Presets */}
-      <section className="m-set-section">
-        <h3 className="m-set-label">Quick Setup Presets</h3>
-        <p className="m-set-hint">Replaces all current stops with a curated set</p>
-        <div className="m-set-presets">
-          {PRESETS.map(p => (
-            <button
-              key={p.id}
-              className={`m-set-preset ${confirmPreset === p.id ? 'confirming' : ''}`}
-              onClick={() => {
-                if (confirmPreset === p.id) {
-                  // Apply preset — for now just close
-                  setConfirmPreset(null)
-                } else {
-                  setConfirmPreset(p.id)
-                  setTimeout(() => setConfirmPreset(null), 4000)
-                }
-              }}
-            >
-              {confirmPreset === p.id ? `Apply ${p.label.split(' ')[1]}? Tap again` : p.label}
-            </button>
-          ))}
         </div>
       </section>
 

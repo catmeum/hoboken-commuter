@@ -1,5 +1,27 @@
 # Hoboken Commuter Dashboard — Version History
 
+## v3.0.0-alpha (2026-05-30) — Mobile App
+
+### Mobile App (`/mobile`)
+- **Full React mobile app** at `/mobile` route with 4 pages: Welcome, My Stops, Alerts, Settings
+- **Welcome flow** — zip code onboarding with nearby-stop auto-detection, neighborhood preset picker (Hoboken, Newport/JC, Midtown, Downtown, Brooklyn, Queens), or start from scratch
+- **My Stops page** — scrollable transit cards with real-time data, weather/tunnel info pills (tap-to-expand), pull-to-refresh
+- **Transit cards** — MTA Subway, NJT Bus, PATH, Ferry, NJT Rail, HBLR all wired to v1 service layer with custom SVG icons
+- **Alerts page** — live alert aggregation from all transit APIs, swipe-to-dismiss, dismissed section with restore
+- **Settings page** — slide-up panel with theme cycling, weather/tunnel toggles, tunnel picker (up to 2), stop management (remove, expand/collapse), danger zone reset
+- **Add Stop flow** — mode picker → search → add, slides up over settings
+- **Floating tab bar** — glassmorphism design with lucide-react icons (Home, Bell, Settings), sliding pill indicator, alert badge
+- **Theme support** — dark/light/auto with `t` key dev shortcut for toggling
+- **localStorage persistence** — all user preferences and stop selections persist across sessions
+- **Tunnel pill glow** — tied to undismissed alerts in notification panel (not stale API data)
+- **GPS-aware** — weather defaults to GPS location; hides weather/tunnels if GPS denied on manual setup
+
+### Technical
+- Added `react-router-dom` for `/mobile` route alongside existing desktop at `/`
+- Extracted shared SVG icon components to `src/components/icons.jsx`
+- Added Vitest + React Testing Library test suite (43 tests across 5 files)
+- Inter font loaded for mobile typography
+
 ## v2.4.0 (2026-05-27)
 
 ### Nearby-Stop Auto-Lookup

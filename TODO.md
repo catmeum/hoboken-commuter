@@ -2,23 +2,27 @@
 
 ## Active — Next Session
 
-- [x] **Convert mobile mockup to React** — take the approved `v3-mobile.html` design and implement as real React components on the `v3-rebrand` branch. Route via `/mobile`. Reuse v1's existing service layer (`src/services/*`), custom SVG icons, and localStorage persistence. Pages: Welcome, My Stops, Alerts, Settings + Add Stop flow.
+- [ ] **Settings page manual testing & polish** — verify all settings controls work end-to-end: theme cycling, weather/tunnel toggles, stop removal, expand/collapse, add stop flow, danger zone reset. Fix any issues found.
+- [ ] **Fix duplicate alerts in Alerts panel** — the alerts polling can add the same alert multiple times across poll cycles. Deduplicate by alert ID before adding to state.
 
 ## v3 Mobile App — Implementation Tasks
 
 - [x] **React shell** — tab routing, page transitions (slide-up settings), floating tab bar component
-- [x] **Welcome page** — zip code onboarding with `/api/nearby-stops`, "Pick stops manually" → Add Stop flow
-- [x] **My Stops page** — scrollable card list, weather/tunnel pills (tap-to-expand), pull-to-refresh, geolocation sorting
-- [x] **Transit cards** — reuse v1 data fetching, render with custom SVG icons, route-colored badges, ETA hierarchy
-- [x] **Alerts page** — swipe-to-dismiss, dismissed alerts section with restore, empty state, badge count
-- [x] **Settings page** — slide-up panel, display settings (appearance, alert badge style, weather °F/°C, tunnels), stop management (drag-reorder, remove, expand/collapse >6), tunnel config (pick up to 2), presets with confirmation, widgets coming soon, danger zone reset
-- [x] **Add Stop flow** — stepped picker (mode → search → select lines/direction → add), slides up over settings
+- [x] **Welcome page** — zip code onboarding with `/api/nearby-stops`, preset picker flow, "Start from scratch" option
+- [x] **My Stops page** — scrollable card list, weather/tunnel pills (tap-to-expand), pull-to-refresh, custom SVG icons, proper severity dot colors
+- [x] **Transit cards** — reuse v1 data fetching, render with custom SVG icons (MtaGlobe, NjtBus, PATH Oculus, NjtRail, HBLR Clocktower), route-colored badges, ETA hierarchy
+- [x] **Alerts page** — swipe-to-dismiss, dismissed alerts section with restore, empty state, badge count, live alert aggregation from transit APIs
+- [x] **Settings page** — slide-up panel, display settings (appearance, alert badge style, weather °F/°C, tunnels), stop management (remove, expand/collapse >6), tunnel config (pick up to 2), widgets coming soon, danger zone reset
+- [x] **Add Stop flow** — stepped picker (mode → search → add), slides up over settings
+- [x] **Custom SVG icons** — replaced emoji with existing transit icons (NJT Bus XD60, PATH Oculus, MTA Globe, NJT Rail, HBLR Clocktower)
+- [x] **Tunnel pill glow** — orange glow tied to undismissed alerts in notification panel, removed when alert dismissed
+- [x] **Pull-to-refresh** — pull gesture triggers full re-mount of all data-fetching components (cards + info pills)
+- [x] **Tab bar icons** — lucide-react Home, Bell, Settings icons matching desktop dashboard style
 - [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
 - [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
 - [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
-- [ ] **Pull-to-refresh** — connect pull gesture to actual data refetch across all cards
-- [ ] **Custom SVG icons** — replace emoji placeholders with existing transit icons (NJT Bus XD60, PATH Oculus, MTA Globe, etc.)
-- [ ] **Tunnel pill glow** — orange glow when tunnel has active alert, remove glow when alert dismissed/resolved
+- [ ] **Add Stop — step 3 (line/direction picker)** — after selecting a station, let user pick specific lines and direction (N/S) before adding
+- [ ] **Drag-reorder stops** — touch-based drag reorder in Settings stop list (grip handles rendered, logic TBD)
 - [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
 - [ ] **PWA setup** — manifest.json, service worker, iOS meta tags for home screen install
 
@@ -44,6 +48,10 @@
 
 ## Completed
 
+- [x] **v3 Mobile app scaffold** — full React mobile app at `/mobile` with Welcome, My Stops, Alerts, Settings pages. React Router, localStorage persistence, custom SVG icons, Vitest test suite.
+- [x] **Welcome page — preset picker** — "Pick stops manually" leads to neighborhood preset cards (Hoboken, Newport, Midtown, Downtown, Brooklyn, Queens) or "Start from scratch".
+- [x] **Transit card wiring** — all modes (MTA Subway, NJT Bus, PATH, Ferry, NJT Rail, HBLR) properly connected to server APIs with correct stop ID formats.
+- [x] **Alerts aggregation** — live polling from tunnel, bus, PATH, MTA, ferry APIs; alerts feed into Alerts page and drive tunnel pill glow.
 - [x] **Welcome page — zip code auto-setup** — zip code input resolves to lat/lon, calls `/api/nearby-stops` to auto-select up to 6 relevant transit stops.
 - [x] **Welcome page — "Random 6 stops" easter egg** — triple-click title picks one random stop from each transit mode.
 - [x] **Nearby-stop auto-lookup** — `/api/nearby-stops?lat=X&lon=Y` endpoint searches GTFS stop coordinates across all transit types (MTA subway, NJT bus, PATH, ferry, NJT Rail, HBLR). Consolidates nearby MTA stations into complexes.

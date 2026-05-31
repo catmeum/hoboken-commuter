@@ -1,4 +1,4 @@
-
+import { Home, Bell, Settings } from 'lucide-react'
 
 export default function TabBar({ activePage, onNavigate, alertCount, alertBadge }) {
   const isAlerts = activePage === 'alerts'
@@ -10,14 +10,14 @@ export default function TabBar({ activePage, onNavigate, alertCount, alertBadge 
           className={`m-tabbar-btn ${activePage === 'stops' ? 'active' : ''}`}
           onClick={() => onNavigate('stops')}
         >
-          <span className="m-tabbar-icon">⌂</span>
+          <Home className="m-tabbar-icon" size={16} />
           <span className="m-tabbar-label">My Stops</span>
         </button>
         <button
           className={`m-tabbar-btn ${activePage === 'alerts' ? 'active' : ''}`}
           onClick={() => onNavigate('alerts')}
         >
-          <span className="m-tabbar-icon">△</span>
+          <Bell className="m-tabbar-icon" size={16} />
           <span className="m-tabbar-label">Alerts</span>
           {alertBadge !== 'off' && alertCount > 0 && (
             <span className={`m-tab-badge ${alertBadge === 'dot' ? 'dot-only' : ''}`}>
@@ -27,7 +27,7 @@ export default function TabBar({ activePage, onNavigate, alertCount, alertBadge 
         </button>
       </div>
       <button className="m-tabbar-settings" onClick={() => onNavigate('settings')}>
-        ⚙
+        <Settings size={18} />
       </button>
     </div>
   )
