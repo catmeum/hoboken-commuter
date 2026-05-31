@@ -1,6 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { SubwayBadge, MTA_COLORS } from '../../components/icons'
 
+// NJT Bus route color palette
+const NJT_ROUTE_COLORS = {
+  '119': '#0e7c47', '125': '#6b21a8', '126': '#1e40af',
+  '22': '#b45309', '64': '#0f766e', '68': '#7c2d12',
+  '85': '#4338ca', '87': '#be123c', '89': '#7c3aed',
+}
+const NJT_COLOR_PALETTE = ['#1e40af', '#7c3aed', '#0e7c47', '#b45309', '#be123c', '#0f766e', '#4338ca', '#6b21a8', '#7c2d12', '#0369a1']
+function njtRouteColor(route) {
+  if (NJT_ROUTE_COLORS[route]) return NJT_ROUTE_COLORS[route]
+  let hash = 0
+  for (let i = 0; i < route.length; i++) hash = route.charCodeAt(i) + ((hash << 5) - hash)
+  return NJT_COLOR_PALETTE[Math.abs(hash) % NJT_COLOR_PALETTE.length]
+}
+
 const MODES = [
   { id: 'subway', label: 'MTA Subway', icon: '🚇', placeholder: 'Search for a subway station…' },
   { id: 'bus', label: 'NJT Bus', icon: '🚌', placeholder: 'Search for a bus stop…' },
@@ -34,7 +48,6 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
 
   // Bus step 3 state (headsign variants for PABT-like stops)
   const [busVariants, setBusVariants] = useState([])
-  const [isPabt, setIsPabt] = useState(false)
 
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
@@ -53,7 +66,6 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     setBusRoutes([])
     setSelectedBusRoutes(new Set())
     setBusVariants([])
-    setIsPabt(false)
   }
 
   // Reset on open
@@ -92,7 +104,6 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
       setSelectedBusStop(null)
       setBusRoutes([])
       setSelectedBusRoutes(new Set())
-      setIsPabt(false)
     } else if (step === 'search') {
       setStep('modes')
       setMode(null)
@@ -231,7 +242,6 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     fetch(`/api/bus/stop-headsigns?ids=${selectedBusStop.id}&routes=${routes}`)
       .then(r => r.ok ? r.json() : { variants: [] })
       .then(d => {
-        setIsPabt(d.isPabt || false)
         const variants = d.variants || []
 
         // Check if variants have different gates — only show picker if gates differ
@@ -418,7 +428,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
                   return next
                 })}
               >
-                <span className="m-addstop-route-badge">{route}</span>
+                <span className="m-addstop-route-badge" style={{ background: njtRouteColor(route) }}>{route}</span>
                 <span>Route {route}</span>
               </button>
             )) : (

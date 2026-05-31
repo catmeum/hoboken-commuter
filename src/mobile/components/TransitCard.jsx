@@ -8,6 +8,22 @@ function etaClass(min) {
   return 'later'
 }
 
+// NJT Bus route color palette — consistent colors by route number
+const NJT_ROUTE_COLORS = {
+  '119': '#0e7c47', '125': '#6b21a8', '126': '#1e40af',
+  '22': '#b45309', '64': '#0f766e', '68': '#7c2d12',
+  '85': '#4338ca', '87': '#be123c', '89': '#7c3aed',
+}
+const NJT_COLOR_PALETTE = ['#1e40af', '#7c3aed', '#0e7c47', '#b45309', '#be123c', '#0f766e', '#4338ca', '#6b21a8', '#7c2d12', '#0369a1']
+
+function njtRouteColor(route) {
+  if (NJT_ROUTE_COLORS[route]) return NJT_ROUTE_COLORS[route]
+  // Consistent hash-based color for unknown routes
+  let hash = 0
+  for (let i = 0; i < route.length; i++) hash = route.charCodeAt(i) + ((hash << 5) - hash)
+  return NJT_COLOR_PALETTE[Math.abs(hash) % NJT_COLOR_PALETTE.length]
+}
+
 function etaTime(min) {
   const d = new Date(Date.now() + min * 60_000)
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
@@ -173,7 +189,7 @@ export function BusCard({ stopId, displayName }) {
       badges={
         <>
           {routes.map(r => (
-            <span key={r} className="ms-badge ms-badge-bus" style={{ background: '#1e40af' }}>{r}</span>
+            <span key={r} className="ms-badge ms-badge-bus" style={{ background: njtRouteColor(r) }}>{r}</span>
           ))}
           {gate && (
             <button className="ms-gate-badge" onClick={(e) => { e.stopPropagation(); setShowGateInfo(v => !v) }}>
@@ -191,16 +207,23 @@ export function BusCard({ stopId, displayName }) {
         </div>
       )}
       {buses.length > 0 ? (
-        buses.slice(0, 4).map((b, i) => (
-          <DepartureRow
-            key={i}
-            dest={`${b.route} · ${b.headsign || b.variant || '—'}`}
-            eta={b.eta}
-            etaClock={b.etaTime || etaTime(b.eta)}
-            badgeColor="#1e40af"
-            source={b.source}
-          />
-        ))
+        buses.slice(0, 4).map((b, i) => {
+          // Clean up headsign: remove route number prefix, shorten common words
+          let dest = b.headsign || b.variant || '—'
+          dest = dest.replace(/^\d+[A-Z]?\s+/, '') // remove "126 " or "126T " prefix
+          dest = dest.replace(/VIA\s+/gi, '→ ').replace(/\s+/g, ' ').trim()
+          if (dest.length > 28) dest = dest.slice(0, 26) + '…'
+          return (
+            <DepartureRow
+              key={i}
+              dest={`${b.route} · ${dest}`}
+              eta={b.eta}
+              etaClock={b.etaTime || etaTime(b.eta)}
+              badgeColor={njtRouteColor(b.route)}
+              source={b.source}
+            />
+          )
+        })
       ) : (
         <div className="ms-empty">No upcoming buses</div>
       )}

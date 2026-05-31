@@ -2,12 +2,19 @@
 
 ## Active — Next Session
 
-- [ ] **Data fidelity audit** — compare mobile card data against desktop dashboard for the same stops. Fix any discrepancies in ETAs, route labels, headsigns, or missing departures.
-- [ ] **All transit types supported in Add Stop** — verify search endpoints work for every mode (MTA Subway, NJT Bus, NJT Rail, PATH, Ferry, HBLR, LIRR, Metro-North, MTA Bus, NYC Ferry). Fix any broken or unimplemented search handlers.
-- [ ] **Transit card icons per type** — ensure each card type renders its proper SVG icon (not emoji fallbacks). Add ferry icon (currently uses emoji ⛴️).
-- [ ] **Fix duplicate alerts in Alerts panel** — the alerts polling can add the same alert multiple times across poll cycles. Deduplicate by alert ID before adding to state.
-- [ ] **Alerts page integration** — test alerts flow end-to-end: live alerts appear, swipe-to-dismiss works, dismissed section shows, restore works, badge count updates in tab bar, tunnel pill glow syncs with alert state.
-- [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills tunnel/weather logic, MobileApp alert aggregation. Manual E2E walkthrough of full user flow including edge cases (no stops, max stops, GPS denied, network errors).
+- [x] **Pull-to-refresh only at top** — fixed: only triggers when scrollTop=0, page container has proper overflow for scroll detection.
+- [ ] **NJT bus & NYW Ferry header truncation** — long headsigns get cut off. Abbreviate/shorten headsign text, remove repeated route number from display. See if transit data gives a shortened version already.
+- [ ] **NJT bus route colors** — assign differentiated colors to bus routes in the stop picker and on transit cards (like MTA subway line colors).
+- [ ] **Alert cards with transit badges** — show the associated transit line badges (subway circles, bus route pills) in each alert card.
+- [ ] **Tap alert icon → navigate to alerts** — tapping the ⚠️ on a transit card navigates to the Alerts page and highlights the relevant alert.
+- [ ] **Tunnel alert timestamps** — show when the alert was first posted. If no timestamp available from PANYNJ API, display "time unknown".
+- [ ] **Update presets with inbound + outbound** — mobile presets should include both directions (matching desktop), not just outbound.
+- [ ] **Weather zip code in Settings** — add a zip code input for weather location in Settings (only visible when weather pill is enabled). Allows manual override of GPS-based location.
+- [ ] **All transit types supported in Add Stop** — verify search endpoints work for every mode. Implement multi-step pickers for PATH, Ferry, Rail, HBLR (matching desktop).
+- [ ] **Fix duplicate alerts in Alerts panel** — deduplicate by alert ID before adding to state.
+- [ ] **Buy Me a Coffee link** — swap Venmo link with https://buymeacoffee.com/mystopnow. Consider placement (Settings about section, welcome page footer).
+- [ ] **Transit card icons per type** — add ferry SVG icon (currently emoji ⛴️).
+- [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills, MobileApp alert aggregation. Full manual E2E walkthrough.
 
 ## v3 Mobile App — Implementation Tasks
 
@@ -26,7 +33,7 @@
 - [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
 - [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
 - [ ] **Add Stop — step 3 (line/direction picker)** — after selecting a station, let user pick specific lines and direction (N/S) before adding
-- [ ] **Edit stop (swipe-to-edit)** — swipe left on a stop in Settings to reveal "Edit" button. Opens the line/direction picker pre-populated with current config. Depends on step 3 picker being built first. UI shell is in place (disabled).
+- [ ] **Edit stop (swipe-to-edit)** — swipe left on a stop in Settings to reveal "Edit" button.  Opens the line/direction picker pre-populated with current config. Depends on step 3 picker being built first. Swipe right when edit button is revealed, to cover edit button. UI shell is in place (disabled).
 - [ ] **Tunnel direction picker + up to 4** — let user pick direction (NJ→NY or NY→NJ) per tunnel and allow up to 4 selections (e.g. Lincoln outbound + Lincoln inbound + Holland outbound + GWB inbound)
 - [ ] **Drag-reorder stops** — touch-based drag reorder in Settings stop list (grip handles rendered, logic TBD)
 - [ ] **Skeleton loading states** — replace all fallback/placeholder text with pulsing grey skeleton loaders (Facebook/iOS style). Transit cards, weather pill, tunnel pills should all show a shimmer skeleton while data loads instead of "Loading…" or empty states.

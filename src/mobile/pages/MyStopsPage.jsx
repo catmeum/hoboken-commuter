@@ -18,9 +18,12 @@ export default function MyStopsPage({ stops, stopNames, showWeather, showTunnels
 
   // Pull-to-refresh touch handlers
   function handleTouchStart(e) {
-    if (containerRef.current?.scrollTop === 0) {
+    // Only enable pull if we're scrolled to the very top
+    if (containerRef.current && containerRef.current.scrollTop <= 0) {
       pullStartY.current = e.touches[0].clientY
       pulling.current = true
+    } else {
+      pulling.current = false
     }
   }
 

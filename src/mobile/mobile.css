@@ -193,6 +193,8 @@
   min-height: 100dvh;
   padding: 16px 16px 100px;
   position: relative;
+  overflow-y: auto;
+  max-height: 100dvh;
 }
 
 .m-pull-indicator {
