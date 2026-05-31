@@ -188,3 +188,74 @@ export function HeavyRailIcon({ className, size = 20 }) {
     </svg>
   )
 }
+
+export function NywFerryIcon({ className, size = 20 }) {
+  return (
+    <svg width={size} height={size * 1.6} viewBox="0 0 24 38" className={className} style={{ flexShrink: 0 }}>
+      <path d="M1 22 L1 17.5 L22 17.5 L23 22 Z" fill="#E8E8E8" stroke="#AAAAAA" strokeWidth="0.6"/>
+      <path d="M1 20 L22 20 L23 22 L1 22 Z" fill="#CC0000"/>
+      <rect x="3" y="12.5" width="17" height="5" rx="0.5" fill="#DCDCDC" stroke="#AAAAAA" strokeWidth="0.4"/>
+      <rect x="6" y="8.5" width="10" height="4.2" rx="0.5" fill="#D4D4D4" stroke="#AAAAAA" strokeWidth="0.4"/>
+      <rect x="7" y="9" width="2" height="2.5" rx="0.3" fill="#7AB8D8" opacity="0.95"/>
+      <rect x="10" y="9" width="2" height="2.5" rx="0.3" fill="#7AB8D8" opacity="0.95"/>
+      <rect x="13" y="9" width="2" height="2.5" rx="0.3" fill="#7AB8D8" opacity="0.95"/>
+      <rect x="10.5" y="5.5" width="3" height="3.5" rx="0.5" fill="#CC0000"/>
+      <path d="M0 22 Q4 24.5 8 22 Q12 19.5 16 22 Q20 24.5 24 22 L24 27 L0 27 Z" fill="#2A70C0" opacity="0.45"/>
+    </svg>
+  )
+}
+
+export function NycFerryIcon({ className, size = 20 }) {
+  return (
+    <svg width={size} height={size * 1.6} viewBox="0 0 24 38" className={className} style={{ flexShrink: 0 }}>
+      <path d="M1 22 L1 17.5 L22 17.5 L23 22 Z" fill="#F5F5F5" stroke="#BBBBBB" strokeWidth="0.5"/>
+      <path d="M1 20 L22 20 L23 22 L1 22 Z" fill="#00A3A3"/>
+      <rect x="3" y="12.5" width="17" height="5" rx="0.5" fill="#EBEBEB" stroke="#BBBBBB" strokeWidth="0.4"/>
+      <rect x="6" y="8.5" width="10" height="4.2" rx="0.5" fill="#E2E2E2" stroke="#BBBBBB" strokeWidth="0.4"/>
+      <rect x="7" y="9" width="2" height="2.5" rx="0.3" fill="#7ECFCF" opacity="0.9"/>
+      <rect x="10" y="9" width="2" height="2.5" rx="0.3" fill="#7ECFCF" opacity="0.9"/>
+      <rect x="13" y="9" width="2" height="2.5" rx="0.3" fill="#7ECFCF" opacity="0.9"/>
+      <rect x="10.5" y="5.5" width="3" height="3.5" rx="0.5" fill="#00A3A3"/>
+      <path d="M0 22 Q4 24.5 8 22 Q12 19.5 16 22 Q20 24.5 24 22 L24 27 L0 27 Z" fill="#2A70C0" opacity="0.4"/>
+    </svg>
+  )
+}
+
+export function MtaBusIcon({ className, size = 20 }) {
+  return (
+    <svg width={size} height={size * 1.6} viewBox="0 0 24 38" className={className} style={{ flexShrink: 0 }}>
+      <rect x="1" y="8" width="22" height="16" rx="2" fill="#F5F5F5"/>
+      <clipPath id="mab-clip"><rect x="1" y="8" width="22" height="16" rx="2"/></clipPath>
+      <rect x="1" y="8" width="22" height="3" fill="#0039A6" clipPath="url(#mab-clip)"/>
+      <rect x="1" y="19" width="22" height="5" fill="#0039A6" clipPath="url(#mab-clip)"/>
+      <rect x="2" y="11.5" width="4.5" height="5" rx="0.5" fill="#1A1A2E" opacity="0.85"/>
+      <rect x="9" y="11.5" width="3.5" height="3.5" rx="0.4" fill="#B8D4E8" opacity="0.9"/>
+      <rect x="13.5" y="11.5" width="3.5" height="3.5" rx="0.4" fill="#B8D4E8" opacity="0.9"/>
+      <rect x="18" y="11.5" width="3.5" height="3.5" rx="0.4" fill="#B8D4E8" opacity="0.9"/>
+      <rect x="1" y="24" width="22" height="2" fill="#777"/>
+      <circle cx="5.5" cy="28.5" r="3" fill="#2a2a2a"/><circle cx="5.5" cy="28.5" r="1.2" fill="#555"/>
+      <circle cx="18.5" cy="28.5" r="3" fill="#2a2a2a"/><circle cx="18.5" cy="28.5" r="1.2" fill="#555"/>
+      <rect x="0" y="31.5" width="24" height="1" rx="0.5" fill="#aaa"/>
+    </svg>
+  )
+}
+
+export function GrandCentralClock({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+      <rect x="6.5" y="21.5" width="11" height="1.8" rx="0.6" fill="#B8860B"/>
+      <rect x="10.5" y="18" width="3" height="3.5" rx="0.3" fill="#C5A55A"/>
+      <path d="M9 18 L15 18 L13.8 19.2 L10.2 19.2 Z" fill="#D4AF37"/>
+      <circle cx="12" cy="11" r="6.5" fill="#B8860B"/>
+      <circle cx="12" cy="11" r="5.5" fill="#F5F0E8" className="mnr-clock-face"/>
+      <circle cx="12" cy="11" r="6" fill="none" stroke="#D4AF37" strokeWidth="0.6"/>
+      <line x1="12" y1="5.8" x2="12" y2="7" stroke="#5C4A1E" strokeWidth="0.8"/>
+      <line x1="17.2" y1="11" x2="16" y2="11" stroke="#5C4A1E" strokeWidth="0.8"/>
+      <line x1="12" y1="16.2" x2="12" y2="15" stroke="#5C4A1E" strokeWidth="0.8"/>
+      <line x1="6.8" y1="11" x2="8" y2="11" stroke="#5C4A1E" strokeWidth="0.8"/>
+      <line x1="12" y1="11" x2="12" y2="8" stroke="#3B2F0E" strokeWidth="1" strokeLinecap="round" transform="rotate(300 12 11)"/>
+      <line x1="12" y1="11" x2="12" y2="7.2" stroke="#3B2F0E" strokeWidth="0.7" strokeLinecap="round" transform="rotate(60 12 11)"/>
+      <circle cx="12" cy="11" r="0.6" fill="#D4AF37"/>
+    </svg>
+  )
+}

@@ -3,10 +3,14 @@
 ## Active — Next Session
 
 - [x] **Pull-to-refresh only at top** — fixed: only triggers when scrollTop=0, page container has proper overflow for scroll detection.
-- [ ] **NJT bus & NYW Ferry header truncation** — long headsigns get cut off. Abbreviate/shorten headsign text, remove repeated route number from display. See if transit data gives a shortened version already.
-- [ ] **NJT bus route colors** — assign differentiated colors to bus routes in the stop picker and on transit cards (like MTA subway line colors).
+- [x] **NJT bus header truncation** — headsigns cleaned: strip route prefix, VIA→arrow, 28ch max.
+- [x] **NJT bus route colors** — consistent colors per route in cards and picker.
+- [x] **PATH multi-step picker** — search → multi-select direction picker → add. Smart display name truncation.
+- [x] **NJT Rail multi-step picker** — search → line picker with colors and select/deselect all → add. Handles empty stations gracefully.
+- [x] **Expandable badge rows** — MTA Subway and NJT Rail badges truncate with tappable "+N" to expand/collapse.
 - [ ] **Alert cards with transit badges** — show the associated transit line badges (subway circles, bus route pills) in each alert card.
-- [ ] **Tap alert icon → navigate to alerts** — tapping the ⚠️ on a transit card navigates to the Alerts page and highlights the relevant alert.
+- [ ] **Alert icon → notification center sync** — transit cards show ⚠️ from their own API data, but the notification center polls separately and may not have the same alerts. Need to either: feed card-level alerts into the notification center, or only show ⚠️ when the alert exists in the notification center.
+- [ ] **Tap alert icon → navigate to alerts** — tapping the ⚠️ on a transit card navigates to the Alerts page and highlights the relevant alert. Ask user about updating ⚠️ icon / button.
 - [ ] **Tunnel alert timestamps** — show when the alert was first posted. If no timestamp available from PANYNJ API, display "time unknown".
 - [ ] **Update presets with inbound + outbound** — mobile presets should include both directions (matching desktop), not just outbound.
 - [ ] **Weather zip code in Settings** — add a zip code input for weather location in Settings (only visible when weather pill is enabled). Allows manual override of GPS-based location.

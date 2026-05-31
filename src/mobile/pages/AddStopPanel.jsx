@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { SubwayBadge, MTA_COLORS } from '../../components/icons'
+import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, PathIcon, LightRailIcon, HeavyRailIcon, NjtRailIcon, NywFerryIcon, NycFerryIcon, MtaBusIcon, GrandCentralClock } from '../../components/icons'
 
 // NJT Bus route color palette
 const NJT_ROUTE_COLORS = {
@@ -16,16 +16,16 @@ function njtRouteColor(route) {
 }
 
 const MODES = [
-  { id: 'subway', label: 'MTA Subway', icon: '🚇', placeholder: 'Search for a subway station…' },
-  { id: 'bus', label: 'NJT Bus', icon: '🚌', placeholder: 'Search for a bus stop…' },
-  { id: 'rail', label: 'NJT Rail', icon: '🚂', placeholder: 'Search for a rail station…' },
-  { id: 'path', label: 'PATH', icon: '🚂', placeholder: 'Search for a PATH station…' },
-  { id: 'ferry', label: 'NY Waterway', icon: '⛴️', placeholder: 'Search for a ferry terminal…' },
-  { id: 'hblr', label: 'HBLR Light Rail', icon: '🚈', placeholder: 'Search for a light rail stop…' },
-  { id: 'lirr', label: 'LIRR', icon: '🚂', placeholder: 'Search for a LIRR station…' },
-  { id: 'mnr', label: 'Metro-North', icon: '🚂', placeholder: 'Search for a Metro-North station…' },
-  { id: 'mtabus', label: 'MTA Bus', icon: '🚌', placeholder: 'Search for a bus route…' },
-  { id: 'nycferry', label: 'NYC Ferry', icon: '⛴️', placeholder: 'Search for a ferry stop…' },
+  { id: 'subway', label: 'MTA Subway', icon: <MtaGlobeIcon size={16} />, placeholder: 'Search for a subway station…', enabled: true },
+  { id: 'bus', label: 'NJT Bus', icon: <NjtBusIcon size={16} />, placeholder: 'Search for a bus stop…', enabled: true },
+  { id: 'path', label: 'PATH', icon: <PathIcon size={16} />, placeholder: 'Search for a PATH station…', enabled: true },
+  { id: 'rail', label: 'NJT Rail', icon: <NjtRailIcon size={16} />, placeholder: 'Search for a rail station…', enabled: true },
+  { id: 'ferry', label: 'NY Waterway', icon: <NywFerryIcon size={16} />, placeholder: 'Search for a ferry terminal…', enabled: false },
+  { id: 'hblr', label: 'HBLR Light Rail', icon: <LightRailIcon size={16} />, placeholder: 'Search for a light rail stop…', enabled: false },
+  { id: 'lirr', label: 'LIRR', icon: <HeavyRailIcon size={16} />, placeholder: 'Search for a LIRR station…', enabled: false },
+  { id: 'mnr', label: 'Metro-North', icon: <GrandCentralClock size={16} />, placeholder: 'Search for a Metro-North station…', enabled: false },
+  { id: 'mtabus', label: 'MTA Bus', icon: <MtaBusIcon size={16} />, placeholder: 'Search for a bus route…', enabled: false },
+  { id: 'nycferry', label: 'NYC Ferry', icon: <NycFerryIcon size={16} />, placeholder: 'Search for a ferry stop…', enabled: false },
 ]
 
 export default function AddStopPanel({ open, onClose, onAdd }) {
@@ -49,6 +49,17 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   // Bus step 3 state (headsign variants for PABT-like stops)
   const [busVariants, setBusVariants] = useState([])
 
+  // PATH step 2 state
+  const [selectedPathStation, setSelectedPathStation] = useState(null)
+  const [pathOptions, setPathOptions] = useState([])
+  const [selectedPathOptions, setSelectedPathOptions] = useState(new Set())
+
+  // NJT Rail step 2 state
+  const [selectedRailStation, setSelectedRailStation] = useState(null)
+  const [railLines, setRailLines] = useState([])
+  const [railLinesLoaded, setRailLinesLoaded] = useState(false)
+  const [selectedRailLines, setSelectedRailLines] = useState(new Set())
+
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
   const prevOpenRef = useRef(false)
@@ -66,6 +77,13 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     setBusRoutes([])
     setSelectedBusRoutes(new Set())
     setBusVariants([])
+    setSelectedPathStation(null)
+    setPathOptions([])
+    setSelectedPathOptions(new Set())
+    setSelectedRailStation(null)
+    setRailLines([])
+    setRailLinesLoaded(false)
+    setSelectedRailLines(new Set())
   }
 
   // Reset on open
@@ -104,6 +122,17 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
       setSelectedBusStop(null)
       setBusRoutes([])
       setSelectedBusRoutes(new Set())
+    } else if (step === 'path-dir') {
+      setStep('search')
+      setSelectedPathStation(null)
+      setPathOptions([])
+      setSelectedPathOptions(new Set())
+    } else if (step === 'rail-lines') {
+      setStep('search')
+      setSelectedRailStation(null)
+      setRailLines([])
+      setRailLinesLoaded(false)
+      setSelectedRailLines(new Set())
     } else if (step === 'search') {
       setStep('modes')
       setMode(null)
@@ -216,6 +245,33 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
       return
     }
 
+    if (modeId === 'path') {
+      // Go to step 2: pick direction
+      setSelectedPathStation(result)
+      setStep('path-dir')
+      fetch(`/api/path/station-routes?id=${result.id}`)
+        .then(r => r.ok ? r.json() : { options: [] })
+        .then(d => setPathOptions(d.options || []))
+      return
+    }
+
+    if (modeId === 'rail') {
+      // Go to step 2: pick lines
+      setSelectedRailStation(result)
+      setStep('rail-lines')
+      setRailLines([])
+      setRailLinesLoaded(false)
+      fetch(`/api/rail/station-lines?code=${result.code || result.id}`)
+        .then(r => r.ok ? r.json() : { lines: [] })
+        .then(d => {
+          const lines = d.lines || []
+          setRailLines(lines)
+          setRailLinesLoaded(true)
+          setSelectedRailLines(new Set(lines.map(l => l.code)))
+        })
+      return
+    }
+
     // All other modes: add directly
     const stopId = buildSimpleStopId(modeId, result)
     const displayName = result.name || result.label || result.id
@@ -279,11 +335,50 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     onAdd(stopId, displayName)
   }
 
+  // ── Select PATH direction option ──
+  function confirmPath() {
+    if (!selectedPathStation || selectedPathOptions.size === 0) return
+    const selected = pathOptions.filter((_, i) => selectedPathOptions.has(i))
+    const allRouteIds = [...new Set(selected.flatMap(o => o.routeIds))]
+    const allDirIds = [...new Set(selected.map(o => o.dirId))]
+    const routeIds = allRouteIds.join(',')
+    const dirId = allDirIds.length > 1 ? allDirIds.join(',') : allDirIds[0]
+    const stopId = `path:${routeIds}:${dirId}:${selectedPathStation.id}`
+    // Short display name: station + direction summary
+    let dirLabel
+    if (selected.length === pathOptions.length) {
+      dirLabel = 'All directions'
+    } else if (selected.length <= 2) {
+      dirLabel = selected.map(o => o.label).join(' + ')
+    } else {
+      dirLabel = `${selected[0].label} +${selected.length - 1}`
+    }
+    const displayName = `${selectedPathStation.name} · ${dirLabel}`
+    onAdd(stopId, displayName)
+  }
+
+  // ── Confirm NJT Rail ──
+  function confirmRail() {
+    if (!selectedRailStation || selectedRailLines.size === 0) return
+    const code = selectedRailStation.code || selectedRailStation.id
+    const lines = [...selectedRailLines].join(',')
+    const stopId = `rail:${code}:${lines}`
+    let lineLabel
+    if (selectedRailLines.size === railLines.length) {
+      lineLabel = 'All lines'
+    } else if (selectedRailLines.size <= 2) {
+      lineLabel = railLines.filter(l => selectedRailLines.has(l.code)).map(l => l.abbr).join(', ')
+    } else {
+      const first = railLines.find(l => selectedRailLines.has(l.code))
+      lineLabel = `${first?.abbr} +${selectedRailLines.size - 1}`
+    }
+    const displayName = `${selectedRailStation.name} (${lineLabel})`
+    onAdd(stopId, displayName)
+  }
+
   // ── Simple stop ID builder for modes without step 2 ──
   function buildSimpleStopId(modeId, result) {
     switch (modeId) {
-      case 'rail': return `rail:${result.code || result.id}`
-      case 'path': return `path:862:1:${result.id}` // default HOB-33 outbound
       case 'ferry': return `ferry:${result.tag || result.id}::`
       case 'hblr': return `hblr:${result.id}`
       case 'lirr': return `lirr:${result.id}`
@@ -300,6 +395,8 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     if (step === 'subway-dir') return `${selectedStation?.name} — Lines & Direction`
     if (step === 'bus-lines') return `${selectedBusStop?.name} — Select Routes`
     if (step === 'bus-variants') return `${selectedBusStop?.name} — Pick Variant`
+    if (step === 'path-dir') return `${selectedPathStation?.name} — Select Direction`
+    if (step === 'rail-lines') return `${selectedRailStation?.name} — Select Lines`
     return `${mode?.label || ''} — Search`
   }
 
@@ -320,9 +417,15 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
       {step === 'modes' && (
         <div className="m-addstop-modes">
           {MODES.map(m => (
-            <button key={m.id} className="m-addstop-mode" onClick={() => pickMode(m)}>
+            <button
+              key={m.id}
+              className={`m-addstop-mode ${!m.enabled ? 'm-addstop-mode-disabled' : ''}`}
+              onClick={() => m.enabled && pickMode(m)}
+              disabled={!m.enabled}
+            >
               <span className="m-addstop-mode-icon">{m.icon}</span>
               <span>{m.label}</span>
+              {!m.enabled && <span className="m-addstop-coming-soon">Coming Soon</span>}
             </button>
           ))}
         </div>
@@ -463,6 +566,83 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Step: PATH — pick direction(s) */}
+      {step === 'path-dir' && selectedPathStation && (
+        <div className="m-addstop-step">
+          <p className="m-addstop-section-label">Where are you going?</p>
+          <p className="m-addstop-hint" style={{ marginBottom: 8 }}>Select one or more directions</p>
+          <div className="m-addstop-route-list">
+            {pathOptions.length > 0 ? pathOptions.map((opt, i) => (
+              <button
+                key={i}
+                className={`m-addstop-route-btn ${selectedPathOptions.has(i) ? 'active' : ''}`}
+                onClick={() => setSelectedPathOptions(prev => {
+                  const next = new Set(prev)
+                  next.has(i) ? next.delete(i) : next.add(i)
+                  return next
+                })}
+              >
+                <span className="m-addstop-route-badge" style={{ background: '#0369a1' }}>{opt.routeNames[0]?.split('-')[0] || '→'}</span>
+                <span>{opt.label}</span>
+              </button>
+            )) : (
+              <div className="m-addstop-hint">Loading directions…</div>
+            )}
+          </div>
+          <button
+            className="m-addstop-confirm"
+            onClick={confirmPath}
+            disabled={selectedPathOptions.size === 0}
+          >
+            Add to My Stops
+          </button>
+        </div>
+      )}
+
+      {/* Step: NJT Rail — pick lines */}
+      {step === 'rail-lines' && selectedRailStation && (
+        <div className="m-addstop-step">
+          <div className="m-addstop-section-header">
+            <p className="m-addstop-section-label">Lines at this station</p>
+            <button className="m-addstop-select-all" onClick={() => {
+              if (selectedRailLines.size === railLines.length) setSelectedRailLines(new Set())
+              else setSelectedRailLines(new Set(railLines.map(l => l.code)))
+            }}>
+              {selectedRailLines.size === railLines.length ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+          <div className="m-addstop-route-list">
+            {railLines.length > 0 ? railLines.map(line => (
+              <button
+                key={line.code}
+                className={`m-addstop-route-btn ${selectedRailLines.has(line.code) ? 'active' : ''}`}
+                onClick={() => setSelectedRailLines(prev => {
+                  const next = new Set(prev)
+                  next.has(line.code) ? next.delete(line.code) : next.add(line.code)
+                  return next
+                })}
+              >
+                <span className="m-addstop-route-badge" style={{ background: line.color, fontSize: 9 }}>{line.abbr}</span>
+                <span>{line.name}</span>
+              </button>
+            )) : railLinesLoaded ? (
+              <div className="m-addstop-hint">No lines found at this station. Try a different station (e.g. Upper/Lower level).</div>
+            ) : (
+              <div className="m-addstop-hint">Loading lines…</div>
+            )}
+          </div>
+          {railLines.length > 0 && (
+            <button
+              className="m-addstop-confirm"
+              onClick={confirmRail}
+              disabled={selectedRailLines.size === 0}
+            >
+              Add to My Stops
+            </button>
+          )}
         </div>
       )}
     </div>

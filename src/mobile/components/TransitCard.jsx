@@ -74,6 +74,33 @@ function usePolling(fetchFn, intervalMs) {
   return { data, error, refetch: poll }
 }
 
+// ── Expandable badge row — shows max 3, tap to expand all ──
+function ExpandableBadges({ children, maxVisible = 3 }) {
+  const [expanded, setExpanded] = useState(false)
+  const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : []
+
+  if (items.length <= maxVisible) return <>{items}</>
+
+  const visible = expanded ? items : items.slice(0, maxVisible)
+  const remaining = items.length - maxVisible
+
+  return (
+    <>
+      {visible}
+      {!expanded && (
+        <span className="ms-badge-more" onClick={(e) => { e.stopPropagation(); setExpanded(true) }}>
+          +{remaining}
+        </span>
+      )}
+      {expanded && (
+        <span className="ms-badge-more" onClick={(e) => { e.stopPropagation(); setExpanded(false) }}>
+          ▾
+        </span>
+      )}
+    </>
+  )
+}
+
 // ── Generic transit card shell ──
 function CardShell({ icon, station, badges, alert, children }) {
   return (
@@ -134,11 +161,11 @@ export function MtaSubwayCard({ stopId, displayName }) {
       station={stationName}
       alert={alerts.length > 0}
       badges={
-        <>
-          {lines.slice(0, 4).map(l => (
+        <ExpandableBadges maxVisible={2}>
+          {lines.map(l => (
             <SubwayBadge key={l} line={l} size={22} />
           ))}
-        </>
+        </ExpandableBadges>
       }
     >
       {departures.length > 0 ? (
@@ -316,18 +343,20 @@ export function RailCard({ stopId, displayName }) {
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
-  const lineNames = [...new Set(departures.map(d => d.lineName))].slice(0, 2)
+  const lineNames = [...new Set(departures.map(d => d.lineName))]
+  const lineColors = {}
+  departures.forEach(d => { if (d.lineName && d.lineColor) lineColors[d.lineName] = d.lineColor })
 
   return (
     <CardShell
       icon={<NjtRailIcon size={16} />}
       station={name}
       badges={
-        <>
+        <ExpandableBadges maxVisible={2}>
           {lineNames.map(l => (
-            <span key={l} className="ms-badge ms-badge-rail" style={{ background: '#00953B' }}>{l}</span>
+            <span key={l} className="ms-badge ms-badge-rail" style={{ background: lineColors[l] || '#00953B', fontSize: 'clamp(7px, 1.8vw, 9px)' }}>{l}</span>
           ))}
-        </>
+        </ExpandableBadges>
       }
     >
       {departures.length > 0 ? (

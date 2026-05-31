@@ -288,4 +288,171 @@ describe('AddStopPanel', () => {
       })
     })
   })
+
+  describe('PATH flow', () => {
+    it('shows direction picker after selecting a station', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ id: '26729', name: 'Hoboken' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            options: [
+              { dirId: '1', label: 'To WTC', routeIds: ['860'], routeNames: ['HOB-WTC'] },
+              { dirId: '1', label: 'To 33rd St', routeIds: ['862', '1024'], routeNames: ['HOB-33', 'JSQ-33'] },
+            ],
+          }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('PATH'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a PATH station…'), { target: { value: 'hoboken' } })
+
+      await waitFor(() => expect(screen.getByText('Hoboken')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('Hoboken'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Where are you going?')).toBeInTheDocument()
+        expect(screen.getByText('To WTC')).toBeInTheDocument()
+        expect(screen.getByText('To 33rd St')).toBeInTheDocument()
+      })
+    })
+
+    it('generates correct stop ID with selected directions', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ id: '26729', name: 'Hoboken' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            options: [
+              { dirId: '1', label: 'To WTC', routeIds: ['860'], routeNames: ['HOB-WTC'] },
+              { dirId: '1', label: 'To 33rd St', routeIds: ['862', '1024'], routeNames: ['HOB-33', 'JSQ-33'] },
+            ],
+          }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('PATH'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a PATH station…'), { target: { value: 'hoboken' } })
+
+      await waitFor(() => expect(screen.getByText('Hoboken')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('Hoboken'))
+
+      await waitFor(() => expect(screen.getByText('To 33rd St')).toBeInTheDocument())
+
+      // Select "To 33rd St" only
+      fireEvent.click(screen.getByText('To 33rd St'))
+      fireEvent.click(screen.getByText('Add to My Stops'))
+
+      expect(onAdd).toHaveBeenCalledWith(
+        'path:862,1024:1:26729',
+        'Hoboken · To 33rd St'
+      )
+    })
+  })
+
+  describe('NJT Rail flow', () => {
+    it('shows line picker after selecting a station', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ code: 'HB', name: 'Hoboken' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            lines: [
+              { code: 'BC', name: 'Bergen County Line', abbr: 'BERG', color: '#98A8BF' },
+              { code: 'ML', name: 'Main Line', abbr: 'MAIN', color: '#F2B826' },
+            ],
+          }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('NJT Rail'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a rail station…'), { target: { value: 'hoboken' } })
+
+      await waitFor(() => expect(screen.getByText('Hoboken')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('Hoboken'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Lines at this station')).toBeInTheDocument()
+        expect(screen.getByText('Bergen County Line')).toBeInTheDocument()
+        expect(screen.getByText('Main Line')).toBeInTheDocument()
+      })
+    })
+
+    it('generates correct stop ID with selected lines', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ code: 'HB', name: 'Hoboken' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            lines: [
+              { code: 'BC', name: 'Bergen County Line', abbr: 'BERG', color: '#98A8BF' },
+              { code: 'ML', name: 'Main Line', abbr: 'MAIN', color: '#F2B826' },
+              { code: 'PV', name: 'Pascack Valley Line', abbr: 'PASC', color: '#A34F8B' },
+            ],
+          }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('NJT Rail'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a rail station…'), { target: { value: 'hoboken' } })
+
+      await waitFor(() => expect(screen.getByText('Hoboken')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('Hoboken'))
+
+      await waitFor(() => expect(screen.getByText('Lines at this station')).toBeInTheDocument())
+
+      // All selected by default — just confirm
+      fireEvent.click(screen.getByText('Add to My Stops'))
+
+      expect(onAdd).toHaveBeenCalledWith(
+        'rail:HB:BC,ML,PV',
+        'Hoboken (All lines)'
+      )
+    })
+
+    it('shows error for stations with no lines', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ code: 'SC', name: 'Secaucus Concourse' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ lines: [] }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('NJT Rail'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a rail station…'), { target: { value: 'secaucus' } })
+
+      await waitFor(() => expect(screen.getByText('Secaucus Concourse')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('Secaucus Concourse'))
+
+      await waitFor(() => {
+        expect(screen.getByText(/No lines found/)).toBeInTheDocument()
+      })
+    })
+  })
 })
