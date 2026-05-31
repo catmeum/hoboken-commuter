@@ -2,17 +2,17 @@
 
 ## Active — Next Session
 
-- [ ] **Convert mobile mockup to React** — take the approved `v3-mobile.html` design and implement as real React components on the `v3-rebrand` branch. Route via `/mobile`. Reuse v1's existing service layer (`src/services/*`), custom SVG icons, and localStorage persistence. Pages: Welcome, My Stops, Alerts, Settings + Add Stop flow.
+- [x] **Convert mobile mockup to React** — take the approved `v3-mobile.html` design and implement as real React components on the `v3-rebrand` branch. Route via `/mobile`. Reuse v1's existing service layer (`src/services/*`), custom SVG icons, and localStorage persistence. Pages: Welcome, My Stops, Alerts, Settings + Add Stop flow.
 
 ## v3 Mobile App — Implementation Tasks
 
-- [ ] **React shell** — tab routing, page transitions (slide-up settings), floating tab bar component
-- [ ] **Welcome page** — zip code onboarding with `/api/nearby-stops`, "Pick stops manually" → Add Stop flow
-- [ ] **My Stops page** — scrollable card list, weather/tunnel pills (tap-to-expand), pull-to-refresh, geolocation sorting
-- [ ] **Transit cards** — reuse v1 data fetching, render with custom SVG icons, route-colored badges, ETA hierarchy
-- [ ] **Alerts page** — swipe-to-dismiss, dismissed alerts section with restore, empty state, badge count
-- [ ] **Settings page** — slide-up panel, display settings (appearance, alert badge style, weather °F/°C, tunnels), stop management (drag-reorder, remove, expand/collapse >6), tunnel config (pick up to 2), presets with confirmation, widgets coming soon, danger zone reset
-- [ ] **Add Stop flow** — stepped picker (mode → search → select lines/direction → add), slides up over settings
+- [x] **React shell** — tab routing, page transitions (slide-up settings), floating tab bar component
+- [x] **Welcome page** — zip code onboarding with `/api/nearby-stops`, "Pick stops manually" → Add Stop flow
+- [x] **My Stops page** — scrollable card list, weather/tunnel pills (tap-to-expand), pull-to-refresh, geolocation sorting
+- [x] **Transit cards** — reuse v1 data fetching, render with custom SVG icons, route-colored badges, ETA hierarchy
+- [x] **Alerts page** — swipe-to-dismiss, dismissed alerts section with restore, empty state, badge count
+- [x] **Settings page** — slide-up panel, display settings (appearance, alert badge style, weather °F/°C, tunnels), stop management (drag-reorder, remove, expand/collapse >6), tunnel config (pick up to 2), presets with confirmation, widgets coming soon, danger zone reset
+- [x] **Add Stop flow** — stepped picker (mode → search → select lines/direction → add), slides up over settings
 - [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
 - [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
 - [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
