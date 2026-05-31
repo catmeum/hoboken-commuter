@@ -155,11 +155,7 @@ export default function SettingsPage({
         <h3 className="m-set-label">My Stops</h3>
         <div className="m-set-stop-list">
           {visibleStops.map((stopId) => (
-            <div key={stopId} className="m-set-stop-item">
-              <span className="m-set-grip">⋮⋮</span>
-              <span className="m-set-stop-name">{stopNames[stopId] || stopId}</span>
-              <button className="m-set-remove" onClick={() => onRemoveStop(stopId)}>✕</button>
-            </div>
+            <SwipeableStopItem key={stopId} stopId={stopId} name={stopNames[stopId] || stopId} onRemove={onRemoveStop} />
           ))}
         </div>
         {hiddenCount > 0 && (
@@ -196,6 +192,45 @@ export default function SettingsPage({
         <p className="m-set-about">My Stop Now · v2.4.0</p>
         <p className="m-set-about">Made with ❤️ for public transit</p>
       </section>
+    </div>
+  )
+}
+
+// Swipeable stop item — reveals disabled "Edit" button on swipe left
+function SwipeableStopItem({ stopId, name, onRemove }) {
+  const [offset, setOffset] = useState(0)
+  const startX = useRef(0)
+
+  function handleTouchStart(e) {
+    startX.current = e.touches[0].clientX
+  }
+
+  function handleTouchMove(e) {
+    const diff = e.touches[0].clientX - startX.current
+    if (diff < 0) {
+      setOffset(Math.max(diff, -70))
+    }
+  }
+
+  function handleTouchEnd() {
+    // Snap open or closed
+    setOffset(offset < -35 ? -70 : 0)
+  }
+
+  return (
+    <div className="m-set-stop-item-wrap">
+      <div className="m-set-stop-edit-bg">Edit</div>
+      <div
+        className="m-set-stop-item"
+        style={{ transform: `translateX(${offset}px)`, transition: offset === 0 || offset === -70 ? 'transform 0.2s ease' : 'none' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <span className="m-set-grip">⋮⋮</span>
+        <span className="m-set-stop-name">{name}</span>
+        <button className="m-set-remove" onClick={() => onRemove(stopId)}>✕</button>
+      </div>
     </div>
   )
 }

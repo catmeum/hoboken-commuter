@@ -90,7 +90,7 @@ describe('SettingsPage', () => {
 
   it('shows tunnel config when tunnels enabled', () => {
     render(<SettingsPage {...defaultProps} showTunnels={true} />)
-    expect(screen.getByText('Tunnel Configuration')).toBeInTheDocument()
+    expect(screen.getByText('Tunnels & Bridges')).toBeInTheDocument()
     expect(screen.getByText('Lincoln Tunnel')).toBeInTheDocument()
     expect(screen.getByText('Holland Tunnel')).toBeInTheDocument()
   })

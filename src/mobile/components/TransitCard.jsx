@@ -138,14 +138,17 @@ export function MtaSubwayCard({ stopId, displayName }) {
 
 // ── NJT Bus Card ──
 export function BusCard({ stopId, displayName }) {
+  const [showGateInfo, setShowGateInfo] = useState(false)
   const fetcher = useCallback(async () => {
-    // Formats: bus:STOP_ID:ROUTES or legacy preconfigured IDs
+    // Formats: bus:STOP_IDS:ROUTES:HEADSIGN or bus:STOP_IDS:ROUTES or legacy
     if (stopId.startsWith('bus:')) {
       const parts = stopId.split(':')
       const gtfsStop = parts[1]
       const routes = parts[2] || ''
+      const headsigns = parts[3] || ''
       let url = `/api/bus/stops?ids=${gtfsStop}`
       if (routes) url += `&routes=${routes}`
+      if (headsigns) url += `&headsigns=${encodeURIComponent(headsigns)}`
       const res = await fetch(url)
       if (!res.ok) return null
       return await res.json()
@@ -160,6 +163,8 @@ export function BusCard({ stopId, displayName }) {
   const buses = data?.buses || []
   const name = displayName || shortenStopName(data?.name || data?.stop) || stopId
   const routes = [...new Set(buses.map(b => b.route))].slice(0, 3)
+  const gate = data?.gate
+  const gateSchedule = data?.gateSchedule
 
   return (
     <CardShell
@@ -170,9 +175,21 @@ export function BusCard({ stopId, displayName }) {
           {routes.map(r => (
             <span key={r} className="ms-badge ms-badge-bus" style={{ background: '#1e40af' }}>{r}</span>
           ))}
+          {gate && (
+            <button className="ms-gate-badge" onClick={(e) => { e.stopPropagation(); setShowGateInfo(v => !v) }}>
+              Gate {gate}
+            </button>
+          )}
         </>
       }
     >
+      {showGateInfo && gateSchedule && (
+        <div className="ms-gate-info">
+          <div className="ms-gate-row"><span>6 AM – 10 PM</span><span className="ms-gate-num">Gate {gateSchedule.day}</span></div>
+          <div className="ms-gate-row"><span>10 PM – 1 AM</span><span className="ms-gate-num">Gate {gateSchedule.late}</span></div>
+          <div className="ms-gate-row"><span>1 AM – 6 AM</span><span className="ms-gate-num">Gate {gateSchedule.overnight}</span></div>
+        </div>
+      )}
       {buses.length > 0 ? (
         buses.slice(0, 4).map((b, i) => (
           <DepartureRow
@@ -345,6 +362,129 @@ export function HblrCard({ stopId, displayName }) {
   )
 }
 
+// ── LIRR Card ──
+export function LirrCard({ stopId, displayName }) {
+  const fetcher = useCallback(async () => {
+    const id = stopId.split(':')[1]
+    const res = await fetch(`/api/lirr/query?stop=${id}`)
+    if (!res.ok) return null
+    return await res.json()
+  }, [stopId])
+  const { data } = usePolling(fetcher, 30_000)
+
+  const departures = data?.departures || []
+  const name = displayName || data?.stationName || stopId
+
+  return (
+    <CardShell
+      icon={<HeavyRailIcon size={16} />}
+      station={name}
+      badges={<span className="ms-badge ms-badge-rail" style={{ background: '#0039A6' }}>LIRR</span>}
+    >
+      {departures.length > 0 ? (
+        departures.slice(0, 4).map((d, i) => (
+          <DepartureRow key={i} dest={d.dest} eta={d.eta} etaClock={d.etaTime} badgeColor={d.lineColor} />
+        ))
+      ) : (
+        <div className="ms-empty">No upcoming trains</div>
+      )}
+    </CardShell>
+  )
+}
+
+// ── Metro-North Card ──
+export function MnrCard({ stopId, displayName }) {
+  const fetcher = useCallback(async () => {
+    const id = stopId.split(':')[1]
+    const res = await fetch(`/api/mnr/query?stop=${id}`)
+    if (!res.ok) return null
+    return await res.json()
+  }, [stopId])
+  const { data } = usePolling(fetcher, 30_000)
+
+  const departures = data?.departures || []
+  const name = displayName || data?.stationName || stopId
+
+  return (
+    <CardShell
+      icon={<HeavyRailIcon size={16} />}
+      station={name}
+      badges={<span className="ms-badge ms-badge-rail" style={{ background: '#0039A6' }}>MNR</span>}
+    >
+      {departures.length > 0 ? (
+        departures.slice(0, 4).map((d, i) => (
+          <DepartureRow key={i} dest={d.dest} eta={d.eta} etaClock={d.etaTime} badgeColor={d.lineColor} />
+        ))
+      ) : (
+        <div className="ms-empty">No upcoming trains</div>
+      )}
+    </CardShell>
+  )
+}
+
+// ── NYC Ferry Card ──
+export function NycFerryCard({ stopId, displayName }) {
+  const fetcher = useCallback(async () => {
+    const id = stopId.split(':')[1]
+    const res = await fetch(`/api/nycferry/query?stop=${id}`)
+    if (!res.ok) return null
+    return await res.json()
+  }, [stopId])
+  const { data } = usePolling(fetcher, 30_000)
+
+  const departures = data?.departures || []
+  const name = displayName || data?.stationName || stopId
+
+  return (
+    <CardShell
+      icon="⛴️"
+      station={name}
+      badges={<span className="ms-badge ms-badge-rail" style={{ background: '#1D8BC9' }}>NYC</span>}
+    >
+      {departures.length > 0 ? (
+        departures.slice(0, 4).map((d, i) => (
+          <DepartureRow key={i} dest={`→ ${d.dest}`} eta={d.eta} etaClock={d.etaTime} />
+        ))
+      ) : (
+        <div className="ms-empty">No upcoming ferries</div>
+      )}
+    </CardShell>
+  )
+}
+
+// ── MTA Bus Card ──
+export function MtaBusCard({ stopId, displayName }) {
+  const fetcher = useCallback(async () => {
+    const parts = stopId.split(':')
+    const [, stop, route] = parts
+    let url = `/api/mtabus/query?stop=${stop}`
+    if (route) url += `&route=${route}`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return await res.json()
+  }, [stopId])
+  const { data } = usePolling(fetcher, 30_000)
+
+  const departures = data?.departures || []
+  const name = displayName || data?.stopName || stopId
+
+  return (
+    <CardShell
+      icon={<NjtBusIcon size={16} />}
+      station={name}
+      badges={<span className="ms-badge ms-badge-bus" style={{ background: '#0039A6' }}>MTA</span>}
+    >
+      {departures.length > 0 ? (
+        departures.slice(0, 4).map((d, i) => (
+          <DepartureRow key={i} dest={d.dest || d.route} eta={d.eta} etaClock={d.etaTime} source={d.source} />
+        ))
+      ) : (
+        <div className="ms-empty">No upcoming buses</div>
+      )}
+    </CardShell>
+  )
+}
+
 // ── Card router — picks the right card component based on stop ID prefix ──
 export default function TransitCard({ stopId, displayName }) {
   if (stopId.startsWith('mta:')) return <MtaSubwayCard stopId={stopId} displayName={displayName} />
@@ -353,6 +493,10 @@ export default function TransitCard({ stopId, displayName }) {
   if (stopId.startsWith('ferry:')) return <FerryCard stopId={stopId} displayName={displayName} />
   if (stopId.startsWith('rail:')) return <RailCard stopId={stopId} displayName={displayName} />
   if (stopId.startsWith('hblr:')) return <HblrCard stopId={stopId} displayName={displayName} />
+  if (stopId.startsWith('lirr:')) return <LirrCard stopId={stopId} displayName={displayName} />
+  if (stopId.startsWith('mnr:')) return <MnrCard stopId={stopId} displayName={displayName} />
+  if (stopId.startsWith('nycferry:')) return <NycFerryCard stopId={stopId} displayName={displayName} />
+  if (stopId.startsWith('mtabus:')) return <MtaBusCard stopId={stopId} displayName={displayName} />
   // Fallback for legacy preconfigured stops (clinton, willow, washington, etc.)
   return <BusCard stopId={stopId} displayName={displayName} />
 }

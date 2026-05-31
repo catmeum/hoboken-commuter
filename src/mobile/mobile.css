@@ -650,10 +650,27 @@
 
 /* Stop list */
 .m-set-stop-list { display: flex; flex-direction: column; gap: 6px; }
+.m-set-stop-item-wrap {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+}
+.m-set-stop-edit-bg {
+  position: absolute; top: 0; right: 0; bottom: 0;
+  width: 70px;
+  background: var(--m-accent);
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 12px; font-weight: 600;
+  border-radius: 0 12px 12px 0;
+  opacity: 0.4;
+  pointer-events: none; /* disabled — coming soon */
+}
 .m-set-stop-item {
   display: flex; align-items: center; gap: 6px;
   padding: 11px 12px; border-radius: 12px;
   background: var(--m-card-bg); border: 1px solid var(--m-card-border);
+  position: relative; z-index: 2;
+  transition: transform 0.2s ease;
 }
 .m-set-grip { opacity: 0.3; font-size: 11px; cursor: grab; user-select: none; }
 .m-set-stop-name { flex: 1; font-size: 13px; font-weight: 500; }
@@ -831,3 +848,91 @@
   cursor: pointer;
 }
 .m-welcome-back-btn:hover { color: var(--m-accent); }
+
+/* ═══ Add Stop — Step 2 (Lines/Direction/Routes) ═══ */
+.m-addstop-section-label {
+  font-size: 12px; font-weight: 600; color: var(--m-text-dim);
+  text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px;
+}
+.m-addstop-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.m-addstop-select-all {
+  font-size: 11px; color: var(--m-accent); background: none; border: none;
+  font-family: inherit; cursor: pointer; font-weight: 500;
+}
+.m-addstop-line-grid {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.m-addstop-line-btn {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid transparent; background: none; cursor: pointer;
+  opacity: 0.4; transition: opacity 0.15s, transform 0.15s;
+}
+.m-addstop-line-btn.active {
+  opacity: 1; transform: scale(1.1); border-color: rgba(255,255,255,0.3);
+}
+.m-addstop-dir-options {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.m-addstop-dir-btn {
+  padding: 12px 16px; border-radius: 12px;
+  border: 1px solid var(--m-card-border); background: var(--m-card-bg);
+  color: var(--m-text); font-size: 13px; font-weight: 500;
+  font-family: inherit; cursor: pointer; text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+.m-addstop-dir-btn.active {
+  border-color: var(--m-accent); background: rgba(167, 139, 250, 0.1);
+  color: var(--m-accent);
+}
+.m-addstop-route-list {
+  display: flex; flex-direction: column; gap: 6px;
+}
+.m-addstop-route-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-radius: 12px;
+  border: 1px solid var(--m-card-border); background: var(--m-card-bg);
+  color: var(--m-text); font-size: 13px; font-weight: 500;
+  font-family: inherit; cursor: pointer; text-align: left;
+  transition: border-color 0.2s, opacity 0.2s;
+  opacity: 0.5;
+}
+.m-addstop-route-btn.active {
+  border-color: var(--m-accent); opacity: 1;
+}
+.m-addstop-route-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 36px; height: 24px; border-radius: 6px; padding: 0 6px;
+  background: #1e40af; color: white; font-size: 12px; font-weight: 700;
+}
+.m-addstop-confirm {
+  width: 100%; padding: 14px; border-radius: 12px; border: none;
+  background: var(--m-accent); color: white; font-size: 15px;
+  font-weight: 600; font-family: inherit; cursor: pointer;
+  margin-top: 20px; transition: opacity 0.2s;
+  position: sticky; bottom: 16px;
+  box-shadow: 0 -8px 16px var(--m-bg);
+}
+.m-addstop-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
+.m-addstop-confirm:active:not(:disabled) { transform: scale(0.98); }
+
+/* ═══ Bus Card — Gate Info ═══ */
+.ms-gate-badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px;
+  border-radius: 6px; border: 1px solid var(--m-card-border);
+  background: var(--m-card-bg); color: var(--m-accent);
+  cursor: pointer; font-family: inherit; margin-left: auto;
+}
+.ms-gate-info {
+  background: var(--m-bg); border-radius: 10px; padding: 8px 12px;
+  margin-bottom: 8px; font-size: 12px;
+}
+.ms-gate-row {
+  display: flex; justify-content: space-between; padding: 4px 0;
+  border-bottom: 1px solid var(--m-card-border);
+}
+.ms-gate-row:last-child { border-bottom: none; }
+.ms-gate-num { font-weight: 600; color: var(--m-accent); }

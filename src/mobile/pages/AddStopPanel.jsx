@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { SubwayBadge, MTA_COLORS } from '../../components/icons'
 
 const MODES = [
   { id: 'subway', label: 'MTA Subway', icon: '🚇', placeholder: 'Search for a subway station…' },
@@ -14,78 +15,152 @@ const MODES = [
 ]
 
 export default function AddStopPanel({ open, onClose, onAdd }) {
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState('modes') // modes | search | subway-dir | bus-lines
   const [mode, setMode] = useState(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
+
+  // Subway step 2 state
+  const [selectedStation, setSelectedStation] = useState(null)
+  const [stationLines, setStationLines] = useState([])
+  const [selectedLines, setSelectedLines] = useState(new Set())
+  const [selectedDirection, setSelectedDirection] = useState('S')
+
+  // Bus step 2 state
+  const [selectedBusStop, setSelectedBusStop] = useState(null)
+  const [busRoutes, setBusRoutes] = useState([])
+  const [selectedBusRoutes, setSelectedBusRoutes] = useState(new Set())
+
+  // Bus step 3 state (headsign variants for PABT-like stops)
+  const [busVariants, setBusVariants] = useState([])
+  const [isPabt, setIsPabt] = useState(false)
+
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
   const prevOpenRef = useRef(false)
 
-  // Reset only when panel opens (transition from closed to open)
+  function resetAll() {
+    setStep('modes')
+    setMode(null)
+    setQuery('')
+    setResults([])
+    setSelectedStation(null)
+    setStationLines([])
+    setSelectedLines(new Set())
+    setSelectedDirection('S')
+    setSelectedBusStop(null)
+    setBusRoutes([])
+    setSelectedBusRoutes(new Set())
+    setBusVariants([])
+    setIsPabt(false)
+  }
+
+  // Reset on open
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      setStep(1)
-      setMode(null)
-      setQuery('')
-      setResults([])
+      resetAll()
     }
     prevOpenRef.current = open
   }, [open])
 
-  // Focus search input on step 2
+  // Focus search on step change
   useEffect(() => {
-    if (step === 2 && searchRef.current) {
+    if (step === 'search' && searchRef.current) {
       searchRef.current.focus()
     }
   }, [step])
 
   function pickMode(m) {
     setMode(m)
-    setStep(2)
+    setStep('search')
     setQuery('')
     setResults([])
   }
 
   function goBack() {
-    if (step === 3) {
-      setStep(2)
-    } else if (step === 2) {
-      setStep(1)
+    if (step === 'subway-dir') {
+      setStep('search')
+      setSelectedStation(null)
+      setStationLines([])
+      setSelectedLines(new Set())
+    } else if (step === 'bus-variants') {
+      setStep('bus-lines')
+      setBusVariants([])
+    } else if (step === 'bus-lines') {
+      setStep('search')
+      setSelectedBusStop(null)
+      setBusRoutes([])
+      setSelectedBusRoutes(new Set())
+      setIsPabt(false)
+    } else if (step === 'search') {
+      setStep('modes')
       setMode(null)
     }
   }
 
-  // Search with debounce
+  // ── Search with debounce ──
   function handleSearch(q) {
     setQuery(q)
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (q.length < 2) {
-      setResults([])
-      return
-    }
+    if (q.length < 2) { setResults([]); return }
+
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
       try {
+        const encoded = encodeURIComponent(q)
         const modeId = mode?.id
-        let url = ''
-        if (modeId === 'subway') url = `/api/mta/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'bus') url = `/api/bus/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'rail') url = `/api/rail/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'path') url = `/api/path/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'ferry') url = `/api/ferry/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'hblr') url = `/api/bus/search?q=${encodeURIComponent(q)}&mode=hblr`
-        else if (modeId === 'lirr') url = `/api/lirr/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'mnr') url = `/api/mnr/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'mtabus') url = `/api/mtabus/search?q=${encodeURIComponent(q)}`
-        else if (modeId === 'nycferry') url = `/api/nycferry/search?q=${encodeURIComponent(q)}`
+        let url = '', mapFn = null
+
+        switch (modeId) {
+          case 'subway':
+            url = `/api/mta/stations?q=${encoded}`
+            mapFn = d => d.stations || []
+            break
+          case 'bus':
+            url = `/api/bus/stop-search?q=${encoded}`
+            mapFn = d => d.stops || []
+            break
+          case 'rail':
+            url = `/api/rail/stations?q=${encoded}`
+            mapFn = d => d.stations || []
+            break
+          case 'path':
+            url = `/api/path/stations?q=${encoded}`
+            mapFn = d => d.stations || []
+            break
+          case 'ferry':
+            url = `/api/ferry/terminals?q=${encoded}`
+            mapFn = d => d.terminals || d || []
+            break
+          case 'hblr':
+            url = `/api/bus/stop-search?q=${encoded}&routes=HBLR`
+            mapFn = d => d.stops || []
+            break
+          case 'lirr':
+            url = `/api/lirr/stations?q=${encoded}`
+            mapFn = d => d.stations || []
+            break
+          case 'mnr':
+            url = `/api/mnr/stations?q=${encoded}`
+            mapFn = d => d.stations || []
+            break
+          case 'mtabus':
+            url = `/api/mtabus/routes?q=${encoded}`
+            mapFn = d => d.routes || []
+            break
+          case 'nycferry':
+            url = `/api/nycferry/stops?q=${encoded}`
+            mapFn = d => d.stops || []
+            break
+        }
 
         if (url) {
           const res = await fetch(url)
           if (res.ok) {
             const data = await res.json()
-            setResults(data.results || data.stations || data.stops || [])
+            const mapped = mapFn ? mapFn(data) : []
+            setResults(Array.isArray(mapped) ? mapped : [])
           }
         }
       } catch (e) {
@@ -96,11 +171,126 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     }, 300)
   }
 
+  // ── Result selection — mode-specific behavior ──
   function selectResult(result) {
-    // For simple modes, add directly
-    const stopId = result.id || result.stopId
-    const displayName = result.name || result.label
+    const modeId = mode?.id
+
+    if (modeId === 'subway') {
+      // Go to step 2: pick lines + direction
+      setSelectedStation(result)
+      setStep('subway-dir')
+      // Fetch lines at this station
+      const ids = (result.ids || [result.id]).join(',')
+      fetch(`/api/mta/station-lines?ids=${ids}`)
+        .then(r => r.ok ? r.json() : { lines: [] })
+        .then(d => {
+          setStationLines(d.lines || [])
+          setSelectedLines(new Set(d.lines || []))
+        })
+      return
+    }
+
+    if (modeId === 'bus') {
+      // Go to step 2: pick routes at this stop
+      // result.id may be comma-separated IDs for multi-platform stops (e.g. PABT)
+      setSelectedBusStop(result)
+      setStep('bus-lines')
+      fetch(`/api/bus/stop-routes?id=${result.id}`)
+        .then(r => r.ok ? r.json() : { routes: [] })
+        .then(d => {
+          const routes = d.routes || []
+          setBusRoutes(routes)
+          setSelectedBusRoutes(new Set(routes))
+        })
+      return
+    }
+
+    // All other modes: add directly
+    const stopId = buildSimpleStopId(modeId, result)
+    const displayName = result.name || result.label || result.id
     onAdd(stopId, displayName)
+  }
+
+  // ── Confirm subway ──
+  function confirmSubway() {
+    if (!selectedStation || selectedLines.size === 0) return
+    const ids = (selectedStation.ids || [selectedStation.id]).join(',')
+    const lines = [...selectedLines].join(',')
+    const dir = selectedDirection === 'all' ? 'A' : selectedDirection
+    const stopId = `mta:${ids}:${dir}:${lines}`
+    const dirLabel = selectedDirection === 'N' ? 'Uptown' : selectedDirection === 'S' ? 'Downtown' : 'Both'
+    const displayName = `${selectedStation.name} (${dirLabel})`
+    onAdd(stopId, displayName)
+  }
+
+  // ── Confirm bus — check for headsign variants (PABT) ──
+  function confirmBus() {
+    if (!selectedBusStop || selectedBusRoutes.size === 0) return
+    const routes = [...selectedBusRoutes].join(',')
+    // Fetch headsign variants to check if we need a sub-picker
+    fetch(`/api/bus/stop-headsigns?ids=${selectedBusStop.id}&routes=${routes}`)
+      .then(r => r.ok ? r.json() : { variants: [] })
+      .then(d => {
+        setIsPabt(d.isPabt || false)
+        const variants = d.variants || []
+
+        // Check if variants have different gates — only show picker if gates differ
+        const uniqueGates = new Set(variants.map(v => v.gate).filter(Boolean))
+        const hasMultipleGates = uniqueGates.size > 1
+
+        // Also check if a single route has multiple distinct variants
+        const routeVariantCounts = {}
+        for (const v of variants) {
+          routeVariantCounts[v.route] = (routeVariantCounts[v.route] || 0) + 1
+        }
+        const hasMultipleVariantsPerRoute = Object.values(routeVariantCounts).some(c => c > 1)
+
+        // Show variant picker only if gates differ (meaningful choice)
+        if (hasMultipleGates && hasMultipleVariantsPerRoute && variants.length > 1) {
+          setBusVariants(variants)
+          setStep('bus-variants')
+        } else {
+          // No meaningful variant choice — add directly
+          const stopId = `bus:${selectedBusStop.id}:${routes}`
+          const displayName = `${selectedBusStop.name} (${routes})`
+          onAdd(stopId, displayName)
+        }
+      })
+  }
+
+  // ── Add bus with headsign filter (from variant picker) ──
+  function addBusVariant(variant) {
+    const routes = variant.route
+    const headsign = variant.keyword
+    // Use variant-specific stop IDs if provided (e.g. PABT 126 Willow vs Washington)
+    const stopIds = variant.stopIds || selectedBusStop.id
+    const stopId = `bus:${stopIds}:${routes}:${headsign}`
+    const displayName = `${selectedBusStop.name} · ${routes} ${variant.variant}`
+    onAdd(stopId, displayName)
+  }
+
+  // ── Simple stop ID builder for modes without step 2 ──
+  function buildSimpleStopId(modeId, result) {
+    switch (modeId) {
+      case 'rail': return `rail:${result.code || result.id}`
+      case 'path': return `path:862:1:${result.id}` // default HOB-33 outbound
+      case 'ferry': return `ferry:${result.tag || result.id}::`
+      case 'hblr': return `hblr:${result.id}`
+      case 'lirr': return `lirr:${result.id}`
+      case 'mnr': return `mnr:${result.id}`
+      case 'mtabus': return `mtabus:${result.stopId || result.id}:${result.route || result.id}`
+      case 'nycferry': return `nycferry:${result.id}`
+      default: return result.id
+    }
+  }
+
+  // ── Title ──
+  function getTitle() {
+    if (step === 'modes') return 'Add a Stop'
+    if (step === 'subway-dir') return `${selectedStation?.name} — Lines & Direction`
+    if (step === 'bus-lines') return `${selectedBusStop?.name} — Select Routes`
+    if (step === 'bus-variants') return `${selectedBusStop?.name} — Pick Variant`
+    return `${mode?.label || ''} — Search`
   }
 
   const modeConfig = mode ? MODES.find(m => m.id === mode.id) || mode : null
@@ -109,19 +299,15 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     <div className={`m-addstop-panel ${open ? 'open' : ''}`}>
       <div className="m-addstop-header">
         <button
-          className={`m-addstop-back ${step === 1 ? 'hidden' : ''}`}
+          className={`m-addstop-back ${step === 'modes' ? 'hidden' : ''}`}
           onClick={goBack}
-        >
-          ←
-        </button>
-        <span className="m-addstop-title">
-          {step === 1 ? 'Add a Stop' : `${modeConfig?.label || ''} — Search`}
-        </span>
+        >←</button>
+        <span className="m-addstop-title">{getTitle()}</span>
         <button className="m-set-close" onClick={onClose}>✕</button>
       </div>
 
-      {/* Step 1: Pick transit mode */}
-      {step === 1 && (
+      {/* Step: Mode picker */}
+      {step === 'modes' && (
         <div className="m-addstop-modes">
           {MODES.map(m => (
             <button key={m.id} className="m-addstop-mode" onClick={() => pickMode(m)}>
@@ -132,8 +318,8 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
         </div>
       )}
 
-      {/* Step 2: Search */}
-      {step === 2 && (
+      {/* Step: Search */}
+      {step === 'search' && (
         <div className="m-addstop-step">
           <input
             ref={searchRef}
@@ -144,19 +330,128 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
             onChange={e => handleSearch(e.target.value)}
           />
           <div className="m-addstop-results">
-            {query.length < 2 && (
-              <div className="m-addstop-hint">Type at least 2 characters to search</div>
-            )}
+            {query.length < 2 && <div className="m-addstop-hint">Type at least 2 characters to search</div>}
             {searching && <div className="m-addstop-hint">Searching…</div>}
             {!searching && results.map((r, i) => (
               <button key={i} className="m-addstop-result" onClick={() => selectResult(r)}>
                 <div className="m-addstop-result-name">{r.name || r.label}</div>
-                {r.subtitle && <div className="m-addstop-result-sub">{r.subtitle}</div>}
+                {r.linesLabel && <div className="m-addstop-result-sub">{r.linesLabel}</div>}
+                {r.desc && <div className="m-addstop-result-sub">{r.desc}</div>}
               </button>
             ))}
             {!searching && query.length >= 2 && results.length === 0 && (
               <div className="m-addstop-hint">No results found</div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Step: Subway — pick lines + direction */}
+      {step === 'subway-dir' && selectedStation && (
+        <div className="m-addstop-step">
+          <p className="m-addstop-section-label">Lines at this station</p>
+          <div className="m-addstop-line-grid">
+            {stationLines.length > 0 ? stationLines.map(line => (
+              <button
+                key={line}
+                className={`m-addstop-line-btn ${selectedLines.has(line) ? 'active' : ''}`}
+                onClick={() => setSelectedLines(prev => {
+                  const next = new Set(prev)
+                  next.has(line) ? next.delete(line) : next.add(line)
+                  return next
+                })}
+              >
+                <SubwayBadge line={line} size={32} />
+              </button>
+            )) : (
+              <div className="m-addstop-hint">Loading lines…</div>
+            )}
+          </div>
+
+          <p className="m-addstop-section-label" style={{ marginTop: 16 }}>Direction</p>
+          <div className="m-addstop-dir-options">
+            {[
+              { value: 'S', label: 'Downtown / Brooklyn' },
+              { value: 'N', label: 'Uptown / Bronx / Queens' },
+              { value: 'all', label: 'Both directions' },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                className={`m-addstop-dir-btn ${selectedDirection === opt.value ? 'active' : ''}`}
+                onClick={() => setSelectedDirection(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            className="m-addstop-confirm"
+            onClick={confirmSubway}
+            disabled={selectedLines.size === 0}
+          >
+            Add to My Stops
+          </button>
+        </div>
+      )}
+
+      {/* Step: Bus — pick routes */}
+      {step === 'bus-lines' && selectedBusStop && (
+        <div className="m-addstop-step">
+          <div className="m-addstop-section-header">
+            <p className="m-addstop-section-label">Routes at this stop</p>
+            <button className="m-addstop-select-all" onClick={() => {
+              if (selectedBusRoutes.size === busRoutes.length) setSelectedBusRoutes(new Set())
+              else setSelectedBusRoutes(new Set(busRoutes))
+            }}>
+              {selectedBusRoutes.size === busRoutes.length ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+          <div className="m-addstop-route-list">
+            {busRoutes.length > 0 ? busRoutes.map(route => (
+              <button
+                key={route}
+                className={`m-addstop-route-btn ${selectedBusRoutes.has(route) ? 'active' : ''}`}
+                onClick={() => setSelectedBusRoutes(prev => {
+                  const next = new Set(prev)
+                  next.has(route) ? next.delete(route) : next.add(route)
+                  return next
+                })}
+              >
+                <span className="m-addstop-route-badge">{route}</span>
+                <span>Route {route}</span>
+              </button>
+            )) : (
+              <div className="m-addstop-hint">Loading routes…</div>
+            )}
+          </div>
+
+          <button
+            className="m-addstop-confirm"
+            onClick={confirmBus}
+            disabled={selectedBusRoutes.size === 0}
+          >
+            Add to My Stops
+          </button>
+        </div>
+      )}
+
+      {/* Step: Bus variants (PABT — pick headsign direction) */}
+      {step === 'bus-variants' && (
+        <div className="m-addstop-step">
+          <p className="m-addstop-section-label">Which direction / variant?</p>
+          <p className="m-addstop-hint" style={{ marginBottom: 12 }}>Each variant departs from a different gate</p>
+          <div className="m-addstop-route-list">
+            {busVariants.map((v, i) => (
+              <button
+                key={i}
+                className="m-addstop-result"
+                onClick={() => addBusVariant(v)}
+              >
+                <div className="m-addstop-result-name">{v.route} · {v.variant}</div>
+                {v.gate && <div className="m-addstop-result-sub">Gate {v.gate}{v.gateSchedule ? ` (day: ${v.gateSchedule.day}, late: ${v.gateSchedule.late})` : ''}</div>}
+              </button>
+            ))}
           </div>
         </div>
       )}

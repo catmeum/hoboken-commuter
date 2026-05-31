@@ -209,6 +209,7 @@ async function getToken() {
 
 let tripRouteMap = {}
 let tripHeadsignMap = {}
+let tripDirectionMap = {}  // trip_id → direction_id ('0' or '1')
 let scheduleByStop = {}
 let stopNamesMap = {}
 let stopCoordsMap = {} // stop_id → { lat, lon }
@@ -256,10 +257,12 @@ async function loadGTFS() {
   const tIdIdx = tripsHeader.indexOf('trip_id')
   const tRIdx = tripsHeader.indexOf('route_id')
   const tHsIdx = tripsHeader.indexOf('trip_headsign')
+  const tDirIdx = tripsHeader.indexOf('direction_id')
   for (let i = 1; i < tripsCsv.length; i++) {
     const cols = tripsCsv[i].split(',')
     tripRouteMap[cols[tIdIdx]] = routesMap[cols[tRIdx]] || cols[tRIdx]
     if (tHsIdx >= 0) tripHeadsignMap[cols[tIdIdx]] = cols[tHsIdx] || ''
+    if (tDirIdx >= 0) tripDirectionMap[cols[tIdIdx]] = cols[tDirIdx] || '0'
   }
   console.log('[GTFS] Loaded', Object.keys(tripRouteMap).length, 'trips')
 
@@ -480,6 +483,18 @@ function parseVariant(headsign) {
   if (hs.includes('PATH')) return 'via Washington'
   if (hs.includes('119')) return '119'
   return null
+}
+
+// Extract a keyword from a headsign for filtering (e.g. "126 HOBOKEN VIA WILLOW AVE" → "WILLOW")
+function extractHeadsignKeyword(headsign) {
+  const hs = (headsign || '').toUpperCase()
+  if (hs.includes('WILLOW')) return 'WILLOW'
+  if (hs.includes('WASHINGTON')) return 'WASHINGTON'
+  if (hs.includes('HAMILTON PK VIA HOBOKEN')) return 'HOBOKEN'
+  if (hs.includes('HAMILTON PK')) return 'HAMILTON'
+  // For non-variant headsigns, use the destination portion (after route number)
+  const match = hs.match(/^\d+\s+(.+)/)
+  return match ? match[1].split(' ')[0] : hs.split(' ')[0]
 }
 
 function getScheduleFallback(stopIds, limit = 6, filterRoutes = null, filterHeadsigns = null, excludeHeadsigns = null) {
@@ -754,12 +769,16 @@ app.get('/api/bus/routes/:route/stops', async (req, res) => {
 app.get('/api/bus/stop-routes', async (req, res) => {
   try {
     await loadGTFS()
-    const stopId = req.query.id
-    if (!stopId) return res.json({ routes: [], stopName: 'Unknown' })
-    const entries = scheduleByStop[stopId] || []
-    const routeSet = new Set(entries.map(e => e.route))
+    const stopIds = (req.query.id || '').split(',').filter(Boolean)
+    if (stopIds.length === 0) return res.json({ routes: [], stopName: 'Unknown' })
+    // Union of routes across all provided stop IDs
+    const routeSet = new Set()
+    for (const sid of stopIds) {
+      const entries = scheduleByStop[sid] || []
+      entries.forEach(e => routeSet.add(e.route))
+    }
     const routes = [...routeSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    const stopName = stopNamesMap[stopId] || stopId
+    const stopName = stopNamesMap[stopIds[0]] || stopIds[0]
     res.json({ routes, stopName })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -767,24 +786,111 @@ app.get('/api/bus/stop-routes', async (req, res) => {
 })
 
 // Search bus stops by name — returns matching stops across all routes (deduplicated)
+// For multi-platform stops (like PABT), consolidates all platform IDs into a single result.
 app.get('/api/bus/stop-search', async (req, res) => {
   try {
     await loadGTFS()
     const q = safeString(req.query.q, 50).toLowerCase()
     if (q.length < 2) return res.json({ stops: [] })
 
-    const seenNames = new Map()
+    // Optional route filter (e.g. ?routes=HBLR)
+    const routeFilter = req.query.routes ? req.query.routes.split(',').filter(Boolean) : null
+
+    const byName = new Map()
     for (const [stopId, name] of Object.entries(stopNamesMap)) {
       if (!name.toLowerCase().includes(q)) continue
-      if (seenNames.has(name)) continue
       // Only include stops that have schedule data (i.e., are actually served)
       if (!scheduleByStop[stopId]) continue
-      seenNames.set(name, { id: stopId, name })
+      // If route filter specified, only include stops that serve those routes
+      if (routeFilter) {
+        const stopRoutes = new Set((scheduleByStop[stopId] || []).map(e => e.route))
+        if (!routeFilter.some(r => stopRoutes.has(r))) continue
+      }
+      if (!byName.has(name)) byName.set(name, { ids: [], name })
+      byName.get(name).ids.push(stopId)
     }
-    const stops = [...seenNames.values()]
+    const stops = [...byName.values()]
+      .map(s => ({ id: s.ids.join(','), name: s.name, ids: s.ids }))
       .sort((a, b) => a.name.localeCompare(b.name))
       .slice(0, 30)
     res.json({ stops })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Headsign variants at a stop — returns distinct headsigns for given routes at given stop IDs
+// Used by the mobile picker to let users choose between e.g. "126 via Willow" vs "126 via Washington"
+app.get('/api/bus/stop-headsigns', async (req, res) => {
+  try {
+    await loadGTFS()
+    const stopIds = (req.query.ids || '').split(',').filter(Boolean)
+    const routes = (req.query.routes || '').split(',').filter(Boolean)
+    if (stopIds.length === 0 || routes.length === 0) return res.json({ variants: [] })
+
+    // Collect unique headsigns from schedule data for these stops + routes
+    const headsignSet = new Map() // headsign → { routes, keyword }
+    for (const sid of stopIds) {
+      const entries = scheduleByStop[sid] || []
+      for (const e of entries) {
+        if (!routes.includes(e.route)) continue
+        const hs = tripHeadsignMap[e.tripId] || ''
+        if (!hs) continue
+        const variant = parseVariant(hs)
+        const key = `${e.route}:${variant || hs}`
+        if (!headsignSet.has(key)) {
+          headsignSet.set(key, { route: e.route, headsign: hs, variant: variant || hs, keyword: extractHeadsignKeyword(hs) })
+        }
+      }
+    }
+
+    const variants = [...headsignSet.values()]
+    // Check if this is PABT — include gate info per variant and filter out inbound arrivals
+    const isPabt = isPabtStop(stopIds)
+    if (isPabt) {
+      // At PABT, headsigns ending in "NEW YORK" are inbound arrivals — filter them out
+      const filtered = variants.filter(v => {
+        const dest = (v.headsign || '').toUpperCase()
+        const destPart = dest.replace(/^\d+[A-Z]?\s+/, '')
+        return !destPart.startsWith('NEW YORK')
+      })
+      variants.length = 0
+      variants.push(...filtered)
+
+      // Special case: route 126 has known variants with different gates and stop IDs
+      // The static GTFS doesn't distinguish them well, so inject the known config
+      const has126 = routes.includes('126')
+      if (has126) {
+        // Remove any auto-detected 126 variants and replace with known ones
+        const non126 = variants.filter(v => v.route !== '126')
+        variants.length = 0
+        variants.push(...non126)
+        variants.push({
+          route: '126', headsign: '126 HOBOKEN VIA WILLOW AVE', variant: 'via Willow',
+          keyword: 'WILLOW,HAMILTON PK VIA WILLOW', gate: '214',
+          gateSchedule: { day: '214', late: '323', overnight: '79' },
+          stopIds: [...PABT_STOP_IDS].join(','), // all PABT platforms — headsign filter narrows
+        })
+        variants.push({
+          route: '126', headsign: '126 HOBOKEN VIA WASHINGTON', variant: 'via Washington',
+          keyword: 'PATH,HAMILTON PK VIA HOBOKEN,HOBOKEN-PATH', gate: '213',
+          gateSchedule: { day: '213', late: '323', overnight: '79' },
+          stopIds: [...PABT_STOP_IDS].join(','), // all PABT platforms — headsign filter narrows
+        })
+      }
+
+      // For non-126 routes, add gate info normally
+      for (const v of variants) {
+        if (v.gate) continue // already set (126 special case)
+        const gateData = getPabtGateForRoutes([v.route])
+        if (gateData) {
+          v.gate = getCurrentGate(gateData)
+          v.gateSchedule = gateData
+        }
+      }
+    }
+
+    res.json({ variants, isPabt })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -794,14 +900,23 @@ app.get('/api/bus/stop-search', async (req, res) => {
 app.get('/api/bus/stops', async (req, res) => {
   try {
     await loadGTFS()
-    const stopIds = (req.query.ids || '').split(',').filter(Boolean)
+    let stopIds = (req.query.ids || '').split(',').filter(Boolean)
     if (stopIds.length === 0) return res.json({ buses: [], stop: 'Unknown' })
+
+    // PABT resilience: if any provided stop ID is a known PABT platform,
+    // replace with ALL current PABT stop IDs. This ensures the query works
+    // even if NJT renumbers platform IDs in a GTFS update.
+    if (stopIds.some(id => PABT_STOP_IDS.has(id))) {
+      stopIds = [...PABT_STOP_IDS]
+    }
 
     // Optional route filter (e.g. ?routes=126,22)
     const routeFilter = req.query.routes ? req.query.routes.split(',').filter(Boolean) : null
+    // Optional headsign filter (e.g. ?headsigns=WILLOW,HAMILTON+PK) — matches if headsign contains any keyword
+    const headsignFilter = req.query.headsigns ? req.query.headsigns.split(',').filter(Boolean).map(h => h.toUpperCase()) : null
 
-    let buses = await getRealtimeBuses(stopIds, 6, routeFilter)
-    if (buses.length === 0) buses = getScheduleFallback(stopIds, 6, routeFilter)
+    let buses = await getRealtimeBuses(stopIds, 6, routeFilter, headsignFilter)
+    if (buses.length === 0) buses = getScheduleFallback(stopIds, 6, routeFilter, headsignFilter)
 
     // Add variant and headsign info if missing
     buses = buses.map(b => {
@@ -810,17 +925,51 @@ app.get('/api/bus/stops', async (req, res) => {
       return b
     })
 
+    // Apply headsign filter if provided
+    if (headsignFilter) {
+      buses = buses.filter(b => {
+        const hs = (b.headsign || '').toUpperCase()
+        return headsignFilter.some(kw => hs.includes(kw))
+      })
+    }
+
+    // PABT direction filter: at PABT, only show departures (direction_id=0 = outbound from NYC)
+    // This filters out buses that are arriving at PABT (inbound to NYC)
+    const isPabt = isPabtStop(stopIds)
+    if (isPabt && !headsignFilter) {
+      // Only apply auto-filter when no explicit headsign filter is set
+      // (headsign filter already handles the 126 Willow/Washington case)
+      buses = buses.filter(b => {
+        if (!b.tripId) return true
+        const dir = tripDirectionMap[b.tripId]
+        // direction_id=0 is typically outbound from PABT (departures to NJ)
+        // Keep buses with direction 0, or unknown direction
+        return dir === '0' || dir === undefined
+      })
+    }
+
     // Get stop name from first ID
     const stopName = stopNamesMap[stopIds[0]] || 'Unknown Stop'
 
-    // Check if this is a PABT stop and include gate info (only for single-route selections)
-    const isPabt = isPabtStop(stopIds)
+    // Check if this is a PABT stop and include gate info
     let gate = null, gateSchedule = null
     if (isPabt && routeFilter && routeFilter.length === 1) {
-      const pabtGateData = getPabtGateForRoutes(routeFilter)
-      if (pabtGateData) {
-        gate = getCurrentGate(pabtGateData)
-        gateSchedule = pabtGateData
+      // Special case: route 126 gate depends on headsign filter
+      if (routeFilter[0] === '126' && headsignFilter) {
+        const hasWillow = headsignFilter.some(h => h.includes('WILLOW'))
+        if (hasWillow) {
+          gate = '214'
+          gateSchedule = { day: '214', late: '323', overnight: '79' }
+        } else {
+          gate = '213'
+          gateSchedule = { day: '213', late: '323', overnight: '79' }
+        }
+      } else {
+        const pabtGateData = getPabtGateForRoutes(routeFilter)
+        if (pabtGateData) {
+          gate = getCurrentGate(pabtGateData)
+          gateSchedule = pabtGateData
+        }
       }
     }
 

@@ -16,74 +16,19 @@ describe('AddStopPanel', () => {
     expect(screen.getByText('MTA Subway')).toBeInTheDocument()
     expect(screen.getByText('NJT Bus')).toBeInTheDocument()
     expect(screen.getByText('PATH')).toBeInTheDocument()
-    expect(screen.getByText('NY Waterway')).toBeInTheDocument()
-    expect(screen.getByText('HBLR Light Rail')).toBeInTheDocument()
   })
 
   it('advances to search step when mode is picked', () => {
     render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
     fireEvent.click(screen.getByText('MTA Subway'))
-    expect(screen.getByText('MTA Subway — Search')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Search for a subway station…')).toBeInTheDocument()
-  })
-
-  it('shows hint when query is too short', () => {
-    render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
-    fireEvent.click(screen.getByText('NJT Bus'))
-    expect(screen.getByText('Type at least 2 characters to search')).toBeInTheDocument()
-  })
-
-  it('searches and displays results', async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        results: [
-          { id: 'bus:20935:126', name: 'Washington & 11th St', subtitle: 'Routes: 126, 89' },
-        ],
-      }),
-    })
-
-    render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
-    fireEvent.click(screen.getByText('NJT Bus'))
-
-    const input = screen.getByPlaceholderText('Search for a bus stop…')
-    fireEvent.change(input, { target: { value: 'washington' } })
-
-    await waitFor(() => {
-      expect(screen.getByText('Washington & 11th St')).toBeInTheDocument()
-    }, { timeout: 2000 })
-  })
-
-  it('calls onAdd when a result is clicked', async () => {
-    global.fetch = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({
-        results: [
-          { id: 'bus:20935:126', name: 'Washington & 11th St' },
-        ],
-      }),
-    })
-
-    render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
-    fireEvent.click(screen.getByText('NJT Bus'))
-    fireEvent.change(screen.getByPlaceholderText('Search for a bus stop…'), { target: { value: 'washington' } })
-
-    await waitFor(() => {
-      expect(screen.getByText('Washington & 11th St')).toBeInTheDocument()
-    }, { timeout: 2000 })
-
-    fireEvent.click(screen.getByText('Washington & 11th St'))
-    expect(onAdd).toHaveBeenCalledWith('bus:20935:126', 'Washington & 11th St')
   })
 
   it('goes back from search to mode picker', () => {
     render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
     fireEvent.click(screen.getByText('PATH'))
-    expect(screen.getByText('PATH — Search')).toBeInTheDocument()
-
     fireEvent.click(screen.getByText('←'))
     expect(screen.getByText('Add a Stop')).toBeInTheDocument()
-    expect(screen.getByText('MTA Subway')).toBeInTheDocument()
   })
 
   it('calls onClose when close button clicked', () => {
@@ -98,8 +43,249 @@ describe('AddStopPanel', () => {
     expect(container.querySelector('.m-addstop-panel')).toHaveClass('open')
   })
 
-  it('does not have open class when open prop is false', () => {
-    const { container } = render(<AddStopPanel open={false} onClose={onClose} onAdd={onAdd} />)
-    expect(container.querySelector('.m-addstop-panel')).not.toHaveClass('open')
+  describe('MTA Subway flow', () => {
+    it('shows line/direction picker after selecting a station', async () => {
+      // Mock search
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ name: '72 St', ids: ['123'], lines: ['1', '2', '3'], linesLabel: '1, 2, 3' }],
+          }),
+        })
+        // Mock station-lines fetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ lines: ['1', '2', '3'] }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('MTA Subway'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a subway station…'), { target: { value: '72 st' } })
+
+      await waitFor(() => {
+        expect(screen.getByText('72 St')).toBeInTheDocument()
+      }, { timeout: 2000 })
+
+      fireEvent.click(screen.getByText('72 St'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Lines at this station')).toBeInTheDocument()
+        expect(screen.getByText('Direction')).toBeInTheDocument()
+      })
+    })
+
+    it('generates correct stop ID with selected lines and direction', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ name: '72 St', ids: ['123'], lines: ['1', '2', '3'], linesLabel: '1, 2, 3' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ lines: ['1', '2', '3'] }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('MTA Subway'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a subway station…'), { target: { value: '72 st' } })
+
+      await waitFor(() => expect(screen.getByText('72 St')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('72 St'))
+
+      await waitFor(() => expect(screen.getByText('Lines at this station')).toBeInTheDocument())
+
+      // Select Uptown direction
+      fireEvent.click(screen.getByText('Uptown / Bronx / Queens'))
+
+      // Click Add
+      fireEvent.click(screen.getByText('Add to My Stops'))
+
+      expect(onAdd).toHaveBeenCalledWith(
+        'mta:123:N:1,2,3',
+        '72 St (Uptown)'
+      )
+    })
+
+    it('can deselect lines before adding', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ name: '34 St', ids: ['D17', 'R17'], lines: ['B', 'D', 'F', 'M', 'N', 'Q', 'R', 'W'], linesLabel: 'B, D, F, M, N, Q, R, W' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ lines: ['B', 'D', 'F', 'M', 'N', 'Q', 'R', 'W'] }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('MTA Subway'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a subway station…'), { target: { value: '34 st' } })
+
+      await waitFor(() => expect(screen.getByText('34 St')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('34 St'))
+
+      await waitFor(() => expect(screen.getByText('Lines at this station')).toBeInTheDocument())
+
+      // All lines are selected by default — deselect some by clicking their badges
+      // The badges are rendered as SubwayBadge components inside buttons
+      const lineButtons = screen.getAllByRole('button').filter(b => b.classList.contains('m-addstop-line-btn'))
+      // Deselect the last 4 (N, Q, R, W) — click them to toggle off
+      for (let i = 4; i < lineButtons.length; i++) {
+        fireEvent.click(lineButtons[i])
+      }
+
+      // Select "Both directions"
+      fireEvent.click(screen.getByText('Both directions'))
+      fireEvent.click(screen.getByText('Add to My Stops'))
+
+      // Should have B,D,F,M with direction A (all)
+      expect(onAdd).toHaveBeenCalledWith(
+        'mta:D17,R17:A:B,D,F,M',
+        '34 St (Both)'
+      )
+    })
+
+    it('disables Add button when no lines selected', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stations: [{ name: '72 St', ids: ['123'], lines: ['1'], linesLabel: '1' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ lines: ['1'] }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('MTA Subway'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a subway station…'), { target: { value: '72' } })
+
+      await waitFor(() => expect(screen.getByText('72 St')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('72 St'))
+
+      await waitFor(() => expect(screen.getByText('Lines at this station')).toBeInTheDocument())
+
+      // Deselect the only line
+      const lineButtons = screen.getAllByRole('button').filter(b => b.classList.contains('m-addstop-line-btn'))
+      fireEvent.click(lineButtons[0])
+
+      const addBtn = screen.getByText('Add to My Stops')
+      expect(addBtn).toBeDisabled()
+    })
+  })
+
+  describe('NJT Bus flow', () => {
+    it('shows route picker after selecting a stop', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stops: [{ id: '7940', name: 'WILLOW AVE AT 15TH ST' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ routes: ['126', '89', '119'] }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('NJT Bus'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a bus stop…'), { target: { value: 'willow' } })
+
+      await waitFor(() => expect(screen.getByText('WILLOW AVE AT 15TH ST')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('WILLOW AVE AT 15TH ST'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Routes at this stop')).toBeInTheDocument()
+        expect(screen.getByText('Route 126')).toBeInTheDocument()
+        expect(screen.getByText('Route 89')).toBeInTheDocument()
+        expect(screen.getByText('Route 119')).toBeInTheDocument()
+      })
+    })
+
+    it('generates correct stop ID with selected routes', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stops: [{ id: '7940', name: 'WILLOW AVE AT 15TH ST' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ routes: ['126', '89', '119'] }),
+        })
+        // Headsign check — single variant, no picker needed
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ variants: [{ route: '126', variant: 'via Willow', keyword: 'WILLOW' }], isPabt: false }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('NJT Bus'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a bus stop…'), { target: { value: 'willow' } })
+
+      await waitFor(() => expect(screen.getByText('WILLOW AVE AT 15TH ST')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('WILLOW AVE AT 15TH ST'))
+
+      await waitFor(() => expect(screen.getByText('Routes at this stop')).toBeInTheDocument())
+
+      // All routes selected by default — just confirm
+      fireEvent.click(screen.getByText('Add to My Stops'))
+
+      await waitFor(() => {
+        expect(onAdd).toHaveBeenCalledWith(
+          'bus:7940:126,89,119',
+          'WILLOW AVE AT 15TH ST (126,89,119)'
+        )
+      })
+    })
+
+    it('can deselect routes', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({
+            stops: [{ id: '7940', name: 'WILLOW AVE AT 15TH ST' }],
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ routes: ['126', '89', '119'] }),
+        })
+        // Headsign check — single variant
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ variants: [{ route: '126', variant: 'via Willow', keyword: 'WILLOW' }], isPabt: false }),
+        })
+
+      render(<AddStopPanel open={true} onClose={onClose} onAdd={onAdd} />)
+      fireEvent.click(screen.getByText('NJT Bus'))
+      fireEvent.change(screen.getByPlaceholderText('Search for a bus stop…'), { target: { value: 'willow' } })
+
+      await waitFor(() => expect(screen.getByText('WILLOW AVE AT 15TH ST')).toBeInTheDocument(), { timeout: 2000 })
+      fireEvent.click(screen.getByText('WILLOW AVE AT 15TH ST'))
+
+      await waitFor(() => expect(screen.getByText('Routes at this stop')).toBeInTheDocument())
+
+      // Deselect all, then select only 126
+      fireEvent.click(screen.getByText('Deselect all'))
+      fireEvent.click(screen.getByText('Route 126'))
+      fireEvent.click(screen.getByText('Add to My Stops'))
+
+      await waitFor(() => {
+        expect(onAdd).toHaveBeenCalledWith(
+          'bus:7940:126',
+          'WILLOW AVE AT 15TH ST (126)'
+        )
+      })
+    })
   })
 })

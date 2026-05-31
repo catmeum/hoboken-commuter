@@ -2,12 +2,11 @@
 
 ## Active — Next Session
 
-- [ ] **Add/remove/edit stops** — test the full add stop flow end-to-end for all transit types. Verify removing a stop from Settings works. Ensure stop names persist correctly.
 - [ ] **Data fidelity audit** — compare mobile card data against desktop dashboard for the same stops. Fix any discrepancies in ETAs, route labels, headsigns, or missing departures.
 - [ ] **All transit types supported in Add Stop** — verify search endpoints work for every mode (MTA Subway, NJT Bus, NJT Rail, PATH, Ferry, HBLR, LIRR, Metro-North, MTA Bus, NYC Ferry). Fix any broken or unimplemented search handlers.
-- [ ] **Transit card icons per type** — ensure each card type renders its proper SVG icon (not emoji fallbacks). Verify ferry card has an icon (currently uses emoji ⛴️).
-- [ ] **Alerts page integration** — test alerts flow end-to-end: live alerts appear, swipe-to-dismiss works, dismissed section shows, restore works, badge count updates in tab bar, tunnel pill glow syncs with alert state.
+- [ ] **Transit card icons per type** — ensure each card type renders its proper SVG icon (not emoji fallbacks). Add ferry icon (currently uses emoji ⛴️).
 - [ ] **Fix duplicate alerts in Alerts panel** — the alerts polling can add the same alert multiple times across poll cycles. Deduplicate by alert ID before adding to state.
+- [ ] **Alerts page integration** — test alerts flow end-to-end: live alerts appear, swipe-to-dismiss works, dismissed section shows, restore works, badge count updates in tab bar, tunnel pill glow syncs with alert state.
 - [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills tunnel/weather logic, MobileApp alert aggregation. Manual E2E walkthrough of full user flow including edge cases (no stops, max stops, GPS denied, network errors).
 
 ## v3 Mobile App — Implementation Tasks
@@ -27,6 +26,7 @@
 - [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
 - [ ] **Geolocation sorting** — sort My Stops cards by proximity to current location (closest first)
 - [ ] **Add Stop — step 3 (line/direction picker)** — after selecting a station, let user pick specific lines and direction (N/S) before adding
+- [ ] **Edit stop (swipe-to-edit)** — swipe left on a stop in Settings to reveal "Edit" button. Opens the line/direction picker pre-populated with current config. Depends on step 3 picker being built first. UI shell is in place (disabled).
 - [ ] **Tunnel direction picker + up to 4** — let user pick direction (NJ→NY or NY→NJ) per tunnel and allow up to 4 selections (e.g. Lincoln outbound + Lincoln inbound + Holland outbound + GWB inbound)
 - [ ] **Drag-reorder stops** — touch-based drag reorder in Settings stop list (grip handles rendered, logic TBD)
 - [ ] **Skeleton loading states** — replace all fallback/placeholder text with pulsing grey skeleton loaders (Facebook/iOS style). Transit cards, weather pill, tunnel pills should all show a shimmer skeleton while data loads instead of "Loading…" or empty states.
@@ -50,11 +50,14 @@
 ## Backlog
 
 - [ ] **Clinton St service note** — hardcoded hours; could derive from GTFS dynamically
+- [ ] **NJT Bus intermittent empty state** — bus cards occasionally show "No upcoming buses" for ~30 seconds then repopulate. Likely a GTFS-RT protobuf parsing race condition or index-out-of-range error when route filter is applied. Server returns `{ error: "index out of range" }` intermittently.
 - [ ] **PABT gate accuracy for sub-routes** — route 126 has two gates (213 for Washington, 214 for Willow) but the dynamic card only shows the primary gate. Headsign-based lookup would be more accurate but adds complexity. See DECISIONS.md for tradeoff analysis
 - [ ] **Clothing recommendation card** — square card that sits between the tunnel and weather cards. Shows a single icon for what to bring outside based on current conditions: umbrella (rain), winter coat (cold), sunscreen (hot/sunny), light jacket (mild), etc. Derived from the weather data already fetched — no new API needed.
 
 ## Completed
 
+- [x] **PABT full support** — multi-platform stop consolidation (80+ IDs), direction_id filtering (outbound only), headsign variant picker for route 126 (Willow vs Washington gates), gate info display on cards, stop ID resilience across GTFS updates.
+- [x] **Add Stop multi-step flow** — MTA Subway (search → lines + direction picker), NJT Bus (search → route picker → variant picker for PABT). All 10 transit modes wired to correct server endpoints.
 - [x] **v3 Mobile app scaffold** — full React mobile app at `/mobile` with Welcome, My Stops, Alerts, Settings pages. React Router, localStorage persistence, custom SVG icons, Vitest test suite.
 - [x] **Welcome page — preset picker** — "Pick stops manually" leads to neighborhood preset cards (Hoboken, Newport, Midtown, Downtown, Brooklyn, Queens) or "Start from scratch".
 - [x] **Transit card wiring** — all modes (MTA Subway, NJT Bus, PATH, Ferry, NJT Rail, HBLR) properly connected to server APIs with correct stop ID formats.

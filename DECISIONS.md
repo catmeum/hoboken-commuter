@@ -49,7 +49,36 @@ On weekends and holidays, PATH runs a modified service where JSQ-33 operates via
 
 ## Why PABT gate info is hardcoded?
 
-There's no API for Port Authority Bus Terminal gate assignments. The data comes from portauthoritygate.com (last updated June 2024) and dougandadrienne.info. Gates change by time of day (day/late/overnight) but the assignments themselves rarely change. The gate schedule is stored in the server's `DIRECTIONS.inbound.busStops` config and in the frontend fallback objects.
+There's no API for Port Authority Bus Terminal gate assignments. The data comes from portauthoritygate.com (last updated June 2024) and dougandadrienne.info. Gates change by time of day (day/late/overnight) but the assignments themselves rarely change. The gate schedule is stored in the server's `PABT_GATES_BY_ROUTE` lookup table and returned in the `/api/bus/stops` response when `isPabt` is true.
+
+## PABT multi-platform stop consolidation
+
+PABT has 80+ GTFS stop IDs (one per gate/platform). The `/api/bus/stop-search` endpoint consolidates all PABT platform IDs into a single search result with a comma-separated `id` field and an `ids` array. The `/api/bus/stop-routes` endpoint accepts comma-separated IDs and returns the union of all routes across all platforms. This means searching "Port Authority" returns one result that, when selected, shows all 60+ routes available at the terminal.
+
+The mobile and desktop bus cards pass the full comma-separated ID list to `/api/bus/stops?ids=...` which queries departures across all platforms. The route filter (`&routes=126,119`) narrows results to the user's selected routes.
+
+## PABT direction filtering via direction_id
+
+At PABT, the GTFS schedule contains both inbound (arriving at PABT from NJ) and outbound (departing PABT to NJ) trips. Users at PABT only want to see departures. We use `direction_id` from GTFS `trips.txt` to filter: `direction_id=0` = outbound from NYC (departures from PABT to NJ). This is more reliable than headsign-based filtering since headsign text varies by route and can be ambiguous.
+
+The filter is applied automatically in `/api/bus/stops` when the queried stop IDs include any known PABT platform, and no explicit headsign filter is provided.
+
+## PABT stop ID resilience
+
+NJT renumbers PABT platform stop IDs with each GTFS update. To prevent saved cards from breaking:
+1. `PABT_STOP_IDS` is rebuilt from GTFS on every server restart by scanning for stops named "PORT AUTHORITY"
+2. When `/api/bus/stops` receives a request where ANY stop ID is a known PABT platform, it automatically expands to ALL current PABT stop IDs
+3. The route + headsign filters then narrow results to the correct departures
+
+This means a card saved months ago with old platform IDs will still work as long as at least one of those IDs remains in the current GTFS.
+
+## Route 126 variant handling at PABT
+
+Route 126 has two distinct variants at PABT with different gates:
+- **via Willow** (Gate 214): headsign keywords `WILLOW`, `HAMILTON PK VIA WILLOW`
+- **via Washington** (Gate 213): headsign keywords `PATH`, `HAMILTON PK VIA HOBOKEN`, `HOBOKEN-PATH`
+
+The variant picker detects this (different gates = meaningful choice) and lets the user pick which variant to track. The selected headsign keywords are encoded in the stop ID (`bus:IDS:126:WILLOW`) and passed as a filter to the departures endpoint.
 
 ## Why the settings panel uses draft state?
 
@@ -63,16 +92,22 @@ Different transit systems use different ID formats. The frontend uses a prefix c
 |---|---|---|
 | `clinton`, `willow`, etc. | Preconfigured BusStopCard | `clinton` |
 | `pabt_*` | Preconfigured BusStopCard (inbound) | `pabt_washington` |
-| `bus:*` | DynamicBusCard (new format) | `bus:16012:125` |
+| `bus:*` | DynamicBusCard (new format) | `bus:16012:125` or `bus:15972,16977,16809:126,119` |
 | `ferry_*` | Preconfigured FerryCard | `ferry_hob14` |
 | `path_*` | Preconfigured PathCard | `path_hob33` |
 | `ferry:*` | DynamicFerryCard | `ferry:10:19:Midtown` |
 | `path:*` | DynamicPathCard | `path:862:1:26727` |
 | `mta:*` | DynamicMtaCard | `mta:D17,R17:S:B,D,F,N,Q,R,W` |
+| `rail:*` | NJT Rail card | `rail:HB` or `rail:HB:ML,GS` |
+| `hblr:*` | HBLR card | `hblr:15494` |
+| `lirr:*` | LIRR card | `lirr:237` |
+| `mnr:*` | Metro-North card | `mnr:1` |
+| `nycferry:*` | NYC Ferry card | `nycferry:89` |
+| `mtabus:*` | MTA Bus card | `mtabus:308209:MTA+NYCT_M1` |
 | (numeric) | DynamicBusCard (legacy) | `7935` |
 
-The `bus:` format encodes: `bus:{gtfs_stop_id}:{selected_routes}`
-The `mta:` format encodes: `mta:{station_ids}:{direction}:{selected_lines}`
+The `bus:` format encodes: `bus:{gtfs_stop_ids}:{selected_routes}` — stop IDs may be comma-separated for multi-platform stops (e.g. PABT)
+The `mta:` format encodes: `mta:{station_ids}:{direction}:{selected_lines}` — direction is N/S/A (all)
 
 ## Why PABT gate lookup uses route number, not headsign
 
