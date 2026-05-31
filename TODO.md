@@ -10,13 +10,17 @@
 - [x] **Expandable badge rows** — MTA Subway and NJT Rail badges truncate with tappable "+N" to expand/collapse.
 - [ ] **Alert cards with transit badges** — show the associated transit line badges (subway circles, bus route pills) in each alert card.
 - [ ] **Alert icon → notification center sync** — transit cards show ⚠️ from their own API data, but the notification center polls separately and may not have the same alerts. Need to either: feed card-level alerts into the notification center, or only show ⚠️ when the alert exists in the notification center.
-- [ ] **Tap alert icon → navigate to alerts** — tapping the ⚠️ on a transit card navigates to the Alerts page and highlights the relevant alert. Ask user about updating ⚠️ icon / button.
+- [ ] **NY Waterway route coverage** — Hoboken 14th St only shows Midtown/W39th route from Connexionz API. Verify if downtown (Brookfield Place) service still operates from this terminal or only from NJT Terminal. May need to combine terminal tags or check if Connexionz data is incomplete.
+- [ ] **NYC Ferry empty departures** — some stops (e.g. Astoria) return empty departures even during operating hours. Investigate if the GTFS-RT feed has timing gaps or if stop IDs don't match the feed's stop references.
+- [ ] **Dismiss all alerts** - Add the ability to dismiss all alerts at once in notificaiton center.
+- [ ] **Tap alert icon → navigate to alerts** — tapping the ⚠️ on a transit card navigates to the Alerts page and highlights the relevant alert. Ask user about updating ⚠️ icon / button so it changes color when the alert is active vs. dismissed. Potentially create custom icon. 
 - [ ] **Tunnel alert timestamps** — show when the alert was first posted. If no timestamp available from PANYNJ API, display "time unknown".
 - [ ] **Update presets with inbound + outbound** — mobile presets should include both directions (matching desktop), not just outbound.
 - [ ] **Weather zip code in Settings** — add a zip code input for weather location in Settings (only visible when weather pill is enabled). Allows manual override of GPS-based location.
-- [ ] **All transit types supported in Add Stop** — verify search endpoints work for every mode. Implement multi-step pickers for PATH, Ferry, Rail, HBLR (matching desktop).
+- [ ] **All transit types supported in Add Stop** — ~~verify search endpoints work for every mode~~ DONE: all 11 modes implemented with proper multi-step pickers.
 - [ ] **Fix duplicate alerts in Alerts panel** — deduplicate by alert ID before adding to state.
 - [ ] **Buy Me a Coffee link** — swap Venmo link with https://buymeacoffee.com/mystopnow. Consider placement (Settings about section, welcome page footer).
+- [x] **LIRR/MNR per-station route filter** — built from static GTFS stop_times.txt + trips.txt at load time.
 - [ ] **Transit card icons per type** — add ferry SVG icon (currently emoji ⛴️).
 - [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills, MobileApp alert aggregation. Full manual E2E walkthrough.
 

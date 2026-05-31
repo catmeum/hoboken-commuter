@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon } from '../../components/icons'
+import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, GrandCentralClock } from '../../components/icons'
 
 // ── Helpers ──
 function etaClass(min) {
@@ -317,9 +317,12 @@ export function FerryCard({ stopId, displayName }) {
       badges={null}
     >
       {departures.length > 0 ? (
-        departures.slice(0, 4).map((d, i) => (
-          <DepartureRow key={i} dest={`→ ${d.dest}`} eta={d.eta} etaClock={d.etaTime} />
-        ))
+        departures.slice(0, 4).map((d, i) => {
+          // Shorten: "Hoboken 14th Street → Midtown/W39th" → "Midtown/W39th"
+          let dest = d.dest || ''
+          if (dest.includes('→')) dest = dest.split('→').pop().trim()
+          return <DepartureRow key={i} dest={`→ ${dest}`} eta={d.eta} etaClock={d.etaTime} />
+        })
       ) : (
         <div className="ms-empty">No upcoming ferries</div>
       )}
@@ -382,7 +385,7 @@ export function HblrCard({ stopId, displayName }) {
     const parts = stopId.split(':')
     if (parts.length < 2) return null
     const [, gtfsStop] = parts
-    const res = await fetch(`/api/bus/stops?ids=${gtfsStop}&routes=HBLR`)
+    const res = await fetch(`/api/bus/stops?ids=${gtfsStop}&routes=HBLR,NLR`)
     if (!res.ok) return null
     return await res.json()
   }, [stopId])
@@ -418,7 +421,10 @@ export function HblrCard({ stopId, displayName }) {
 export function LirrCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
-    const res = await fetch(`/api/lirr/query?stop=${id}`)
+    const routes = stopId.split(':')[2] || ''
+    let url = `/api/lirr/query?stop=${id}`
+    if (routes) url += `&routes=${routes}`
+    const res = await fetch(url)
     if (!res.ok) return null
     return await res.json()
   }, [stopId])
@@ -426,12 +432,21 @@ export function LirrCard({ stopId, displayName }) {
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
+  const lineNames = [...new Set(departures.map(d => d.dest?.split(' ')[0]).filter(Boolean))]
+  const lineColors = {}
+  departures.forEach(d => { if (d.dest && d.lineColor) lineColors[d.dest.split(' ')[0]] = d.lineColor })
 
   return (
     <CardShell
       icon={<HeavyRailIcon size={16} />}
       station={name}
-      badges={<span className="ms-badge ms-badge-rail" style={{ background: '#0039A6' }}>LIRR</span>}
+      badges={
+        <ExpandableBadges maxVisible={2}>
+          {lineNames.map(l => (
+            <span key={l} className="ms-badge ms-badge-rail" style={{ background: lineColors[l] || '#0039A6', fontSize: 'clamp(6px, 1.6vw, 8px)' }}>{l}</span>
+          ))}
+        </ExpandableBadges>
+      }
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => (
@@ -448,7 +463,10 @@ export function LirrCard({ stopId, displayName }) {
 export function MnrCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
-    const res = await fetch(`/api/mnr/query?stop=${id}`)
+    const routes = stopId.split(':')[2] || ''
+    let url = `/api/mnr/query?stop=${id}`
+    if (routes) url += `&routes=${routes}`
+    const res = await fetch(url)
     if (!res.ok) return null
     return await res.json()
   }, [stopId])
@@ -456,12 +474,21 @@ export function MnrCard({ stopId, displayName }) {
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
+  const lineNames = [...new Set(departures.map(d => d.dest).filter(Boolean))]
+  const lineColors = {}
+  departures.forEach(d => { if (d.dest && d.lineColor) lineColors[d.dest] = d.lineColor })
 
   return (
     <CardShell
-      icon={<HeavyRailIcon size={16} />}
+      icon={<GrandCentralClock size={16} />}
       station={name}
-      badges={<span className="ms-badge ms-badge-rail" style={{ background: '#0039A6' }}>MNR</span>}
+      badges={
+        <ExpandableBadges maxVisible={2}>
+          {lineNames.map(l => (
+            <span key={l} className="ms-badge ms-badge-rail" style={{ background: lineColors[l] || '#0039A6', fontSize: 'clamp(6px, 1.6vw, 8px)' }}>{l.slice(0, 5)}</span>
+          ))}
+        </ExpandableBadges>
+      }
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => (
@@ -494,9 +521,11 @@ export function NycFerryCard({ stopId, displayName }) {
       badges={<span className="ms-badge ms-badge-rail" style={{ background: '#1D8BC9' }}>NYC</span>}
     >
       {departures.length > 0 ? (
-        departures.slice(0, 4).map((d, i) => (
-          <DepartureRow key={i} dest={`→ ${d.dest}`} eta={d.eta} etaClock={d.etaTime} />
-        ))
+        departures.slice(0, 4).map((d, i) => {
+          let dest = d.dest || ''
+          if (dest.includes('→')) dest = dest.split('→').pop().trim()
+          return <DepartureRow key={i} dest={`→ ${dest}`} eta={d.eta} etaClock={d.etaTime} />
+        })
       ) : (
         <div className="ms-empty">No upcoming ferries</div>
       )}

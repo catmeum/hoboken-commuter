@@ -1564,12 +1564,28 @@ async function loadLirrStations() {
     for (const r of routes) {
       routeMap[r.route_id] = { id: r.route_id, name: r.route_long_name, color: '#' + (r.route_color || '006EC7') }
     }
-    lirrStationsCache = { stops: stops.map(s => ({ id: s.stop_id, name: s.stop_name })).sort((a, b) => a.name.localeCompare(b.name)), routes: routeMap }
+    // Build station-to-routes mapping from trips.txt + stop_times.txt
+    const trips = parseGtfsCsv(zip.readAsText('trips.txt'))
+    const tripRoutes = {}
+    for (const t of trips) tripRoutes[t.trip_id] = t.route_id
+    const stopTimes = parseGtfsCsv(zip.readAsText('stop_times.txt'))
+    const stationRoutes = {} // stop_id → Set of route_ids
+    for (const st of stopTimes) {
+      const route = tripRoutes[st.trip_id]
+      if (!route) continue
+      if (!stationRoutes[st.stop_id]) stationRoutes[st.stop_id] = new Set()
+      stationRoutes[st.stop_id].add(route)
+    }
+    lirrStationsCache = {
+      stops: stops.map(s => ({ id: s.stop_id, name: s.stop_name })).sort((a, b) => a.name.localeCompare(b.name)),
+      routes: routeMap,
+      stationRoutes, // stop_id → Set of route_ids
+    }
     console.log('[LIRR] Loaded', lirrStationsCache.stops.length, 'stations,', Object.keys(routeMap).length, 'routes')
     return lirrStationsCache
   } catch (err) {
     console.error('[LIRR] Failed to load:', err.message)
-    return { stops: [], routes: {} }
+    return { stops: [], routes: {}, stationRoutes: {} }
   }
 }
 
@@ -1585,14 +1601,30 @@ async function loadMnrStations() {
     for (const r of routes) {
       routeMap[r.route_id] = { id: r.route_id, name: r.route_long_name, color: '#' + (r.route_color || '009B3A') }
     }
+    // Build station-to-routes mapping from trips.txt + stop_times.txt
+    const trips = parseGtfsCsv(zip.readAsText('trips.txt'))
+    const tripRoutes = {}
+    for (const t of trips) tripRoutes[t.trip_id] = t.route_id
+    const stopTimes = parseGtfsCsv(zip.readAsText('stop_times.txt'))
+    const stationRoutes = {}
+    for (const st of stopTimes) {
+      const route = tripRoutes[st.trip_id]
+      if (!route) continue
+      if (!stationRoutes[st.stop_id]) stationRoutes[st.stop_id] = new Set()
+      stationRoutes[st.stop_id].add(route)
+    }
     // Filter out non-public stops (yards, etc.)
     const publicStops = stops.filter(s => s.stop_url && s.stop_url.includes('mta.info'))
-    mnrStationsCache = { stops: publicStops.map(s => ({ id: s.stop_id, name: s.stop_name })).sort((a, b) => a.name.localeCompare(b.name)), routes: routeMap }
+    mnrStationsCache = {
+      stops: publicStops.map(s => ({ id: s.stop_id, name: s.stop_name })).sort((a, b) => a.name.localeCompare(b.name)),
+      routes: routeMap,
+      stationRoutes,
+    }
     console.log('[MNR] Loaded', mnrStationsCache.stops.length, 'stations,', Object.keys(routeMap).length, 'routes')
     return mnrStationsCache
   } catch (err) {
     console.error('[MNR] Failed to load:', err.message)
-    return { stops: [], routes: {} }
+    return { stops: [], routes: {}, stationRoutes: {} }
   }
 }
 
@@ -2182,22 +2214,24 @@ app.get('/api/lirr/stations', async (req, res) => {
 // LIRR departures — queries the LIRR GTFS-RT feed
 app.get('/api/lirr/query', async (req, res) => {
   try {
-    const { stop } = req.query
+    const { stop, routes: routesParam } = req.query
     if (!stop) return res.json({ departures: [], stationName: '' })
     const data = await loadLirrStations()
     const stationName = data.stops.find(s => s.id === stop)?.name || stop
+    const selectedRoutes = routesParam ? new Set(routesParam.split(',')) : null
     const feed = await fetchMtaFeed('lirr%2Fgtfs-lirr')
     const now = Date.now() / 1000
     const departures = []
     for (const entity of feed.entity) {
       const tu = entity.tripUpdate
       if (!tu) continue
+      const route = tu.trip?.routeId
+      if (selectedRoutes && !selectedRoutes.has(route)) continue
       for (const stu of tu.stopTimeUpdate) {
         if (stu.stopId !== stop) continue
         const t = (stu.arrival?.time?.low || stu.arrival?.time || 0) || (stu.departure?.time?.low || stu.departure?.time || 0)
         if (t && t > now) {
           const d = new Date(t * 1000)
-          const route = tu.trip?.routeId
           const routeInfo = data.routes[route]
           departures.push({
             dest: routeInfo?.name || `Route ${route}`,
@@ -2228,25 +2262,65 @@ app.get('/api/mnr/stations', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }) }
 })
 
+// LIRR station-routes — returns which branches serve a specific station (from static GTFS)
+app.get('/api/lirr/station-routes', async (req, res) => {
+  try {
+    const { stop } = req.query
+    if (!stop) return res.json({ routes: [] })
+    const data = await loadLirrStations()
+    const routeIds = data.stationRoutes[stop] || new Set()
+    const routes = [...routeIds].map(id => ({
+      id,
+      name: data.routes[id]?.name || `Route ${id}`,
+      color: data.routes[id]?.color || '#006EC7',
+    })).sort((a, b) => a.name.localeCompare(b.name))
+    res.json({ routes })
+  } catch (err) {
+    console.error('[LIRR station-routes]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// MNR station-routes — returns which lines serve a specific station (from static GTFS)
+app.get('/api/mnr/station-routes', async (req, res) => {
+  try {
+    const { stop } = req.query
+    if (!stop) return res.json({ routes: [] })
+    const data = await loadMnrStations()
+    const routeIds = data.stationRoutes[stop] || new Set()
+    const routes = [...routeIds].map(id => ({
+      id,
+      name: data.routes[id]?.name || `Route ${id}`,
+      color: data.routes[id]?.color || '#0039A6',
+    })).sort((a, b) => a.name.localeCompare(b.name))
+    res.json({ routes })
+  } catch (err) {
+    console.error('[MNR station-routes]', err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // Metro-North departures
 app.get('/api/mnr/query', async (req, res) => {
   try {
-    const { stop } = req.query
+    const { stop, routes: routesParam } = req.query
     if (!stop) return res.json({ departures: [], stationName: '' })
     const data = await loadMnrStations()
     const stationName = data.stops.find(s => s.id === stop)?.name || stop
+    const selectedRoutes = routesParam ? new Set(routesParam.split(',')) : null
     const feed = await fetchMtaFeed('mnr%2Fgtfs-mnr')
     const now = Date.now() / 1000
     const departures = []
     for (const entity of feed.entity) {
       const tu = entity.tripUpdate
       if (!tu) continue
+      const route = tu.trip?.routeId
+      if (selectedRoutes && !selectedRoutes.has(route)) continue
       for (const stu of tu.stopTimeUpdate) {
         if (stu.stopId !== stop) continue
         const t = (stu.arrival?.time?.low || stu.arrival?.time || 0) || (stu.departure?.time?.low || stu.departure?.time || 0)
         if (t && t > now) {
           const d = new Date(t * 1000)
-          const route = tu.trip?.routeId
           const routeInfo = data.routes[route]
           departures.push({
             dest: routeInfo?.name || `Route ${route}`,

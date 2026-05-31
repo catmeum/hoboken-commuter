@@ -2,7 +2,25 @@
 
 A real-time commuter dashboard for the NY/NJ metro area. Built for Hoboken-based commuters, it aggregates live transit data from a dozen sources into a single, clean interface — tunnels, buses, trains, ferries, subway, and weather, all in one place. Visit the live version of this dashboard at: [https://commute.stroszeck.com](https://commute.stroszeck.com)
 
-![Version](https://img.shields.io/badge/version-2.4.0-blue) ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20Express-lightgrey)
+![Version](https://img.shields.io/badge/version-3.0.0--alpha-blue) ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20Express-lightgrey)
+
+---
+
+## Two Interfaces
+
+### Desktop Dashboard (`/`)
+The original dashboard — a fixed-layout grid of transit cards optimized for desktop/tablet. Bidirectional toggle (Hoboken ↔ NYC), drag-to-reorder cards, scrolling alert ticker.
+
+### Mobile App (`/mobile`) — NEW
+A mobile-first React app with touch-optimized UI:
+- **Welcome flow** — zip code auto-setup or neighborhood presets (Hoboken, Midtown, Downtown, etc.)
+- **My Stops page** — scrollable transit cards with weather/tunnel info pills, pull-to-refresh
+- **Alerts page** — swipe-to-dismiss, dismissed section with restore
+- **Settings** — slide-up panel with theme, weather, tunnel config, stop management
+- **Add Stop** — 11 transit modes with multi-step pickers (line/direction/route selection)
+- **Floating tab bar** — glassmorphism design with Home, Alerts, Settings
+
+Both interfaces share the same Express backend and service layer.
 
 ---
 

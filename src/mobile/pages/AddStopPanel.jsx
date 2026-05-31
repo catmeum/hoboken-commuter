@@ -20,12 +20,13 @@ const MODES = [
   { id: 'bus', label: 'NJT Bus', icon: <NjtBusIcon size={16} />, placeholder: 'Search for a bus stop…', enabled: true },
   { id: 'path', label: 'PATH', icon: <PathIcon size={16} />, placeholder: 'Search for a PATH station…', enabled: true },
   { id: 'rail', label: 'NJT Rail', icon: <NjtRailIcon size={16} />, placeholder: 'Search for a rail station…', enabled: true },
-  { id: 'ferry', label: 'NY Waterway', icon: <NywFerryIcon size={16} />, placeholder: 'Search for a ferry terminal…', enabled: false },
-  { id: 'hblr', label: 'HBLR Light Rail', icon: <LightRailIcon size={16} />, placeholder: 'Search for a light rail stop…', enabled: false },
-  { id: 'lirr', label: 'LIRR', icon: <HeavyRailIcon size={16} />, placeholder: 'Search for a LIRR station…', enabled: false },
-  { id: 'mnr', label: 'Metro-North', icon: <GrandCentralClock size={16} />, placeholder: 'Search for a Metro-North station…', enabled: false },
-  { id: 'mtabus', label: 'MTA Bus', icon: <MtaBusIcon size={16} />, placeholder: 'Search for a bus route…', enabled: false },
-  { id: 'nycferry', label: 'NYC Ferry', icon: <NycFerryIcon size={16} />, placeholder: 'Search for a ferry stop…', enabled: false },
+  { id: 'ferry', label: 'NY Waterway', icon: <NywFerryIcon size={16} />, placeholder: 'Search for a ferry terminal…', enabled: true },
+  { id: 'hblr', label: 'Hudson-Bergen Light Rail', icon: <LightRailIcon size={16} />, placeholder: 'Search for an HBLR stop…', enabled: true },
+  { id: 'nlr', label: 'Newark Light Rail', icon: <LightRailIcon size={16} />, placeholder: 'Search for a Newark LR stop…', enabled: true },
+  { id: 'lirr', label: 'LIRR', icon: <HeavyRailIcon size={16} />, placeholder: 'Search for a LIRR station…', enabled: true },
+  { id: 'mnr', label: 'Metro-North', icon: <GrandCentralClock size={16} />, placeholder: 'Search for a Metro-North station…', enabled: true },
+  { id: 'mtabus', label: 'MTA Bus', icon: <MtaBusIcon size={16} />, placeholder: 'Search for a bus route (M1, B63, Q32)…', enabled: true },
+  { id: 'nycferry', label: 'NYC Ferry', icon: <NycFerryIcon size={16} />, placeholder: 'Search for a ferry stop…', enabled: true },
 ]
 
 export default function AddStopPanel({ open, onClose, onAdd }) {
@@ -60,6 +61,24 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   const [railLinesLoaded, setRailLinesLoaded] = useState(false)
   const [selectedRailLines, setSelectedRailLines] = useState(new Set())
 
+  // LIRR step 2 state
+  const [selectedLirrStation, setSelectedLirrStation] = useState(null)
+  const [lirrRoutes, setLirrRoutes] = useState([])
+  const [selectedLirrRoutes, setSelectedLirrRoutes] = useState(new Set())
+
+  // MNR step 2 state
+  const [selectedMnrStation, setSelectedMnrStation] = useState(null)
+  const [mnrRoutes, setMnrRoutes] = useState([])
+  const [selectedMnrRoutes, setSelectedMnrRoutes] = useState(new Set())
+
+  // Ferry step 2 state
+  const [selectedFerryTerminal, setSelectedFerryTerminal] = useState(null)
+  const [ferryRoutes, setFerryRoutes] = useState([])
+
+  // MTA Bus step 2 state
+  const [selectedMtaBusRoute, setSelectedMtaBusRoute] = useState(null)
+  const [mtaBusStops, setMtaBusStops] = useState([])
+
   const searchRef = useRef(null)
   const debounceRef = useRef(null)
   const prevOpenRef = useRef(false)
@@ -84,6 +103,16 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     setRailLines([])
     setRailLinesLoaded(false)
     setSelectedRailLines(new Set())
+    setSelectedLirrStation(null)
+    setLirrRoutes([])
+    setSelectedLirrRoutes(new Set())
+    setSelectedMnrStation(null)
+    setMnrRoutes([])
+    setSelectedMnrRoutes(new Set())
+    setSelectedFerryTerminal(null)
+    setFerryRoutes([])
+    setSelectedMtaBusRoute(null)
+    setMtaBusStops([])
   }
 
   // Reset on open
@@ -133,6 +162,24 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
       setRailLines([])
       setRailLinesLoaded(false)
       setSelectedRailLines(new Set())
+    } else if (step === 'ferry-dest') {
+      setStep('search')
+      setSelectedFerryTerminal(null)
+      setFerryRoutes([])
+    } else if (step === 'mtabus-stops') {
+      setStep('search')
+      setSelectedMtaBusRoute(null)
+      setMtaBusStops([])
+    } else if (step === 'lirr-lines') {
+      setStep('search')
+      setSelectedLirrStation(null)
+      setLirrRoutes([])
+      setSelectedLirrRoutes(new Set())
+    } else if (step === 'mnr-lines') {
+      setStep('search')
+      setSelectedMnrStation(null)
+      setMnrRoutes([])
+      setSelectedMnrRoutes(new Set())
     } else if (step === 'search') {
       setStep('modes')
       setMode(null)
@@ -175,6 +222,10 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
             break
           case 'hblr':
             url = `/api/bus/stop-search?q=${encoded}&routes=HBLR`
+            mapFn = d => d.stops || []
+            break
+          case 'nlr':
+            url = `/api/bus/stop-search?q=${encoded}&routes=NLR`
             mapFn = d => d.stops || []
             break
           case 'lirr':
@@ -268,6 +319,57 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
           setRailLines(lines)
           setRailLinesLoaded(true)
           setSelectedRailLines(new Set(lines.map(l => l.code)))
+        })
+      return
+    }
+
+    if (modeId === 'ferry') {
+      // Go to step 2: pick destination
+      setSelectedFerryTerminal(result)
+      setStep('ferry-dest')
+      fetch(`/api/ferry/terminal-routes?tag=${result.tag || result.id}`)
+        .then(r => r.ok ? r.json() : { routes: [] })
+        .then(d => setFerryRoutes(d.routes || []))
+      return
+    }
+
+    if (modeId === 'mtabus') {
+      // Step 2: pick a stop on this route
+      setSelectedMtaBusRoute(result)
+      setStep('mtabus-stops')
+      fetch(`/api/mtabus/route-stops?route=${encodeURIComponent(result.id)}`)
+        .then(r => r.ok ? r.json() : { directions: [] })
+        .then(d => {
+          const allStops = (d.directions || []).flatMap(dir =>
+            dir.stops.map(s => ({ ...s, direction: dir.direction }))
+          )
+          setMtaBusStops(allStops)
+        })
+      return
+    }
+
+    if (modeId === 'lirr') {
+      setSelectedLirrStation(result)
+      setStep('lirr-lines')
+      fetch(`/api/lirr/station-routes?stop=${result.id}`)
+        .then(r => r.ok ? r.json() : { routes: [] })
+        .then(d => {
+          const routes = d.routes || []
+          setLirrRoutes(routes)
+          setSelectedLirrRoutes(new Set(routes.map(r => r.id)))
+        })
+      return
+    }
+
+    if (modeId === 'mnr') {
+      setSelectedMnrStation(result)
+      setStep('mnr-lines')
+      fetch(`/api/mnr/station-routes?stop=${result.id}`)
+        .then(r => r.ok ? r.json() : { routes: [] })
+        .then(d => {
+          const routes = d.routes || []
+          setMnrRoutes(routes)
+          setSelectedMnrRoutes(new Set(routes.map(r => r.id)))
         })
       return
     }
@@ -376,14 +478,35 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     onAdd(stopId, displayName)
   }
 
+  // ── Confirm LIRR ──
+  function confirmLirr() {
+    if (!selectedLirrStation || selectedLirrRoutes.size === 0) return
+    const routes = [...selectedLirrRoutes].join(',')
+    const stopId = `lirr:${selectedLirrStation.id}:${routes}`
+    let label
+    if (selectedLirrRoutes.size === lirrRoutes.length) label = 'All branches'
+    else if (selectedLirrRoutes.size <= 2) label = lirrRoutes.filter(r => selectedLirrRoutes.has(r.id)).map(r => r.name.replace(' Branch', '')).join(', ')
+    else label = `${lirrRoutes.find(r => selectedLirrRoutes.has(r.id))?.name.replace(' Branch', '')} +${selectedLirrRoutes.size - 1}`
+    onAdd(stopId, `${selectedLirrStation.name} (${label})`)
+  }
+
+  // ── Confirm MNR ──
+  function confirmMnr() {
+    if (!selectedMnrStation || selectedMnrRoutes.size === 0) return
+    const routes = [...selectedMnrRoutes].join(',')
+    const stopId = `mnr:${selectedMnrStation.id}:${routes}`
+    let label
+    if (selectedMnrRoutes.size === mnrRoutes.length) label = 'All lines'
+    else if (selectedMnrRoutes.size <= 2) label = mnrRoutes.filter(r => selectedMnrRoutes.has(r.id)).map(r => r.name).join(', ')
+    else label = `${mnrRoutes.find(r => selectedMnrRoutes.has(r.id))?.name} +${selectedMnrRoutes.size - 1}`
+    onAdd(stopId, `${selectedMnrStation.name} (${label})`)
+  }
+
   // ── Simple stop ID builder for modes without step 2 ──
   function buildSimpleStopId(modeId, result) {
     switch (modeId) {
-      case 'ferry': return `ferry:${result.tag || result.id}::`
       case 'hblr': return `hblr:${result.id}`
-      case 'lirr': return `lirr:${result.id}`
-      case 'mnr': return `mnr:${result.id}`
-      case 'mtabus': return `mtabus:${result.stopId || result.id}:${result.route || result.id}`
+      case 'nlr': return `hblr:${result.id}`
       case 'nycferry': return `nycferry:${result.id}`
       default: return result.id
     }
@@ -397,6 +520,10 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     if (step === 'bus-variants') return `${selectedBusStop?.name} — Pick Variant`
     if (step === 'path-dir') return `${selectedPathStation?.name} — Select Direction`
     if (step === 'rail-lines') return `${selectedRailStation?.name} — Select Lines`
+    if (step === 'lirr-lines') return `${selectedLirrStation?.name} — Select Branches`
+    if (step === 'mnr-lines') return `${selectedMnrStation?.name} — Select Lines`
+    if (step === 'ferry-dest') return `${selectedFerryTerminal?.name} — Select Destination`
+    if (step === 'mtabus-stops') return `${selectedMtaBusRoute?.name} — Select Stop`
     return `${mode?.label || ''} — Search`
   }
 
@@ -643,6 +770,149 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
               Add to My Stops
             </button>
           )}
+        </div>
+      )}
+
+      {/* Step: Ferry — pick destination */}
+      {step === 'ferry-dest' && selectedFerryTerminal && (
+        <div className="m-addstop-step">
+          <p className="m-addstop-section-label">Select a destination</p>
+          <div className="m-addstop-route-list">
+            {ferryRoutes.length > 0 ? ferryRoutes.flatMap(route =>
+              route.destinations.length > 0
+                ? route.destinations.map(dest => (
+                    <button
+                      key={`${route.no}:${dest}`}
+                      className="m-addstop-result"
+                      onClick={() => {
+                        const tag = selectedFerryTerminal.tag || selectedFerryTerminal.id
+                        const stopId = `ferry:${tag}:${route.no}:${dest}`
+                        const displayName = `${selectedFerryTerminal.name} → ${dest}`
+                        onAdd(stopId, displayName)
+                      }}
+                    >
+                      <div className="m-addstop-result-name">→ {dest}</div>
+                      <div className="m-addstop-result-sub">{route.name}</div>
+                    </button>
+                  ))
+                : [<button
+                    key={route.no}
+                    className="m-addstop-result"
+                    onClick={() => {
+                      const tag = selectedFerryTerminal.tag || selectedFerryTerminal.id
+                      const stopId = `ferry:${tag}:${route.no}:`
+                      const displayName = `${selectedFerryTerminal.name} (${route.name})`
+                      onAdd(stopId, displayName)
+                    }}
+                  >
+                    <div className="m-addstop-result-name">{route.name}</div>
+                  </button>]
+            ) : (
+              <div className="m-addstop-hint">Loading destinations…</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Step: LIRR — pick branches */}
+      {step === 'lirr-lines' && selectedLirrStation && (
+        <div className="m-addstop-step">
+          <div className="m-addstop-section-header">
+            <p className="m-addstop-section-label">Branches at this station</p>
+            <button className="m-addstop-select-all" onClick={() => {
+              if (selectedLirrRoutes.size === lirrRoutes.length) setSelectedLirrRoutes(new Set())
+              else setSelectedLirrRoutes(new Set(lirrRoutes.map(r => r.id)))
+            }}>
+              {selectedLirrRoutes.size === lirrRoutes.length ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+          <div className="m-addstop-route-list">
+            {lirrRoutes.length > 0 ? lirrRoutes.map(route => (
+              <button
+                key={route.id}
+                className={`m-addstop-route-btn ${selectedLirrRoutes.has(route.id) ? 'active' : ''}`}
+                onClick={() => setSelectedLirrRoutes(prev => {
+                  const next = new Set(prev)
+                  next.has(route.id) ? next.delete(route.id) : next.add(route.id)
+                  return next
+                })}
+              >
+                <span className="m-addstop-route-badge" style={{ background: route.color || '#0039A6', fontSize: 8 }}>{route.name.replace(' Branch', '').slice(0, 6)}</span>
+                <span>{route.name}</span>
+              </button>
+            )) : (
+              <div className="m-addstop-hint">Loading branches…</div>
+            )}
+          </div>
+          {lirrRoutes.length > 0 && (
+            <button className="m-addstop-confirm" onClick={confirmLirr} disabled={selectedLirrRoutes.size === 0}>
+              Add to My Stops
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Step: Metro-North — pick lines */}
+      {step === 'mnr-lines' && selectedMnrStation && (
+        <div className="m-addstop-step">
+          <div className="m-addstop-section-header">
+            <p className="m-addstop-section-label">Lines at this station</p>
+            <button className="m-addstop-select-all" onClick={() => {
+              if (selectedMnrRoutes.size === mnrRoutes.length) setSelectedMnrRoutes(new Set())
+              else setSelectedMnrRoutes(new Set(mnrRoutes.map(r => r.id)))
+            }}>
+              {selectedMnrRoutes.size === mnrRoutes.length ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+          <div className="m-addstop-route-list">
+            {mnrRoutes.length > 0 ? mnrRoutes.map(route => (
+              <button
+                key={route.id}
+                className={`m-addstop-route-btn ${selectedMnrRoutes.has(route.id) ? 'active' : ''}`}
+                onClick={() => setSelectedMnrRoutes(prev => {
+                  const next = new Set(prev)
+                  next.has(route.id) ? next.delete(route.id) : next.add(route.id)
+                  return next
+                })}
+              >
+                <span className="m-addstop-route-badge" style={{ background: route.color || '#0039A6', fontSize: 9 }}>{route.name.slice(0, 5)}</span>
+                <span>{route.name}</span>
+              </button>
+            )) : (
+              <div className="m-addstop-hint">Loading lines…</div>
+            )}
+          </div>
+          {mnrRoutes.length > 0 && (
+            <button className="m-addstop-confirm" onClick={confirmMnr} disabled={selectedMnrRoutes.size === 0}>
+              Add to My Stops
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Step: MTA Bus — pick stop */}
+      {step === 'mtabus-stops' && selectedMtaBusRoute && (
+        <div className="m-addstop-step">
+          <p className="m-addstop-section-label">Select a stop on {selectedMtaBusRoute.name}</p>
+          {selectedMtaBusRoute.desc && <p className="m-addstop-hint" style={{ marginBottom: 8 }}>{selectedMtaBusRoute.desc}</p>}
+          <div className="m-addstop-results" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+            {mtaBusStops.length > 0 ? mtaBusStops.map((s, i) => (
+              <button
+                key={`${s.id}-${i}`}
+                className="m-addstop-result"
+                onClick={() => {
+                  const stopId = `mtabus:${s.id}:${selectedMtaBusRoute.id}`
+                  const displayName = `${s.name} (${selectedMtaBusRoute.name})`
+                  onAdd(stopId, displayName)
+                }}
+              >
+                <div className="m-addstop-result-name">{s.name}</div>
+                {s.direction && <div className="m-addstop-result-sub">{s.direction}</div>}
+              </button>
+            )) : (
+              <div className="m-addstop-hint">Loading stops…</div>
+            )}
+          </div>
         </div>
       )}
     </div>

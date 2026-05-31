@@ -355,7 +355,7 @@
   align-items: center;
   gap: 5px;
   margin-bottom: 10px;
-  overflow: hidden;
+  flex-wrap: wrap;
 }
 .ms-icon { font-size: 14px; display: inline-flex; align-items: center; flex-shrink: 0; }
 .ms-badge {
