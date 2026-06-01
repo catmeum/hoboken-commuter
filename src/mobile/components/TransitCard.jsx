@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, GrandCentralClock } from '../../components/icons'
+import { AlertTriangle } from 'lucide-react'
 
 // ── Helpers ──
 function etaClass(min) {
@@ -103,15 +104,15 @@ function ExpandableBadges({ children, maxVisible = 3 }) {
 
 // ── Generic transit card shell ──
 // alert prop: 'active' = fresh undismissed, 'dismissed' = greyed out, falsy = no icon
-function CardShell({ icon, station, badges, alert, children }) {
+function CardShell({ icon, station, badges, alert, onAlertTap, children }) {
   return (
     <div className="ms-card">
       <div className="ms-card-head">
         <span className="ms-icon">{icon}</span>
         {badges}
         <span className="ms-station">{station}</span>
-        {alert === 'active' && <span className="ms-alert ms-alert-active">⚠️</span>}
-        {alert === 'dismissed' && <span className="ms-alert ms-alert-dismissed">⚠️</span>}
+        {alert === 'active' && <button className="ms-alert ms-alert-active" onClick={onAlertTap}><AlertTriangle size={14} /></button>}
+        {alert === 'dismissed' && <span className="ms-alert ms-alert-dismissed"><AlertTriangle size={14} /></span>}
       </div>
       {children}
     </div>
@@ -135,7 +136,7 @@ function DepartureRow({ dest, eta, etaClock, badgeColor, source }) {
 }
 
 // ── MTA Subway Card ──
-export function MtaSubwayCard({ stopId, displayName, alertState }) {
+export function MtaSubwayCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 3) return null
@@ -181,7 +182,7 @@ export function MtaSubwayCard({ stopId, displayName, alertState }) {
 }
 
 // ── NJT Bus Card ──
-export function BusCard({ stopId, displayName, alertState }) {
+export function BusCard({ stopId, displayName, alertState, onAlertTap }) {
   const [showGateInfo, setShowGateInfo] = useState(false)
   const fetcher = useCallback(async () => {
     // Formats: bus:STOP_IDS:ROUTES:HEADSIGN or bus:STOP_IDS:ROUTES or legacy
@@ -261,7 +262,7 @@ export function BusCard({ stopId, displayName, alertState }) {
 }
 
 // ── PATH Card ──
-export function PathCard({ stopId, displayName, alertState }) {
+export function PathCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 4) return null
@@ -294,7 +295,7 @@ export function PathCard({ stopId, displayName, alertState }) {
 }
 
 // ── Ferry Card ──
-export function FerryCard({ stopId, displayName, alertState }) {
+export function FerryCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 3) return null
@@ -333,7 +334,7 @@ export function FerryCard({ stopId, displayName, alertState }) {
 }
 
 // ── NJT Rail Card ──
-export function RailCard({ stopId, displayName, alertState }) {
+export function RailCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 2) return null
@@ -383,7 +384,7 @@ export function RailCard({ stopId, displayName, alertState }) {
 }
 
 // ── HBLR Card ──
-export function HblrCard({ stopId, displayName, alertState }) {
+export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 2) return null
@@ -422,7 +423,7 @@ export function HblrCard({ stopId, displayName, alertState }) {
 }
 
 // ── LIRR Card ──
-export function LirrCard({ stopId, displayName, alertState }) {
+export function LirrCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const routes = stopId.split(':')[2] || ''
@@ -465,7 +466,7 @@ export function LirrCard({ stopId, displayName, alertState }) {
 }
 
 // ── Metro-North Card ──
-export function MnrCard({ stopId, displayName, alertState }) {
+export function MnrCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const routes = stopId.split(':')[2] || ''
@@ -508,7 +509,7 @@ export function MnrCard({ stopId, displayName, alertState }) {
 }
 
 // ── NYC Ferry Card ──
-export function NycFerryCard({ stopId, displayName, alertState }) {
+export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const res = await fetch(`/api/nycferry/query?stop=${id}`)
@@ -541,7 +542,7 @@ export function NycFerryCard({ stopId, displayName, alertState }) {
 }
 
 // ── MTA Bus Card ──
-export function MtaBusCard({ stopId, displayName, alertState }) {
+export function MtaBusCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     const [, stop, route] = parts
@@ -604,17 +605,17 @@ function getAlertState(stopId, alerts, dismissedAlerts) {
 }
 
 // ── Card router — picks the right card component based on stop ID prefix ──
-export default function TransitCard({ stopId, displayName, alerts, dismissedAlerts }) {
+export default function TransitCard({ stopId, displayName, alerts, dismissedAlerts, onAlertTap }) {
   const alertState = getAlertState(stopId, alerts, dismissedAlerts)
-  if (stopId.startsWith('mta:')) return <MtaSubwayCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('bus:') || /^\d/.test(stopId)) return <BusCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('path:')) return <PathCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('ferry:')) return <FerryCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('rail:')) return <RailCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('hblr:')) return <HblrCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('lirr:')) return <LirrCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('mnr:')) return <MnrCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('nycferry:')) return <NycFerryCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  if (stopId.startsWith('mtabus:')) return <MtaBusCard stopId={stopId} displayName={displayName} alertState={alertState} />
-  return <BusCard stopId={stopId} displayName={displayName} alertState={alertState} />
+  if (stopId.startsWith('mta:')) return <MtaSubwayCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('bus:') || /^\d/.test(stopId)) return <BusCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('path:')) return <PathCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('ferry:')) return <FerryCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('rail:')) return <RailCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('hblr:')) return <HblrCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('lirr:')) return <LirrCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('mnr:')) return <MnrCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('nycferry:')) return <NycFerryCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('mtabus:')) return <MtaBusCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  return <BusCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
 }

@@ -38,7 +38,7 @@ function AlertCard({ alert, onDismiss }) {
         <div className="m-alert-head">
           <div className="m-alert-badges">
             {alert.badges ? alert.badges.map((b, i) => (
-              <span key={i} className="ms-badge" style={{ background: b.color, color: b.textColor || '#fff', minWidth: 18, height: 18, fontSize: 9 }}>
+              <span key={i} className={`ms-badge ${b.color === 'transparent' ? 'm-alert-source-badge' : ''}`} style={{ background: b.color !== 'transparent' ? b.color : 'var(--m-card-border)', color: b.textColor || '#fff', minWidth: 18, height: 18, fontSize: 9, borderRadius: b.label?.length > 2 ? 5 : '50%', padding: b.label?.length > 2 ? '0 5px' : 0 }}>
                 {b.label}
               </span>
             )) : (

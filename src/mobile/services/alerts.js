@@ -5,6 +5,19 @@
 
 import { fetchTunnels } from '../../services/tunnels'
 
+// MTA subway line colors
+const MTA_COLORS = {
+  '1': '#EE352E', '2': '#EE352E', '3': '#EE352E',
+  '4': '#00933C', '5': '#00933C', '6': '#00933C', '6X': '#00933C',
+  '7': '#B933AD', '7X': '#B933AD',
+  'A': '#0039A6', 'C': '#0039A6', 'E': '#0039A6',
+  'B': '#FF6319', 'D': '#FF6319', 'F': '#FF6319', 'M': '#FF6319',
+  'G': '#6CBE45', 'J': '#996633', 'Z': '#996633', 'L': '#A7A9AC',
+  'N': '#FCCC0A', 'Q': '#FCCC0A', 'R': '#FCCC0A', 'W': '#FCCC0A',
+  'S': '#808183', 'SI': '#1D2D5C',
+}
+function getMtaColor(line) { return MTA_COLORS[line] || '#808183' }
+
 /**
  * Fetch all active alerts relevant to the user's configured stops.
  * @param {string[]} stops - array of stop IDs the user has configured
@@ -50,7 +63,7 @@ export async function fetchAlerts(stops) {
               id: `bus-${a.routes?.join(',')}-${a.text?.slice(0, 30)}`,
               source: 'NJT',
               text: `Rt ${a.routes?.join(',')}: ${a.text}`,
-              timestamp: '',
+              timestamp: 'time unknown',
               badges: a.routes?.map(r => ({ label: r, color: '#1e40af' })),
             })
           }
@@ -71,7 +84,7 @@ export async function fetchAlerts(stops) {
             id: `path-${data.alert.slice(0, 30)}`,
             source: 'PATH',
             text: data.alert,
-            timestamp: '',
+            timestamp: 'time unknown',
             badges: [{ label: 'PATH', color: '#0369a1' }],
           })
         }
@@ -88,12 +101,13 @@ export async function fetchAlerts(stops) {
         const data = await res.json()
         if (data.alerts) {
           for (const a of data.alerts.slice(0, 5)) {
+            const lines = a.routes || a.lines || []
             alerts.push({
-              id: `mta-${a.text?.slice(0, 30)}`,
+              id: `mta-${lines.join(',')}-${a.text?.slice(0, 20)}`,
               source: 'MTA',
               text: a.text,
-              timestamp: '',
-              badges: a.lines?.map(l => ({ label: l, color: a.lineColor || '#00933C' })),
+              timestamp: 'time unknown',
+              badges: lines.map(l => ({ label: l, color: getMtaColor(l), textColor: ['N','Q','R','W'].includes(l) ? '#000' : '#fff' })),
             })
           }
         }
@@ -113,7 +127,7 @@ export async function fetchAlerts(stops) {
             id: `ferry-${data.alert.slice(0, 30)}`,
             source: 'Ferry',
             text: data.alert,
-            timestamp: '',
+            timestamp: 'time unknown',
           })
         }
       }

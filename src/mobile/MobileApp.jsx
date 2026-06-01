@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   stopNames: 'msn_stop_names',
   theme: 'msn_theme',
   tempUnit: 'msn_temp_unit',
+  weatherZip: 'msn_weather_zip',
   showWeather: 'msn_show_weather',
   showTunnels: 'msn_show_tunnels',
   tunnels: 'msn_tunnels',
@@ -41,6 +42,7 @@ export default function MobileApp() {
   const [stopNames, setStopNames] = useState(() => loadJSON(STORAGE_KEYS.stopNames, {}))
   const [theme, setTheme] = useState(() => localStorage.getItem(STORAGE_KEYS.theme) || 'auto')
   const [tempUnit, setTempUnit] = useState(() => localStorage.getItem(STORAGE_KEYS.tempUnit) || 'F')
+  const [weatherZip, setWeatherZip] = useState(() => localStorage.getItem(STORAGE_KEYS.weatherZip) || '')
   const [showWeather, setShowWeather] = useState(() => loadJSON(STORAGE_KEYS.showWeather, true))
   const [showTunnels, setShowTunnels] = useState(() => loadJSON(STORAGE_KEYS.showTunnels, true))
   const [tunnels, setTunnels] = useState(() => loadJSON(STORAGE_KEYS.tunnels, ['lincoln', 'holland']))
@@ -233,6 +235,7 @@ export default function MobileApp() {
           alerts={alerts}
           dismissedAlerts={dismissedAlerts}
           setAlerts={setAlerts}
+          onNavigateToAlerts={() => setPage('alerts')}
         />
       )}
       {page === 'alerts' && (

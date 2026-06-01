@@ -2,22 +2,22 @@
 
 ## Active — Next Session
 
-- [ ] **Alert cards with transit badges** — show the associated transit line badges (subway circles, bus route pills) in each alert card.
-- [x] **Alert icon → notification center sync** — cards now derive icon state from central alerts/dismissedAlerts arrays, not their own API data.
-- [ ] **NY Waterway route coverage** — Hoboken 14th St only shows Midtown/W39th route from Connexionz API. Verify if downtown (Brookfield Place) service still operates from this terminal or only from NJT Terminal. May need to combine terminal tags or check if Connexionz data is incomplete.
-- [ ] **NYC Ferry empty departures** — some stops (e.g. Astoria) return empty departures even during operating hours. Investigate if the GTFS-RT feed has timing gaps or if stop IDs don't match the feed's stop references.
-- [x] **Dismiss all alerts** — button appears when 2+ active alerts in notification center.
-- [ ] **Tap alert icon → navigate to alerts** — tapping the ⚠️ on a transit card navigates to the Alerts page and highlights the relevant alert.
-- [ ] **alert timestamps** — show when the alert was first posted. If no timestamp available from PANYNJ API, display "time unknown".
-- [ ] **Alert icon staleness setting** — add a setting (like desktop's inline alert duration: Ticker only / 15m / 30m / 60m / Always) that controls how long the ⚠️ icon on transit cards stays active before greying out to indicate a stale alert. Greyed-out icon still visible but visually muted.
-- [ ] **NJT Bus direction picker** — bus stops can serve routes in both directions (e.g. Willow/15th has 126 going to NYC AND 126 coming from NYC at different physical stops). Need to show direction in the stop picker and presets.
-- [ ] **Update presets with inbound + outbound** — mobile presets should include both directions (matching desktop), not just outbound.
-- [ ] **Weather zip code in Settings** — add a zip code input for weather location in Settings (only visible when weather pill is enabled). Allows manual override of GPS-based location.
-- [x] **All transit types supported in Add Stop** — all 11 modes implemented with proper multi-step pickers.
-- [x] **Fix duplicate alerts in Alerts panel** — polling replaces entire array with deduped live feed. Stale alerts auto-removed.
-- [x] **Three-state alert icon** — full color (active), greyed (dismissed), hidden (no alert in feed).
-- [ ] **Buy Me a Coffee link** — swap Venmo link with https://buymeacoffee.com/mystopnow. Consider placement (Settings about section, welcome page footer).
-- [x] **LIRR/MNR per-station route filter** — built from static GTFS stop_times.txt + trips.txt at load time.
+- [x] **Alert cards with transit badges** — MTA alerts show proper colored subway line circles, bus alerts show route pills, PATH/tunnel show source badges.
+- [x] **Alert icon → notification center sync** — cards derive icon state from central alerts/dismissedAlerts.
+- [x] **Dismiss all alerts** — button appears when 2+ active alerts.
+- [x] **Tap alert icon → navigate to alerts** — tapping the alert triangle navigates to Alerts page.
+- [x] **Three-state alert icon** — amber triangle (active), greyed (dismissed), hidden. Uses lucide AlertTriangle SVG.
+- [x] **Alert timestamps** — tunnel alerts show "X min ago", others show "time unknown" when no timestamp available.
+- [x] **NJT Bus direction picker** — direction picker after route selection for multi-ID stops.
+- [x] **All transit types supported in Add Stop** — all 11 modes with proper multi-step pickers.
+- [x] **Fix duplicate alerts** — polling replaces entire array with deduped live feed.
+- [x] **LIRR/MNR per-station route filter** — built from static GTFS.
+- [ ] **Alert icon staleness setting** — setting to control how long alert icon stays active before greying out.
+- [ ] **NY Waterway route coverage** — verify Hoboken 14th downtown service.
+- [ ] **NYC Ferry empty departures** — investigate GTFS-RT feed gaps.
+- [ ] **Update presets with inbound + outbound** — include both directions.
+- [ ] **Weather zip code in Settings** — zip code input for manual weather location override (partially implemented).
+- [ ] **Buy Me a Coffee link** — swap Venmo with buymeacoffee.com/mystopnow.
 - [ ] **Transit card icons per type** — add ferry SVG icon (currently emoji ⛴️).
 - [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills, MobileApp alert aggregation. Full manual E2E walkthrough.
 

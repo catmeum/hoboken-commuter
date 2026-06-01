@@ -22,6 +22,7 @@ export default function SettingsPage({
   open, onClose,
   theme, setTheme,
   tempUnit, setTempUnit,
+  weatherZip, setWeatherZip,
   showWeather, setShowWeather,
   showTunnels, setShowTunnels,
   tunnels, setTunnels,
@@ -108,6 +109,24 @@ export default function SettingsPage({
             <button className="m-set-mode-btn" onClick={() => setTempUnit(u => u === 'F' ? 'C' : 'F')}>
               °{tempUnit} {tempUnit === 'F' ? 'Fahrenheit' : 'Celsius'}
             </button>
+          </div>
+        )}
+        {showWeather && (
+          <div className="m-set-toggle-row">
+            <span>Weather Location</span>
+            <input
+              type="text"
+              className="m-set-zip-input"
+              placeholder="Zip code"
+              maxLength={5}
+              inputMode="numeric"
+              defaultValue={weatherZip || ''}
+              onBlur={(e) => {
+                const val = e.target.value.replace(/\D/g, '')
+                if (val.length === 5) setWeatherZip(val)
+                else if (val.length === 0) setWeatherZip('')
+              }}
+            />
           </div>
         )}
         <div className="m-set-toggle-row">
