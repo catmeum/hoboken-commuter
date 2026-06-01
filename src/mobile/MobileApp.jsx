@@ -91,16 +91,19 @@ export default function MobileApp() {
     const pollAlerts = async () => {
       try {
         const liveAlerts = await fetchAlerts(stops)
-        // Only add new alerts not already dismissed
-        setAlerts(prev => {
-          const dismissedIds = new Set(dismissedAlerts.map(a => a.id))
-          const existingIds = new Set(prev.map(a => a.id))
-          const newAlerts = liveAlerts.filter(a => !dismissedIds.has(a.id) && !existingIds.has(a.id))
-          if (newAlerts.length === 0) return prev
-          return [...prev, ...newAlerts]
-        })
+        // Replace active alerts with current live feed (deduped by ID)
+        // Alerts no longer in the feed are automatically removed
+        const dismissedIds = new Set(dismissedAlerts.map(a => a.id))
+        const seen = new Set()
+        const deduped = []
+        for (const a of liveAlerts) {
+          if (dismissedIds.has(a.id) || seen.has(a.id)) continue
+          seen.add(a.id)
+          deduped.push(a)
+        }
+        setAlerts(deduped)
       } catch {
-        // Alert polling failed — silent
+        // Alert polling failed — keep existing alerts
       }
     }
 
@@ -110,19 +113,18 @@ export default function MobileApp() {
   }, [stops, dismissedAlerts])
 
   // ── Remove tunnel alerts when tunnels toggled off or tunnel selection changes ──
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!showTunnels) {
-      // Remove all tunnel alerts from active alerts
       setAlerts(prev => prev.filter(a => !a.id?.startsWith('tunnel-')))
     } else {
-      // Remove alerts for tunnels no longer selected
       setAlerts(prev => prev.filter(a => {
         if (!a.id?.startsWith('tunnel-')) return true
-        // Keep only if the tunnel is in the current selection
         return tunnels.some(t => a.id.includes(`tunnel-${t}`))
       }))
     }
-  }, [showTunnels, tunnels]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showTunnels, tunnels])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // ── Navigation helpers ──
   const navigate = useCallback((p) => {
@@ -185,6 +187,11 @@ export default function MobileApp() {
     setDismissedAlerts(prev => [...prev, alert])
   }, [])
 
+  const dismissAllAlerts = useCallback(() => {
+    setDismissedAlerts(prev => [...prev, ...alerts])
+    setAlerts([])
+  }, [alerts])
+
   const restoreAlert = useCallback((alert) => {
     setDismissedAlerts(prev => prev.filter(a => a !== alert))
     setAlerts(prev => [...prev, alert])
@@ -224,6 +231,7 @@ export default function MobileApp() {
           tunnels={tunnels}
           tempUnit={tempUnit}
           alerts={alerts}
+          dismissedAlerts={dismissedAlerts}
           setAlerts={setAlerts}
         />
       )}
@@ -232,6 +240,7 @@ export default function MobileApp() {
           alerts={alerts}
           dismissedAlerts={dismissedAlerts}
           onDismiss={dismissAlert}
+          onDismissAll={dismissAllAlerts}
           onRestore={restoreAlert}
           alertBadge={alertBadge}
         />

@@ -53,7 +53,7 @@ function AlertCard({ alert, onDismiss }) {
   )
 }
 
-export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onRestore }) {
+export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onDismissAll, onRestore }) {
   const [showDismissed, setShowDismissed] = useState(false)
 
   return (
@@ -65,9 +65,16 @@ export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onResto
 
       <div className="m-alerts-list">
         {alerts.length > 0 ? (
-          alerts.map((alert, i) => (
-            <AlertCard key={`${alert.text}-${i}`} alert={alert} onDismiss={onDismiss} />
-          ))
+          <>
+            {alerts.map((alert, i) => (
+              <AlertCard key={`${alert.text}-${i}`} alert={alert} onDismiss={onDismiss} />
+            ))}
+            {alerts.length > 1 && (
+              <button className="m-dismiss-all-btn" onClick={onDismissAll}>
+                Dismiss all
+              </button>
+            )}
+          </>
         ) : (
           <div className="m-alerts-empty">
             <span className="m-alerts-empty-icon">✓</span>

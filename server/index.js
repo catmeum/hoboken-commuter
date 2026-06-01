@@ -819,6 +819,70 @@ app.get('/api/bus/stop-search', async (req, res) => {
   }
 })
 
+// Bus stop directions — for stops with multiple physical IDs (different directions at same intersection)
+// Returns which direction each stop ID serves, based on direction_id from GTFS trips
+app.get('/api/bus/stop-directions', async (req, res) => {
+  try {
+    await loadGTFS()
+    const stopIds = (req.query.ids || '').split(',').filter(Boolean)
+    const routes = (req.query.routes || '').split(',').filter(Boolean)
+    if (stopIds.length <= 1 || routes.length === 0) return res.json({ directions: [], needsPicker: false })
+
+    // For each stop ID, determine its primary direction by looking at headsigns
+    const directionsByStop = {}
+    for (const sid of stopIds) {
+      const entries = scheduleByStop[sid] || []
+      const headsigns = new Set()
+      for (const e of entries) {
+        if (routes.length > 0 && !routes.includes(e.route)) continue
+        const hs = tripHeadsignMap[e.tripId] || ''
+        if (hs) headsigns.add(hs)
+        // Use direction_id to determine inbound/outbound
+        const dir = tripDirectionMap[e.tripId]
+        if (!directionsByStop[sid]) directionsByStop[sid] = { dirs: new Set(), headsigns: new Set() }
+        if (dir) directionsByStop[sid].dirs.add(dir)
+        if (hs) directionsByStop[sid].headsigns.add(hs)
+      }
+    }
+
+    // Build direction options — group stop IDs by their direction_id
+    const dir0Stops = []
+    const dir1Stops = []
+    for (const [sid, info] of Object.entries(directionsByStop)) {
+      if (info.dirs.has('0') && !info.dirs.has('1')) dir0Stops.push(sid)
+      else if (info.dirs.has('1') && !info.dirs.has('0')) dir1Stops.push(sid)
+      else { dir0Stops.push(sid); dir1Stops.push(sid) } // serves both — include in both
+    }
+
+    // Determine labels from headsigns
+    const getLabel = (stops) => {
+      for (const sid of stops) {
+        const info = directionsByStop[sid]
+        if (info?.headsigns.size > 0) {
+          const hs = [...info.headsigns][0].replace(/^\d+[A-Z]?\s+/, '')
+          if (hs.toUpperCase().includes('NEW YORK')) return 'To NYC'
+          return `To ${hs.split(' ')[0]}`
+        }
+      }
+      return 'Unknown'
+    }
+
+    const directions = []
+    if (dir0Stops.length > 0) directions.push({ label: getLabel(dir0Stops), stopIds: dir0Stops.join(','), dirId: '0' })
+    if (dir1Stops.length > 0 && dir1Stops.join(',') !== dir0Stops.join(',')) {
+      directions.push({ label: getLabel(dir1Stops), stopIds: dir1Stops.join(','), dirId: '1' })
+    }
+
+    // Only show picker if there are genuinely different directions
+    const needsPicker = directions.length > 1
+    if (needsPicker) directions.push({ label: 'Both directions', stopIds: stopIds.join(','), dirId: 'all' })
+
+    res.json({ directions, needsPicker })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // Headsign variants at a stop — returns distinct headsigns for given routes at given stop IDs
 // Used by the mobile picker to let users choose between e.g. "126 via Willow" vs "126 via Washington"
 app.get('/api/bus/stop-headsigns', async (req, res) => {

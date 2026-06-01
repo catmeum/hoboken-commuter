@@ -50,6 +50,9 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   // Bus step 3 state (headsign variants for PABT-like stops)
   const [busVariants, setBusVariants] = useState([])
 
+  // Bus direction state (for stops with multiple physical IDs)
+  const [busDirections, setBusDirections] = useState([])
+
   // PATH step 2 state
   const [selectedPathStation, setSelectedPathStation] = useState(null)
   const [pathOptions, setPathOptions] = useState([])
@@ -96,6 +99,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     setBusRoutes([])
     setSelectedBusRoutes(new Set())
     setBusVariants([])
+    setBusDirections([])
     setSelectedPathStation(null)
     setPathOptions([])
     setSelectedPathOptions(new Set())
@@ -146,6 +150,9 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     } else if (step === 'bus-variants') {
       setStep('bus-lines')
       setBusVariants([])
+    } else if (step === 'bus-direction') {
+      setStep('bus-lines')
+      setBusDirections([])
     } else if (step === 'bus-lines') {
       setStep('search')
       setSelectedBusStop(null)
@@ -396,34 +403,62 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   function confirmBus() {
     if (!selectedBusStop || selectedBusRoutes.size === 0) return
     const routes = [...selectedBusRoutes].join(',')
-    // Fetch headsign variants to check if we need a sub-picker
-    fetch(`/api/bus/stop-headsigns?ids=${selectedBusStop.id}&routes=${routes}`)
+    const ids = selectedBusStop.id
+
+    // First check if this stop has multiple physical IDs (different directions)
+    const idList = ids.split(',')
+    if (idList.length > 1) {
+      // Check if directions differ
+      fetch(`/api/bus/stop-directions?ids=${ids}&routes=${routes}`)
+        .then(r => r.ok ? r.json() : { needsPicker: false })
+        .then(d => {
+          if (d.needsPicker && d.directions.length > 1) {
+            setBusDirections(d.directions)
+            setStep('bus-direction')
+          } else {
+            // Single direction or can't determine — proceed to variant check
+            checkBusVariants(ids, routes)
+          }
+        })
+    } else {
+      // Single stop ID — skip direction picker, go to variant check
+      checkBusVariants(ids, routes)
+    }
+  }
+
+  // Check for PABT headsign variants after direction is resolved
+  function checkBusVariants(stopIds, routes) {
+    fetch(`/api/bus/stop-headsigns?ids=${stopIds}&routes=${routes}`)
       .then(r => r.ok ? r.json() : { variants: [] })
       .then(d => {
         const variants = d.variants || []
-
-        // Check if variants have different gates — only show picker if gates differ
         const uniqueGates = new Set(variants.map(v => v.gate).filter(Boolean))
         const hasMultipleGates = uniqueGates.size > 1
-
-        // Also check if a single route has multiple distinct variants
         const routeVariantCounts = {}
         for (const v of variants) {
           routeVariantCounts[v.route] = (routeVariantCounts[v.route] || 0) + 1
         }
         const hasMultipleVariantsPerRoute = Object.values(routeVariantCounts).some(c => c > 1)
 
-        // Show variant picker only if gates differ (meaningful choice)
         if (hasMultipleGates && hasMultipleVariantsPerRoute && variants.length > 1) {
           setBusVariants(variants)
           setStep('bus-variants')
         } else {
-          // No meaningful variant choice — add directly
-          const stopId = `bus:${selectedBusStop.id}:${routes}`
+          const stopId = `bus:${stopIds}:${routes}`
           const displayName = `${selectedBusStop.name} (${routes})`
           onAdd(stopId, displayName)
         }
       })
+  }
+
+  // Select a bus direction — then check for variants
+  function selectBusDirection(dir) {
+    const routes = [...selectedBusRoutes].join(',')
+    if (dir.dirId === 'all') {
+      checkBusVariants(selectedBusStop.id, routes)
+    } else {
+      checkBusVariants(dir.stopIds, routes)
+    }
   }
 
   // ── Add bus with headsign filter (from variant picker) ──
@@ -517,6 +552,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     if (step === 'modes') return 'Add a Stop'
     if (step === 'subway-dir') return `${selectedStation?.name} — Lines & Direction`
     if (step === 'bus-lines') return `${selectedBusStop?.name} — Select Routes`
+    if (step === 'bus-direction') return `${selectedBusStop?.name} — Select Direction`
     if (step === 'bus-variants') return `${selectedBusStop?.name} — Pick Variant`
     if (step === 'path-dir') return `${selectedPathStation?.name} — Select Direction`
     if (step === 'rail-lines') return `${selectedRailStation?.name} — Select Lines`
@@ -673,6 +709,24 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
           >
             Add to My Stops
           </button>
+        </div>
+      )}
+
+      {/* Step: Bus direction (for stops with multiple physical IDs) */}
+      {step === 'bus-direction' && (
+        <div className="m-addstop-step">
+          <p className="m-addstop-section-label">Which direction?</p>
+          <div className="m-addstop-dir-options">
+            {busDirections.map((dir, i) => (
+              <button
+                key={i}
+                className="m-addstop-dir-btn"
+                onClick={() => selectBusDirection(dir)}
+              >
+                {dir.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

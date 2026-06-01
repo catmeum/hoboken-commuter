@@ -372,7 +372,9 @@
 .ms-badge-bus { border-radius: 5px; padding: 0 5px; font-size: 10px; }
 .ms-badge-rail { border-radius: 5px; padding: 0 6px; font-size: 9px; }
 .ms-station { font-size: 13px; font-weight: 600; margin-left: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-.ms-alert { font-size: 11px; margin-left: auto; }
+.ms-alert { font-size: 11px; margin-left: auto; flex-shrink: 0; }
+.ms-alert-active { opacity: 1; }
+.ms-alert-dismissed { opacity: 0.3; filter: grayscale(1); }
 .ms-badge-more {
   font-size: 10px; font-weight: 600; color: var(--m-text-muted);
   padding: 2px 6px; flex-shrink: 0; cursor: pointer;
@@ -950,3 +952,13 @@
 }
 .ms-gate-row:last-child { border-bottom: none; }
 .ms-gate-num { font-weight: 600; color: var(--m-accent); }
+
+/* Dismiss all button */
+.m-dismiss-all-btn {
+  display: block; width: 100%; padding: 10px; margin-top: 8px;
+  border: 1px solid var(--m-card-border); border-radius: 10px;
+  background: transparent; color: var(--m-text-muted);
+  font-size: 12px; font-weight: 500; font-family: inherit;
+  cursor: pointer; text-align: center;
+}
+.m-dismiss-all-btn:active { background: var(--m-card-bg); }
