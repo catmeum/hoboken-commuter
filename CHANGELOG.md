@@ -1,5 +1,31 @@
 # Hoboken Commuter Dashboard — Version History
 
+## 2026-06-02 — Desktop Alerts Panel & Test Coverage
+
+### Desktop Alerts Panel
+- **Alerts sidebar** — new slide-in panel from the right, triggered by bell icon in header
+- **Bidirectional toggle** — independent direction filter within the alerts panel (separate from main dashboard direction)
+- **Dismiss/restore** — individual dismiss, dismiss all, and restore from dismissed section
+- **Badge count** — bell icon shows red badge with undismissed alert count; respects auto-dismiss settings
+- **Auto-dismiss setting** — renamed "Inline alert duration" to "Auto-dismiss alerts" with new options: Ticker only, After 30 min, After 1 hour, After 3 hours, After 12 hours, Never
+- **Removed inline alerts from cards** — alerts no longer appear on individual transit cards (TunnelCard, MTA Subway, NJT Rail, MTA Bus, Ferry, PATH). All alerts centralized in the panel.
+
+### Alert Timestamps
+- **API-provided timestamps** — GTFS-RT `active_period.start` extracted for NJT Bus and MTA Subway alerts; PATH alerts use `SendDate` from PANYNJ JSON; Tunnel alerts computed from `ageMinutes`
+- **No false timestamps** — alerts without an API-provided time show no timestamp (rather than showing incorrect "first seen" time)
+- **Relative time display** — timestamps shown as "2h ago", "45 min ago", "just now" in both desktop panel and mobile alerts page
+
+### Missing Endpoints Fixed
+- **`/api/bus/alerts`** — new endpoint returning NJT bus alerts (mobile was silently 404ing)
+- **`/api/path/alerts`** — new endpoint returning PATH alerts with `startedAt` timestamp
+- **`/api/ferry/alerts`** — new endpoint returning NY Waterway ferry alerts
+
+### Test Coverage
+- **32 new AddStopPanel tests** — covering all 7 previously untested transit modes: NY Waterway Ferry, HBLR, Newark Light Rail, LIRR, Metro-North, MTA Bus, NYC Ferry
+- Total AddStopPanel test count: 53 (was 21)
+
+---
+
 ## 2026-06-02 — Bug Fixes & Alert UX
 
 ### Fixes

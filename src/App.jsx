@@ -5,7 +5,6 @@ import {
   Bus,
   CloudSun,
   Newspaper,
-  AlertTriangle,
   Droplets,
   Wind,
   Ship,
@@ -248,7 +247,9 @@ function buildTickerItems(tunnelData, ferryData, pathData, busData, mtaAlerts, r
     for (const t of tunnelData.tunnels) {
       const alertId = t.name.toLowerCase() === 'lincoln' ? 'lincoln_tunnel' : 'holland_tunnel'
       if (on(alertId) && t.allAlerts && t.allAlerts.length > 0) {
-        items.push({ source: 'PANYNJ', cls: 'panynj', text: t.allAlerts[0] })
+        const a = t.allAlerts[0]
+        const ageMs = (typeof a === 'object' && a.ageMinutes != null) ? a.ageMinutes * 60000 : null
+        items.push({ source: 'PANYNJ', cls: 'panynj', text: typeof a === 'string' ? a : a.text, startedAt: ageMs != null ? Date.now() - ageMs : null })
       }
     }
   }
@@ -258,32 +259,32 @@ function buildTickerItems(tunnelData, ferryData, pathData, busData, mtaAlerts, r
     busData._alerts.forEach((a) => {
       const routeAlertIds = a.routes.map(r => `bus_${r}`)
       if (routeAlertIds.some(id => on(id))) {
-        items.push({ source: 'NJT', cls: 'njtransit', text: `Rt ${a.routes.join(',')}: ${a.text}` })
+        items.push({ source: 'NJT', cls: 'njtransit', text: `Rt ${a.routes.join(',')}: ${a.text}`, startedAt: a.startedAt || null })
       }
     })
   }
 
   // Ferry alert (live from Connexionz)
   if (on('ferry') && ferryData?.alert) {
-    items.push({ source: 'Ferry', cls: 'ferry', text: ferryData.alert })
+    items.push({ source: 'Ferry', cls: 'ferry', text: ferryData.alert, startedAt: null })
   }
 
   // PATH alert (live from PANYNJ)
   if ((on('path_hob33') || on('path_jsq33')) && pathData?.alert) {
-    items.push({ source: 'PATH', cls: 'path', text: pathData.alert })
+    items.push({ source: 'PATH', cls: 'path', text: pathData.alert, startedAt: pathData.alertStartedAt || null })
   }
 
   // MTA Subway alerts
   if (on('mta_subway') && mtaAlerts && mtaAlerts.length > 0) {
     for (const a of mtaAlerts.slice(0, 3)) {
-      items.push({ source: 'MTA', cls: 'mta', text: a.text })
+      items.push({ source: 'MTA', cls: 'mta', text: a.text, startedAt: a.startedAt || null })
     }
   }
 
   // NJT Rail alerts
   if (on('njt_rail') && railAlerts && railAlerts.length > 0) {
     for (const a of railAlerts.slice(0, 2)) {
-      items.push({ source: 'NJT Rail', cls: 'njtransit', text: a.text })
+      items.push({ source: 'NJT Rail', cls: 'njtransit', text: a.text, startedAt: null })
     }
   }
 
@@ -293,25 +294,6 @@ function buildTickerItems(tunnelData, ferryData, pathData, busData, mtaAlerts, r
   }
 
   return items
-}
-
-// ── Shared inline alert ──
-// Dismissed alerts are tracked in-memory (session only, resets on page refresh).
-// The alert still shows in the ticker — only the inline card display is suppressed.
-const _dismissedAlerts = new Set()
-
-function InlineAlert({ text }) {
-  const [dismissed, setDismissed] = useState(() => _dismissedAlerts.has(text))
-  if (!text || dismissed) return null
-  return (
-    <div className="inline-alert">
-      <AlertTriangle className="inline-alert-icon" />
-      <span>{text}</span>
-      <button className="inline-alert-dismiss" onClick={() => { _dismissedAlerts.add(text); setDismissed(true) }} title="Dismiss this alert">
-        <X size={12} />
-      </button>
-    </div>
-  )
 }
 
 // ── Connectivity banner ──
@@ -384,9 +366,6 @@ function TunnelCard({ data, alertSettings, activeAlertSources, inlineAlertDurati
                     </span>
                   )}
                 </div>
-                {inlineAlerts.length > 0 && (
-                  <InlineAlert text={inlineAlerts[0].text} />
-                )}
               </div>
             )
           })}
@@ -631,9 +610,6 @@ function DynamicMtaCard({ stopId, displayName, alertSettings, activeAlertSources
         <span className="card-title-stop">{stationName}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {showAlerts && alerts.length > 0 && (
-          <InlineAlert text={alerts[0]} />
-        )}
         {departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
@@ -682,9 +658,6 @@ function DynamicRailCard({ stopId, displayName, alertSettings, activeAlertSource
         <span className="card-title-stop">{stationName}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {showAlerts && alerts.length > 0 && (
-          <InlineAlert text={alerts[0]} />
-        )}
         {departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
@@ -860,7 +833,6 @@ function DynamicMtaBusCard({ stopId, displayName, alertSettings, activeAlertSour
         <span className="card-title-stop">{name}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {showAlerts && alerts.length > 0 && <InlineAlert text={alerts[0]} />}
         {timedOut ? (
           <div className="bus-empty" style={{ color: 'var(--accent-orange, #f97316)' }}>
             Feed timed out — try again shortly
@@ -934,7 +906,6 @@ function FerryCard({ data, displayName, alertSettings, activeAlertSources, inlin
         <span className="card-title-stop">{dest}</span>
       </div>
       <div className="card-body">
-        {showAlert && <InlineAlert text={data.alert} />}
         {hasDepartures ? (
           <div className="transit-list">
             {data.departures.map((f, i) => (
@@ -974,7 +945,6 @@ function PathCard({ data, displayName, alertSettings, activeAlertSources, inline
         )}
       </div>
       <div className="card-body">
-        {showAlert && <InlineAlert text={data.alert} />}
         {hasDepartures ? (
           <div className="transit-list">
             {data.departures.map((p, i) => (
@@ -2797,13 +2767,14 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
               <h3 className="settings-section-title">Display</h3>
               <div className="settings-display-grid">
                 <div className="settings-display-row">
-                  <span className="settings-display-label">Inline alert duration</span>
-                  <select className="settings-city-select" value={draftInlineDuration} onChange={(e) => setDraftInlineDuration(Number(e.target.value))}>
+                  <span className="settings-display-label">Auto-dismiss alerts</span>
+                  <select className="settings-city-select" value={draftInlineDuration} onChange={(e) => setDraftInlineDuration(e.target.value === 'Infinity' ? Infinity : Number(e.target.value))}>
                     <option value={0}>Ticker only</option>
-                    <option value={15}>15 minutes</option>
-                    <option value={30}>30 minutes</option>
-                    <option value={60}>60 minutes</option>
-                    <option value={Infinity}>Always on</option>
+                    <option value={30}>After 30 min</option>
+                    <option value={60}>After 1 hour</option>
+                    <option value={180}>After 3 hours</option>
+                    <option value={720}>After 12 hours</option>
+                    <option value={Infinity}>Never</option>
                   </select>
                 </div>
                 <div className="settings-display-row">
@@ -3309,6 +3280,126 @@ function saveSettings(settings) {
   } catch {}
 }
 
+// ── Desktop Alerts Panel ──
+function formatAlertTime(epochMs) {
+  if (!epochMs) return ''
+  const diffMin = Math.round((Date.now() - epochMs) / 60000)
+  if (diffMin < 1) return 'just now'
+  if (diffMin < 60) return `${diffMin} min ago`
+  const hours = Math.floor(diffMin / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+function AlertsPanel({ open, onClose, tickerItems, dismissed, onDismiss, onRestore, onDismissAll, direction, onDirectionChange, outboundCity, inboundCity, autoDismissMinutes }) {
+
+  // Filter by staleness (auto-dismiss): if autoDismissMinutes is 0, no alerts show in panel (ticker only).
+  // If Infinity, all alerts stay. Otherwise, only alerts received within the last N minutes.
+  const now = Date.now()
+  const visibleItems = tickerItems.filter(item => {
+    if (item.text === 'No active alerts') return false
+    if (autoDismissMinutes === 0) return false // ticker only mode
+    if (autoDismissMinutes === Infinity || !autoDismissMinutes) return true // never auto-dismiss
+    if (!item.receivedAt) return true // no timestamp = keep
+    const ageMin = (now - item.receivedAt) / 60000
+    return ageMin <= autoDismissMinutes
+  })
+
+  const activeAlerts = visibleItems.filter(
+    item => !dismissed.has(item.text)
+  )
+  const dismissedAlerts = visibleItems.filter(
+    item => dismissed.has(item.text)
+  )
+
+  function handleDismiss(item) {
+    onDismiss(item)
+  }
+  function handleRestore(item) {
+    onRestore(item)
+  }
+  function handleDismissAll() {
+    onDismissAll(visibleItems.filter(i => !dismissed.has(i.text)))
+  }
+
+  const dirLabel = direction === 'outbound'
+    ? `${outboundCity} → ${inboundCity}`
+    : `${inboundCity} → ${outboundCity}`
+
+  return (
+    <>
+      {open && <div className="alerts-panel-backdrop" onClick={onClose} />}
+      <div className={`alerts-panel ${open ? 'open' : ''}`}>
+        <div className="alerts-panel-header">
+          <span className="alerts-panel-title">Alerts</span>
+          <button className="alerts-panel-close" onClick={onClose}><X size={18} /></button>
+        </div>
+
+        <div className="alerts-panel-dir-toggle">
+          <button
+            className={`alerts-panel-dir-btn ${direction === 'outbound' ? 'active' : ''}`}
+            onClick={() => onDirectionChange('outbound')}
+          >
+            {outboundCity} → {inboundCity}
+          </button>
+          <button
+            className={`alerts-panel-dir-btn ${direction === 'inbound' ? 'active' : ''}`}
+            onClick={() => onDirectionChange('inbound')}
+          >
+            {inboundCity} → {outboundCity}
+          </button>
+        </div>
+
+        <div className="alerts-panel-list">
+          {autoDismissMinutes === 0 ? (
+            <div className="alerts-panel-empty">
+              <span className="alerts-panel-empty-icon">📢</span>
+              <p>Alerts are set to ticker only</p>
+              <p style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Change in Settings → Auto-dismiss alerts</p>
+            </div>
+          ) : activeAlerts.length > 0 ? (
+            <>
+              {activeAlerts.map((item, i) => (
+                <div key={`${item.text}-${i}`} className="alerts-panel-card">
+                  <div className="alerts-panel-card-head">
+                    <span className={`alerts-panel-source ${item.cls}`}>{item.source}</span>
+                    <span className="alerts-panel-timestamp">{formatAlertTime(item.receivedAt)}</span>
+                  </div>
+                  <div className="alerts-panel-card-body">{item.text}</div>
+                  <button className="alerts-panel-card-dismiss" onClick={() => handleDismiss(item)}>Dismiss</button>
+                </div>
+              ))}
+              {activeAlerts.length > 1 && (
+                <button className="alerts-panel-dismiss-all" onClick={handleDismissAll}>Dismiss all</button>
+              )}
+            </>
+          ) : (
+            <div className="alerts-panel-empty">
+              <span className="alerts-panel-empty-icon">✓</span>
+              <p>No active alerts for {dirLabel}</p>
+            </div>
+          )}
+        </div>
+
+        {dismissedAlerts.length > 0 && (
+          <div className="alerts-panel-dismissed">
+            <p className="alerts-panel-dismissed-title">Dismissed ({dismissedAlerts.length})</p>
+            {dismissedAlerts.map((item, i) => (
+              <div key={`dismissed-${i}`} className="alerts-panel-card dismissed">
+                <div className="alerts-panel-card-head">
+                  <span className={`alerts-panel-source ${item.cls}`}>{item.source}</span>
+                </div>
+                <div className="alerts-panel-card-body">{item.text}</div>
+                <button className="alerts-panel-card-dismiss" onClick={() => handleRestore(item)}>Restore</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
 export default function App() {
   const [theme, setTheme] = useState(isDaytime() ? 'light' : 'dark')
   const [autoTheme, setAutoTheme] = useState(true)
@@ -3328,6 +3419,9 @@ export default function App() {
   const [showWeather, setShowWeather] = useState(() => loadSettings().showWeather)
   const [selectedTunnels, setSelectedTunnels] = useState(() => loadSettings().selectedTunnels)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [alertsPanelOpen, setAlertsPanelOpen] = useState(false)
+  const [alertsPanelDirection, setAlertsPanelDirection] = useState('outbound')
+  const [dismissedAlertTexts, setDismissedAlertTexts] = useState(new Set())
 
   // Show preset picker on first load (no saved settings) or after reset
   const [presetPickerOpen, setPresetPickerOpen] = useState(() => !localStorage.getItem(STORAGE_KEY))
@@ -3473,6 +3567,18 @@ export default function App() {
 
   const tickerItems = buildTickerItems(tunnels, ferry, path, busStops, mtaAlerts, railAlerts, alertSettings, activeAlertSources)
 
+  // Alerts panel uses its own direction toggle for filtering
+  const alertsPanelSources = deriveActiveAlertSources(
+    alertsPanelDirection === 'outbound' ? outboundStops : inboundStops
+  )
+  const rawAlertsPanelItems = buildTickerItems(tunnels, ferry, path, busStops, mtaAlerts, railAlerts, alertSettings, alertsPanelSources)
+
+  // Use API-provided startedAt for timestamps — no client-side fallback (prefer no timestamp over incorrect one)
+  const alertsPanelItems = rawAlertsPanelItems.map(item => ({
+    ...item,
+    receivedAt: item.startedAt || null,
+  }))
+
   // Pull-to-refresh
   const pullRef = useRef({ startY: 0, pulling: false })
   const [pullProgress, setPullProgress] = useState(0) // 0–1
@@ -3529,8 +3635,22 @@ export default function App() {
           <button className="settings-btn" onClick={() => { /* scroll to top / home */ window.scrollTo(0, 0) }} title="Home">
             <Home className="settings-btn-icon" />
           </button>
-          <button className="settings-btn" title="Alerts" onClick={() => { /* TODO: open alerts panel */ }}>
+          <button className={`settings-btn ${alertsPanelOpen ? 'active' : ''}`} title="Alerts" onClick={() => setAlertsPanelOpen(v => !v)}>
             <Bell className="settings-btn-icon" />
+            {(() => {
+              if (inlineAlertDuration === 0) return null // ticker only — no badge
+              const undismissedCount = alertsPanelItems.filter(i => {
+                if (i.text === 'No active alerts') return false
+                if (dismissedAlertTexts.has(i.text)) return false
+                // Apply staleness filter
+                if (inlineAlertDuration !== Infinity && inlineAlertDuration && i.receivedAt) {
+                  const ageMin = (Date.now() - i.receivedAt) / 60000
+                  if (ageMin > inlineAlertDuration) return false
+                }
+                return true
+              }).length
+              return undismissedCount > 0 ? <span className="alerts-badge-count">{undismissedCount}</span> : null
+            })()}
           </button>
           <ThemeToggle theme={theme} onToggle={handleThemeToggle} />
           <button className="settings-btn" onClick={() => setSettingsOpen(true)} title="Settings">
@@ -3673,6 +3793,21 @@ export default function App() {
     <PresetPickerModal
       open={presetPickerOpen}
       onSelect={handlePresetSelect}
+    />
+
+    <AlertsPanel
+      open={alertsPanelOpen}
+      onClose={() => setAlertsPanelOpen(false)}
+      tickerItems={alertsPanelItems}
+      dismissed={dismissedAlertTexts}
+      onDismiss={(item) => setDismissedAlertTexts(prev => new Set([...prev, item.text]))}
+      onRestore={(item) => setDismissedAlertTexts(prev => { const next = new Set(prev); next.delete(item.text); return next })}
+      onDismissAll={(items) => setDismissedAlertTexts(prev => new Set([...prev, ...items.map(i => i.text)]))}
+      direction={alertsPanelDirection}
+      onDirectionChange={setAlertsPanelDirection}
+      outboundCity={outboundCity}
+      inboundCity={inboundCity}
+      autoDismissMinutes={inlineAlertDuration}
     />
     </>
   )

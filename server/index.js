@@ -597,7 +597,10 @@ async function fetchBusAlerts() {
       }
       if (routesAffected.size > 0) {
         const text = (alert.descriptionText?.translation?.[0]?.text || alert.headerText?.translation?.[0]?.text || '').slice(0, 200)
-        if (text) alerts.push({ routes: [...routesAffected], text })
+        // Extract active_period start timestamp (Unix seconds)
+        const startEpoch = alert.activePeriod?.[0]?.start
+        const startedAt = startEpoch ? Number(startEpoch) * 1000 : null
+        if (text) alerts.push({ routes: [...routesAffected], text, startedAt })
       }
     }
     busAlertCache = alerts
@@ -1078,6 +1081,16 @@ app.get('/api/bus', async (req, res) => {
   }
 })
 
+// Bus alerts endpoint — returns just the alerts for mobile consumption
+app.get('/api/bus/alerts', async (req, res) => {
+  try {
+    const alerts = await fetchBusAlerts()
+    res.json({ alerts, timestamp: new Date().toISOString() })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 // ══════════════════════════════════════════════════════════
 // PATH
 // ══════════════════════════════════════════════════════════
@@ -1112,10 +1125,25 @@ async function fetchPathAlerts() {
     return msg.includes('33') || msg.includes('hoboken') || msg.includes('hob-')
       || tmpl.includes('33') || tmpl.includes('hoboken')
   })
-  pathAlertCache = disruptions.length > 0 ? disruptions[0].SentMessage : null
+  // Extract timestamp from PATH alert if available (SendDate field)
+  let alertStartedAt = null
+  if (disruptions.length > 0 && disruptions[0].SendDate) {
+    alertStartedAt = new Date(disruptions[0].SendDate).getTime() || null
+  }
+  pathAlertCache = disruptions.length > 0 ? { text: disruptions[0].SentMessage, startedAt: alertStartedAt } : null
   pathAlertCacheTime = Date.now()
   return pathAlertCache
 }
+
+// PATH alerts endpoint — returns just the alert text + timestamp for mobile
+app.get('/api/path/alerts', async (req, res) => {
+  try {
+    const pathAlert = await fetchPathAlerts()
+    res.json({ alert: pathAlert?.text || null, startedAt: pathAlert?.startedAt || null })
+  } catch (err) {
+    res.json({ alert: null })
+  }
+})
 
 app.get('/api/path/gtfsrt', async (req, res) => {
   try {
@@ -1150,8 +1178,8 @@ app.get('/api/path/gtfsrt', async (req, res) => {
     }
 
     departures.sort((a, b) => a.eta - b.eta)
-    const alert = await fetchPathAlerts()
-    res.json({ departures: departures.slice(0, 4), alert, timestamp: new Date().toISOString() })
+    const pathAlert = await fetchPathAlerts()
+    res.json({ departures: departures.slice(0, 4), alert: pathAlert?.text || null, alertStartedAt: pathAlert?.startedAt || null, timestamp: new Date().toISOString() })
   } catch (err) {
     console.error('[PATH]', err.message)
     res.status(500).json({ error: err.message })
@@ -1290,8 +1318,8 @@ app.get('/api/path/query', async (req, res) => {
     }
 
     departures.sort((a, b) => a.eta - b.eta)
-    const alert = await fetchPathAlerts()
-    res.json({ departures: departures.slice(0, 6), alert, stationName: stopName, timestamp: new Date().toISOString() })
+    const pathAlert = await fetchPathAlerts()
+    res.json({ departures: departures.slice(0, 6), alert: pathAlert?.text || null, alertStartedAt: pathAlert?.startedAt || null, stationName: stopName, timestamp: new Date().toISOString() })
   } catch (err) {
     console.error('[PATH]', err.message)
     res.status(500).json({ error: err.message })
@@ -1438,6 +1466,19 @@ app.get('/api/ferry/query', async (req, res) => {
   }
 })
 
+// Ferry alerts endpoint — returns alert text (no structured timestamp available from Connexionz)
+app.get('/api/ferry/alerts', async (req, res) => {
+  try {
+    const data = await fetchFerryData('hoboken_14')
+    const platform = data?.platforms?.[0]
+    const alerts = platform?.alerts || []
+    const alertText = alerts.length > 0 ? alerts.map(a => a.text || a).join('; ') : null
+    res.json({ alert: alertText })
+  } catch {
+    res.json({ alert: null })
+  }
+})
+
 // Ferry terminals list — returns all known terminals for the picker
 app.get('/api/ferry/terminals', (req, res) => {
   const q = (req.query.q || '').toLowerCase()
@@ -1523,7 +1564,10 @@ async function fetchMtaAlerts() {
       if (routes.size === 0) continue
       const text = a.headerText?.translation?.[0]?.text || a.descriptionText?.translation?.[0]?.text || ''
       if (!text) continue
-      alerts.push({ routes: [...routes], text: text.slice(0, 200) })
+      // Extract active_period start timestamp (Unix seconds)
+      const startEpoch = a.activePeriod?.[0]?.start
+      const startedAt = startEpoch ? Number(startEpoch) * 1000 : null
+      alerts.push({ routes: [...routes], text: text.slice(0, 200), startedAt })
     }
     mtaAlertCache = alerts
     mtaAlertCacheTime = Date.now()

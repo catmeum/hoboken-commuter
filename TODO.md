@@ -2,8 +2,7 @@
 
 ## Active — Next Session
 
-- [ ] **New Stop Add Tests** — Add test cases for every transit mode to ensure that there is never a stuck "loading lines..." or other error and all transit modes can successfully have stops added (including complex stops like NJT bus stops with multi directions / multiple variations of the same bus line)
-- [ ] **Desktop version alerts implementation** — Copy alerts center functionality from mobile app. Show as a closeable page that pulls up from bottom of the screen. Open/close triggered by tapping on the bell icon.
+- [ ] **Desktop version home button conversion** - Change the home button to being a plus icon. When clicked, open the New Stop settings page (functions like a quick link)
 - [ ] **Rename app to "My Stop Now"** — FIRST: Check that git branch merged to master. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
 - [ ] **Skeleton loading states** — replace all fallback/placeholder text with pulsing grey skeleton loaders (Facebook/iOS style). Transit cards, weather pill, tunnel pills should all show a shimmer skeleton while data loads instead of "Loading…" or empty states.
 - [ ] **Stop cards in settings with transit badges** — My Stop Cards show proper colored subway line circles, route pills, source badges. (look at alerts implementation for guidance) For Ferry, just use ferry custom SVG.
@@ -45,6 +44,12 @@
 
 ## Completed
 
+- [x] **AddStopPanel tests for all 11 transit modes** — 32 new tests covering Ferry, HBLR, Newark LR, LIRR, Metro-North, MTA Bus, NYC Ferry. Total AddStopPanel tests: 53.
+- [x] **Desktop alerts panel** — slide-in sidebar from bell icon with full alert list, dismiss/restore, dismiss all, independent bidirectional toggle, badge count on bell icon.
+- [x] **Removed inline alerts from transit cards** — alerts now centralized in the alerts panel only. Cards are cleaner.
+- [x] **Alert auto-dismiss setting** — renamed "Inline alert duration" to "Auto-dismiss alerts" with options: Ticker only, 30 min, 1 hour, 3 hours, 12 hours, Never.
+- [x] **Alert timestamps from API** — GTFS-RT `active_period.start` (bus, MTA subway), PATH `SendDate`, tunnel `ageMinutes`. No timestamp shown when source doesn't provide one.
+- [x] **Added missing alert endpoints** — `/api/bus/alerts`, `/api/path/alerts`, `/api/ferry/alerts` (mobile was silently 404ing).
 - [x] **Edit stop (swipe-to-edit)** — swipe left reveals "Edit" button in Settings, opens AddStopPanel in edit mode (rename + reconfigure). Swipe right cancels.
 - [x] **Show Line Badges toggle** — per-stop toggle in edit panel to hide/show transit line badges on cards. Works for all transit types.
 - [x] **Alert staleness setting** — cycle through Off/30m/1hr/3hr/12hr in Settings. Alerts older than threshold filtered from badge count and display.

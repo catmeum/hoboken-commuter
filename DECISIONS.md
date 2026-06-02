@@ -282,6 +282,43 @@ NJT publishes GTFS static data updates sporadically — not on a daily schedule.
 
 The original URL (`https://nycferry.connexionz.net/rtt/public/resource/gtfs.zip`) was returning 403. The correct URL is `http://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx` (from the official Transitland feed registry). Additionally, the realtime feed always sends an empty `routeId` field — the route must be resolved by looking up the `tripId` in the static GTFS `trips.txt`. The server now builds a `tripId → { routeId, headsign }` map at startup.
 
+## Why alert timestamps only show when API-provided
+
+The desktop alerts panel and mobile alerts page display relative timestamps ("2h ago", "45 min ago") next to each alert. However, these are only shown when the source API provides a real issuance time:
+
+- **NJT Bus** — `active_period[0].start` from GTFS-RT (Unix timestamp of when alert became active)
+- **MTA Subway** — same `active_period` mechanism
+- **PATH** — `SendDate` from PANYNJ JSON API
+- **Tunnels** — `ageMinutes` computed by the tunnel API itself
+
+Sources without structured timestamps (Ferry via Connexionz, NJT Rail station messages) show no timestamp at all. The alternative — stamping alerts with "when the app first saw it" — was rejected because it's misleading: a user opening the app 2 hours after an alert was issued would see "just now" which is incorrect. Better to show nothing than show wrong information.
+
+The auto-dismiss (staleness) filter also respects this: alerts without timestamps are never auto-dismissed since their age is unknown.
+
+## Why inline alerts were removed from transit cards
+
+The desktop dashboard previously showed alerts directly on individual transit cards (a yellow bar with the alert text and an X to dismiss). This was replaced by the centralized alerts panel for several reasons:
+
+1. **Visual clutter** — alerts expanded card height unpredictably, pushing content below the fold
+2. **Duplicate information** — the same alert appeared in both the card and the scrolling ticker
+3. **Inconsistent dismiss behavior** — card dismissals were session-only and tracked in an in-memory Set that cleared on refresh
+4. **Direction confusion** — inline alerts didn't respect the panel's independent direction toggle
+
+The alerts panel provides a single source of truth: all alerts in one place, with proper dismiss/restore, staleness filtering, and bidirectional toggle.
+
+## Why the desktop alerts panel has its own direction toggle
+
+The main dashboard has a direction toggle (outbound/inbound) that changes which transit cards are shown. The alerts panel adds a second, independent direction toggle. This allows a user to:
+
+- View the dashboard in outbound mode while checking inbound alerts (e.g. planning the evening commute while looking at morning cards)
+- Toggle alert direction without disrupting the main card view
+
+The panel filters alerts based on which stops exist in the selected direction's stop list, using `deriveActiveAlertSources()` scoped to that direction only.
+
+## Why NJT GTFS refreshes every 3 days instead of 7
+
+NJT publishes GTFS static data updates sporadically — not on a daily schedule. The license requires downloading within 3 business days of an update. Refreshing every 3 days (reduced from the original 7 days) ensures compliance while avoiding unnecessary bandwidth.
+
 ## Why the MTA station routes cache is a file instead of memory
 
 The station-to-route mapping is built by parsing the full MTA subway GTFS static data (stop_times.txt has ~500k rows). This takes several seconds and shouldn't happen on every server restart. Storing it in `.cache/mta_station_routes.json` means it's built once and reused. The server auto-builds it on startup if the file is missing (e.g. after a fresh clone). The `server/build_station_routes.mjs` script can also be run manually.
