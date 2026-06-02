@@ -16,9 +16,24 @@ function getSourceMatchers(stopId) {
   return []
 }
 
-function alertMatchesSource(alert, sourceMatchers) {
+// Extract bus routes from stop ID (e.g., bus:7917:126 → ['126'])
+function getBusRoutes(stopId) {
+  if (!stopId || !stopId.startsWith('bus:')) return []
+  const parts = stopId.split(':')
+  if (parts.length >= 3) return parts[2].split(',')
+  return []
+}
+
+function alertMatchesSource(alert, sourceMatchers, stopId) {
   if (!sourceMatchers.length) return false
-  return sourceMatchers.some(s => alert.id?.includes(s) || alert.source?.toLowerCase().includes(s))
+  const sourceMatch = sourceMatchers.some(s => alert.id?.includes(s) || alert.source?.toLowerCase().includes(s))
+  if (!sourceMatch) return false
+  // For bus alerts, additionally verify route overlap
+  const busRoutes = getBusRoutes(stopId)
+  if (busRoutes.length > 0 && alert.routes) {
+    return alert.routes.some(r => busRoutes.includes(r))
+  }
+  return true
 }
 
 function AlertCard({ alert, onDismiss, highlighted, highlightRef }) {
@@ -114,8 +129,8 @@ export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onDismi
         {alerts.length > 0 ? (
           <>
             {alerts.map((alert, i) => {
-              const isHighlighted = highlightActive && sourceMatchers.length > 0 && alertMatchesSource(alert, sourceMatchers)
-              const isFirstHighlight = isHighlighted && !alerts.slice(0, i).some(a => alertMatchesSource(a, sourceMatchers))
+              const isHighlighted = highlightActive && sourceMatchers.length > 0 && alertMatchesSource(alert, sourceMatchers, highlightSource)
+              const isFirstHighlight = isHighlighted && !alerts.slice(0, i).some(a => alertMatchesSource(a, sourceMatchers, highlightSource))
               return (
                 <AlertCard
                   key={`${alert.text}-${i}`}

@@ -1,5 +1,12 @@
 # Hoboken Commuter Dashboard — Version History
 
+## 2026-06-02 — Bus Alert Route Filtering Fix
+
+### Bug Fix
+- **NJT bus alerts route-level matching** — bus alert icons on cards now correctly match by specific route number. Previously, all NJT bus alerts would appear on every bus card regardless of route (e.g., route 126 cards showed alerts for routes 165, 22, 128). Fixed in `getAlertState()` (TransitCard), `alertMatchesSource()` (AlertsPage), and `fetchAlerts()` (alerts service now passes route array for downstream filtering).
+
+---
+
 ## 2026-06-02 — Desktop Refresh, Skeleton Loading, Settings Badges & Naming Consistency
 
 ### Desktop Header

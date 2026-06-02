@@ -2,10 +2,10 @@
 
 ## Active — Next Session
 
+- [ ] **Fix all lint errors** — 104 ESLint errors across server/index.js, App.jsx, and test files (unused vars, no-undef for Buffer/global/process, duplicate keys, empty blocks, set-state-in-effect, impure render calls). Clean pass should be the goal.
 - [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
 - [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
-- [ ] **Update presets with inbound + outbound** — include both directions.
-- [ ] **Transit card icons per type** — add ferry SVG icon (currently emoji ⛴️).
+- [ ] **Update mobile presets with inbound + outbound** — include both directions.
 - [ ] **NY Waterway route coverage** — verify Hoboken 14th downtown service.
 - [ ] **NYC Ferry empty departures** — investigate GTFS-RT feed gaps.
 - [ ] **Rename app to "My Stop Now"** — FIRST: Evaluate options for a better git strategy to deploy the mobile and desktop versions independently. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
@@ -41,6 +41,7 @@
 
 ## Completed
 
+- [x] **Bus alert route-level filtering** — fixed NJT bus alerts showing on wrong cards. `getAlertState()` and `alertMatchesSource()` now match alerts by specific route number (parsed from stopId `bus:{id}:{route}`) instead of just source prefix. Route 126 cards no longer show alerts for routes 165/22/128.
 - [x] **Desktop home button → Refresh icon** — replaced Home icon (scroll-to-top) with RotateCw that force-refreshes all polling data via refreshKey increment.
 - [x] **Skeleton loading states** — shimmer skeletons for all card types (tunnel, weather, bus, subway, rail, HBLR, LIRR, MNR, MTA Bus, NYC Ferry, PATH, Ferry) during initial data fetch.
 - [x] **Stop cards in settings with transit mode icons** — settings stop list uses actual transit SVG icons + colored route/line badges with +N overflow (desktop and mobile).

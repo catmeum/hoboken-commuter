@@ -600,6 +600,15 @@ export function MtaBusCard({ stopId, displayName, alertState, onAlertTap }) {
   )
 }
 
+// ── Helper: extract bus route(s) from a bus stop ID ──
+// Formats: bus:{stopIds}:{routes} or bus:{stopIds}:{routes}:{headsign}
+function getBusRoutes(stopId) {
+  if (!stopId.startsWith('bus:')) return []
+  const parts = stopId.split(':')
+  if (parts.length >= 3) return parts[2].split(',')
+  return []
+}
+
 // ── Helper: determine alert state for a card based on its stop ID ──
 function getAlertState(stopId, alerts, dismissedAlerts) {
   if (!alerts && !dismissedAlerts) return null
@@ -616,7 +625,18 @@ function getAlertState(stopId, alerts, dismissedAlerts) {
   else if (stopId.startsWith('nycferry:')) sourceMatchers.push('nycferry')
   else if (stopId.startsWith('mtabus:')) sourceMatchers.push('mtabus', 'mta')
 
-  const matchesSource = (alert) => sourceMatchers.some(s => alert.id?.includes(s) || alert.source?.toLowerCase().includes(s))
+  // For bus stops, do route-level matching instead of just source matching
+  const busRoutes = getBusRoutes(stopId)
+
+  const matchesSource = (alert) => {
+    const sourceMatch = sourceMatchers.some(s => alert.id?.includes(s) || alert.source?.toLowerCase().includes(s))
+    if (!sourceMatch) return false
+    // For bus alerts, additionally verify route overlap
+    if (busRoutes.length > 0 && alert.routes) {
+      return alert.routes.some(r => busRoutes.includes(r))
+    }
+    return true
+  }
 
   // Check if there's an active (undismissed) alert for this source
   const hasActive = (alerts || []).some(matchesSource)

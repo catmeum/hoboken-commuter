@@ -79,6 +79,7 @@ export async function fetchAlerts(stops) {
               id: `bus-${a.routes?.join(',')}-${a.text?.slice(0, 30)}`,
               source: 'NJT',
               text: `Rt ${a.routes?.join(',')}: ${a.text}`,
+              routes: a.routes || [],
               startedAt: a.startedAt || null,
               timestamp: a.startedAt ? formatRelativeTime(a.startedAt) : '',
               badges: a.routes?.map(r => ({ label: r, color: '#1e40af' })),
