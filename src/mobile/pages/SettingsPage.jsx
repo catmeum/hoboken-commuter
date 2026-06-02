@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { Bus } from 'lucide-react'
+import { MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, NywFerryIcon, NycFerryIcon, MtaBusIcon, GrandCentralClock, SubwayBadge } from '../../components/icons'
 
 const TUNNEL_OPTIONS = [
   { id: 'lincoln', label: 'Lincoln Tunnel' },
@@ -28,7 +30,7 @@ export default function SettingsPage({
   tunnels, setTunnels,
   alertBadge, setAlertBadge,
   alertStaleness, setAlertStaleness,
-  stops, stopNames,
+  stops, stopNames, stopHiddenBadges,
   onRemoveStop, onEditStop,
   onOpenAddStop, onReset,
   onReorderStops,
@@ -182,6 +184,7 @@ export default function SettingsPage({
               stopId={stopId}
               index={idx}
               name={stopNames[stopId] || stopId}
+              hideBadges={stopHiddenBadges?.[stopId]?.includes('__all__')}
               onRemove={onRemoveStop}
               onEdit={onEditStop}
               isDragging={dragIndex === idx}
@@ -283,7 +286,42 @@ function ZipCodeInput({ weatherZip, setWeatherZip }) {
 }
 
 // Swipeable stop item — reveals "Edit" button on swipe left, drag grip for reordering
-function SwipeableStopItem({ stopId, index, name, onRemove, onEdit, isDragging, isDragOver, onDragStart, onDragMove, onDragEnd }) {
+function getStopIcon(id) {
+  if (id.startsWith('mta:')) return <MtaGlobeIcon size={14} />
+  if (id.startsWith('bus:') || id === 'bus_clinton' || id === 'bus_willow' || id === 'bus_washington') return <NjtBusIcon size={14} />
+  if (id.startsWith('path:') || id.startsWith('path_')) return <PathIcon size={14} />
+  if (id.startsWith('ferry:') || id.startsWith('ferry_')) return <NywFerryIcon size={14} />
+  if (id.startsWith('hblr:')) return <LightRailIcon size={14} />
+  if (id.startsWith('rail:')) return <NjtRailIcon size={14} />
+  if (id.startsWith('lirr:')) return <HeavyRailIcon size={14} />
+  if (id.startsWith('mnr:')) return <GrandCentralClock size={14} />
+  if (id.startsWith('mtabus:')) return <MtaBusIcon size={14} />
+  if (id.startsWith('nycferry:')) return <NycFerryIcon size={14} />
+  return <Bus size={14} />
+}
+
+function getStopBadges(id) {
+  if (id.startsWith('mta:')) {
+    const lines = (id.split(':')[3] || '').split(',').filter(Boolean)
+    return lines.map(l => <SubwayBadge key={l} line={l} size={14} />)
+  }
+  if (id.startsWith('bus:')) {
+    const routes = (id.split(':')[2] || '').split(',').filter(Boolean)
+    return routes.map(r => <span key={r} className="m-set-route-pill bus">{r}</span>)
+  }
+  if (id.startsWith('rail:')) {
+    const lines = (id.split(':')[2] || '').split(',').filter(Boolean)
+    return lines.map(l => <span key={l} className="m-set-route-pill rail">{l}</span>)
+  }
+  if (id.startsWith('mtabus:')) {
+    const route = id.split(':')[2] || ''
+    const shortRoute = route.replace(/^MTA\+NYCT_/, '').replace(/^MTABC_/, '')
+    return shortRoute ? [<span key={shortRoute} className="m-set-route-pill mta-bus">{shortRoute}</span>] : []
+  }
+  return []
+}
+
+function SwipeableStopItem({ stopId, index, name, hideBadges, onRemove, onEdit, isDragging, isDragOver, onDragStart, onDragMove, onDragEnd }) {
   const [offset, setOffset] = useState(0)
   const startX = useRef(0)
   const dragging = useRef(false)
@@ -356,7 +394,20 @@ function SwipeableStopItem({ stopId, index, name, onRemove, onEdit, isDragging, 
           onTouchMove={handleGripTouchMove}
           onTouchEnd={handleGripTouchEnd}
         >⋮⋮</span>
+        <span className="m-set-stop-icon">{getStopIcon(stopId)}</span>
         <span className="m-set-stop-name">{name}</span>
+        {!hideBadges && (() => {
+          const badges = getStopBadges(stopId)
+          if (badges.length === 0) return null
+          const visible = badges.slice(0, 2)
+          const overflow = badges.length - 2
+          return (
+            <span className="m-set-stop-badges">
+              {visible}
+              {overflow > 0 && <span className="m-set-route-pill overflow">+{overflow}</span>}
+            </span>
+          )
+        })()}
         <button className="m-set-remove" onClick={() => onRemove(stopId)}>✕</button>
       </div>
     </div>

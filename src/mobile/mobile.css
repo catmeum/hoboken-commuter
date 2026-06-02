@@ -755,6 +755,13 @@
   transition: transform 0.2s ease;
 }
 .m-set-grip { opacity: 0.3; font-size: 11px; cursor: grab; user-select: none; touch-action: none; }
+.m-set-stop-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0; }
+.m-set-stop-badges { display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.m-set-route-pill { font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 3px; color: #fff; white-space: nowrap; line-height: 1; }
+.m-set-route-pill.bus { background: #4ade80; }
+.m-set-route-pill.rail { background: #e66b00; }
+.m-set-route-pill.mta-bus { background: #9333ea; }
+.m-set-route-pill.overflow { background: var(--m-text-muted); font-size: 8px; }
 .m-set-stop-item-wrap.m-set-dragging { opacity: 0.5; transform: scale(0.96); }
 .m-set-stop-item-wrap.m-set-drag-over { border-top: 2px solid var(--m-accent); border-radius: 12px; }
 .m-set-stop-name { flex: 1; font-size: 13px; font-weight: 500; }

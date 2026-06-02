@@ -243,7 +243,7 @@ describe('AddStopPanel', () => {
       await waitFor(() => {
         expect(onAdd).toHaveBeenCalledWith(
           'bus:7940:126,89,119',
-          'WILLOW AVE AT 15TH ST (126,89,119)'
+          'WILLOW AVE AT 15TH ST'
         )
       })
     })
@@ -283,7 +283,7 @@ describe('AddStopPanel', () => {
       await waitFor(() => {
         expect(onAdd).toHaveBeenCalledWith(
           'bus:7940:126',
-          'WILLOW AVE AT 15TH ST (126)'
+          'WILLOW AVE AT 15TH ST'
         )
       })
     })
@@ -426,7 +426,7 @@ describe('AddStopPanel', () => {
 
       expect(onAdd).toHaveBeenCalledWith(
         'rail:HB:BC,ML,PV',
-        'Hoboken (All lines)'
+        'Hoboken'
       )
     })
 

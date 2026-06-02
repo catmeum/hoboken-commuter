@@ -356,6 +356,7 @@ export default function MobileApp() {
         setAlertStaleness={setAlertStaleness}
         stops={stops}
         stopNames={stopNames}
+        stopHiddenBadges={stopHiddenBadges}
         onRemoveStop={removeStop}
         onReorderStops={reorderStops}
         onEditStop={openEditStop}

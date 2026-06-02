@@ -459,7 +459,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
           setStep('bus-variants')
         } else {
           const stopId = `bus:${stopIds}:${routes}`
-          const displayName = `${selectedBusStop.name} (${routes})`
+          const displayName = selectedBusStop.name
           handleAdd(stopId, displayName)
         }
       })
@@ -514,16 +514,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     const code = selectedRailStation.code || selectedRailStation.id
     const lines = [...selectedRailLines].join(',')
     const stopId = `rail:${code}:${lines}`
-    let lineLabel
-    if (selectedRailLines.size === railLines.length) {
-      lineLabel = 'All lines'
-    } else if (selectedRailLines.size <= 2) {
-      lineLabel = railLines.filter(l => selectedRailLines.has(l.code)).map(l => l.abbr).join(', ')
-    } else {
-      const first = railLines.find(l => selectedRailLines.has(l.code))
-      lineLabel = `${first?.abbr} +${selectedRailLines.size - 1}`
-    }
-    const displayName = `${selectedRailStation.name} (${lineLabel})`
+    const displayName = selectedRailStation.name
     handleAdd(stopId, displayName)
   }
 
@@ -532,11 +523,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     if (!selectedLirrStation || selectedLirrRoutes.size === 0) return
     const routes = [...selectedLirrRoutes].join(',')
     const stopId = `lirr:${selectedLirrStation.id}:${routes}`
-    let label
-    if (selectedLirrRoutes.size === lirrRoutes.length) label = 'All branches'
-    else if (selectedLirrRoutes.size <= 2) label = lirrRoutes.filter(r => selectedLirrRoutes.has(r.id)).map(r => r.name.replace(' Branch', '')).join(', ')
-    else label = `${lirrRoutes.find(r => selectedLirrRoutes.has(r.id))?.name.replace(' Branch', '')} +${selectedLirrRoutes.size - 1}`
-    handleAdd(stopId, `${selectedLirrStation.name} (${label})`)
+    handleAdd(stopId, selectedLirrStation.name)
   }
 
   // ── Confirm MNR ──
@@ -544,11 +531,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     if (!selectedMnrStation || selectedMnrRoutes.size === 0) return
     const routes = [...selectedMnrRoutes].join(',')
     const stopId = `mnr:${selectedMnrStation.id}:${routes}`
-    let label
-    if (selectedMnrRoutes.size === mnrRoutes.length) label = 'All lines'
-    else if (selectedMnrRoutes.size <= 2) label = mnrRoutes.filter(r => selectedMnrRoutes.has(r.id)).map(r => r.name).join(', ')
-    else label = `${mnrRoutes.find(r => selectedMnrRoutes.has(r.id))?.name} +${selectedMnrRoutes.size - 1}`
-    handleAdd(stopId, `${selectedMnrStation.name} (${label})`)
+    handleAdd(stopId, selectedMnrStation.name)
   }
 
   // ── Simple stop ID builder for modes without step 2 ──
@@ -644,7 +627,8 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
             className="m-addstop-confirm"
             onClick={() => {
               const name = editDisplayName.trim() || editingStop.displayName
-              onUpdate(editingStop.stopId, editingStop.stopId, name, editHiddenBadges)
+              const badges = Array.isArray(editHiddenBadges) ? editHiddenBadges : []
+              onUpdate(editingStop.stopId, editingStop.stopId, name, badges)
             }}
             disabled={!editDisplayName.trim()}
             style={{ position: 'relative', bottom: 'auto', boxShadow: 'none' }}
@@ -1025,7 +1009,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
                 className="m-addstop-result"
                 onClick={() => {
                   const stopId = `mtabus:${s.id}:${selectedMtaBusRoute.id}`
-                  const displayName = `${s.name} (${selectedMtaBusRoute.name})`
+                  const displayName = s.name
                   handleAdd(stopId, displayName)
                 }}
               >

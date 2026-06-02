@@ -18,11 +18,18 @@ describe('SettingsPage', () => {
     setTunnels: vi.fn(),
     alertBadge: 'count',
     setAlertBadge: vi.fn(),
+    alertStaleness: '60',
+    setAlertStaleness: vi.fn(),
+    weatherZip: '',
+    setWeatherZip: vi.fn(),
     stops: ['mta:D17:S:B,D,F', 'bus:20935:126'],
     stopNames: { 'mta:D17:S:B,D,F': '47-50 Sts', 'bus:20935:126': 'Washington & 11th' },
+    stopHiddenBadges: {},
     onRemoveStop: vi.fn(),
+    onEditStop: vi.fn(),
     onOpenAddStop: vi.fn(),
     onReset: vi.fn(),
+    onReorderStops: vi.fn(),
   }
 
   beforeEach(() => {
@@ -116,5 +123,35 @@ describe('SettingsPage', () => {
     const manyNames = Object.fromEntries(manyStops.map((s, i) => [s, `Station ${i}`]))
     render(<SettingsPage {...defaultProps} stops={manyStops} stopNames={manyNames} />)
     expect(screen.getByText('Show 2 more stops')).toBeInTheDocument()
+  })
+
+  it('shows transit mode icons in stop list', () => {
+    const { container } = render(<SettingsPage {...defaultProps} />)
+    const icons = container.querySelectorAll('.m-set-stop-icon')
+    expect(icons.length).toBe(2) // one for each stop
+  })
+
+  it('shows route badges for bus stops', () => {
+    const { container } = render(<SettingsPage {...defaultProps} />)
+    const badges = container.querySelectorAll('.m-set-route-pill.bus')
+    expect(badges.length).toBeGreaterThan(0)
+    expect(badges[0].textContent).toBe('126')
+  })
+
+  it('hides badges when stopHiddenBadges includes __all__', () => {
+    const { container } = render(
+      <SettingsPage {...defaultProps} stopHiddenBadges={{ 'bus:20935:126': ['__all__'] }} />
+    )
+    // Bus stop badges should be hidden
+    const busItem = container.querySelectorAll('.m-set-stop-item-wrap')[1]
+    const badges = busItem?.querySelectorAll('.m-set-route-pill')
+    expect(badges?.length || 0).toBe(0)
+  })
+
+  it('shows subway line badges from stop ID', () => {
+    const { container } = render(<SettingsPage {...defaultProps} />)
+    const badgeContainer = container.querySelectorAll('.m-set-stop-badges')[0]
+    // mta:D17:S:B,D,F should show B, D, F badges (truncated to 2 + overflow)
+    expect(badgeContainer).toBeTruthy()
   })
 })

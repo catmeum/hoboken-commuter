@@ -22,7 +22,7 @@ import {
   Minus,
   Bell,
   BellOff,
-  Home,
+  RotateCw,
 } from 'lucide-react'
 import { fetchTunnels } from './services/tunnels'
 import { fetchWeather } from './services/weather'
@@ -62,6 +62,47 @@ function usePolling(fetchFn, intervalMs, refreshKey = 0) {
   }, [poll, intervalMs, refreshKey])
 
   return { data, error }
+}
+
+// ── Skeleton Loading ──
+function SkeletonRows({ count = 4 }) {
+  return (
+    <div className="transit-list">
+      {Array.from({ length: count }, (_, i) => (
+        <div key={i} className="skeleton-row">
+          <div className="skeleton-line skeleton-badge" />
+          <div className="skeleton-line skeleton-text" style={{ width: `${55 + (i % 3) * 12}%` }} />
+          <div className="skeleton-line skeleton-time" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SkeletonTunnels() {
+  return (
+    <div className="tunnel-grid">
+      {[1, 2].map(i => (
+        <div key={i} className="skeleton-tunnel-row">
+          <div className="skeleton-line skeleton-name" />
+          <div className="skeleton-line skeleton-value" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function SkeletonWeather() {
+  return (
+    <div className="weather-periods">
+      {[1, 2, 3].map(i => (
+        <div key={i} className="skeleton-weather-period">
+          <div className="skeleton-line skeleton-icon" />
+          <div className="skeleton-line skeleton-temp" />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ── Helpers ──
@@ -335,7 +376,7 @@ function ThemeToggle({ theme, onToggle }) {
   )
 }
 
-function TunnelCard({ data, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function TunnelCard({ data, loading, alertSettings, activeAlertSources, inlineAlertDuration }) {
   const on = (id) => activeAlertSources.has(id) && alertSettings[id] !== false
   const maxAge = inlineAlertDuration === Infinity ? Infinity : (inlineAlertDuration ?? 60)
   return (
@@ -343,10 +384,13 @@ function TunnelCard({ data, alertSettings, activeAlertSources, inlineAlertDurati
       <div className="card-header">
         <Car className="card-icon" />
         <span className="card-title">Tunnels</span>
-        <span className="card-title-sep">·</span>
-        <span className="card-title-stop">{data.direction}</span>
+        {!loading && <>
+          <span className="card-title-sep">·</span>
+          <span className="card-title-stop">{data.direction}</span>
+        </>}
       </div>
       <div className="card-body">
+        {loading ? <SkeletonTunnels /> : (
         <div className="tunnel-grid">
           {data.tunnels.map((t) => {
             const alertId = t.name.toLowerCase() === 'lincoln' ? 'lincoln_tunnel' : 'holland_tunnel'
@@ -370,12 +414,13 @@ function TunnelCard({ data, alertSettings, activeAlertSources, inlineAlertDurati
             )
           })}
         </div>
+        )}
       </div>
     </div>
   )
 }
 
-function WeatherCard({ weatherData, location }) {
+function WeatherCard({ weatherData, loading, location }) {
   const periods = weatherData?.periods || WEATHER_FALLBACK.periods
   const label = weatherData?.label || WEATHER_FALLBACK.label
 
@@ -390,6 +435,7 @@ function WeatherCard({ weatherData, location }) {
         </span>
       </div>
       <div className="card-body">
+        {loading ? <SkeletonWeather /> : (
         <div className="weather-periods">
           {periods.map((p) => (
             <div key={p.label} className="weather-period">
@@ -405,12 +451,13 @@ function WeatherCard({ weatherData, location }) {
             </div>
           ))}
         </div>
+        )}
       </div>
     </div>
   )
 }
 
-function BusStopCard({ stop }) {
+function BusStopCard({ stop, loading }) {
   const cardRef = useRef(null)
   const [visibleCount, setVisibleCount] = useState(6)
   const [showGateInfo, setShowGateInfo] = useState(false)
@@ -486,7 +533,7 @@ function BusStopCard({ stop }) {
         </div>
       )}
       <div className="card-body">
-        {hasBuses ? (
+        {loading ? <SkeletonRows count={4} /> : hasBuses ? (
           <>
             <div className="bus-list">
               {stop.buses.slice(0, visibleCount).map((b, i) => (
@@ -531,7 +578,17 @@ function DynamicBusCard({ stopId, displayName }) {
 
   const fallbackName = displayName || stopId
   if (!data) {
-    return <BusStopCard stop={{ name: fallbackName, buses: [], serviceNote: null, gate: null, gateSchedule: null }} />
+    return (
+      <div className="card bus-card">
+        <div className="card-header">
+          <NjtBusIcon className="card-icon" />
+          <span className="card-title">Bus</span>
+          <span className="card-title-sep">·</span>
+          <span className="card-title-stop">{fallbackName}</span>
+        </div>
+        <div className="card-body"><SkeletonRows count={4} /></div>
+      </div>
+    )
   }
   // Use the cached display name (formatted during picker), fall back to shortened server name
   const name = displayName || (data.isPabt ? `PABT · ${data.buses?.[0]?.route || ''}` : shortenStopName(data.name))
@@ -553,7 +610,7 @@ function DynamicPathCard({ stopId, displayName, alertSettings, activeAlertSource
 
   const pathData = data || { departures: [], alert: null }
   const name = displayName || data?.stationName || null
-  return <PathCard data={pathData} displayName={name} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+  return <PathCard data={pathData} loading={!data} displayName={name} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
 }
 
 // Self-polling ferry card for dynamically added ferry stops
@@ -573,7 +630,7 @@ function DynamicFerryCard({ stopId, displayName, alertSettings, activeAlertSourc
   const { data } = usePolling(fetcher, 30_000)
 
   const ferryData = data || { departures: [], alert: null }
-  return <FerryCard data={ferryData} displayName={displayName} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+  return <FerryCard data={ferryData} loading={!data} displayName={displayName} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
 }
 
 // Self-polling MTA Subway card
@@ -610,7 +667,7 @@ function DynamicMtaCard({ stopId, displayName, alertSettings, activeAlertSources
         <span className="card-title-stop">{stationName}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {departures.length > 0 ? (
+        {!data ? <SkeletonRows count={4} /> : departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
               <div key={i} className="transit-row">
@@ -658,7 +715,7 @@ function DynamicRailCard({ stopId, displayName, alertSettings, activeAlertSource
         <span className="card-title-stop">{stationName}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {departures.length > 0 ? (
+        {!data ? <SkeletonRows count={4} /> : departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
               <div key={i} className="transit-row">
@@ -710,7 +767,7 @@ function DynamicHblrCard({ stopId, displayName, alertSettings, activeAlertSource
         <span className="card-title-stop">{name}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {buses.length > 0 ? (
+        {!data ? <SkeletonRows count={3} /> : buses.length > 0 ? (
           <div className="transit-list">
             {buses.map((b, i) => (
               <div key={i} className="transit-row">
@@ -751,7 +808,7 @@ function DynamicLirrCard({ stopId, displayName, inlineAlertDuration }) {
         <span className="card-title-stop">{stationName}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {departures.length > 0 ? (
+        {!data ? <SkeletonRows count={4} /> : departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
               <div key={i} className="transit-row">
@@ -789,7 +846,7 @@ function DynamicMnrCard({ stopId, displayName, inlineAlertDuration }) {
         <span className="card-title-stop">{stationName}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {departures.length > 0 ? (
+        {!data ? <SkeletonRows count={4} /> : departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
               <div key={i} className="transit-row">
@@ -833,7 +890,7 @@ function DynamicMtaBusCard({ stopId, displayName, alertSettings, activeAlertSour
         <span className="card-title-stop">{name}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {timedOut ? (
+        {!data ? <SkeletonRows count={3} /> : timedOut ? (
           <div className="bus-empty" style={{ color: 'var(--accent-orange, #f97316)' }}>
             Feed timed out — try again shortly
           </div>
@@ -875,7 +932,7 @@ function DynamicNycFerryCard({ stopId, displayName, inlineAlertDuration }) {
         <span className="card-title-stop">{stationName}</span>
       </div>
       <div className="card-body" style={{ justifyContent: 'flex-start' }}>
-        {departures.length > 0 ? (
+        {!data ? <SkeletonRows count={3} /> : departures.length > 0 ? (
           <div className="transit-list">
             {departures.map((d, i) => (
               <div key={i} className="transit-row">
@@ -892,7 +949,7 @@ function DynamicNycFerryCard({ stopId, displayName, inlineAlertDuration }) {
   )
 }
 
-function FerryCard({ data, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function FerryCard({ data, loading, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
   const hasDepartures = data.departures && data.departures.length > 0
   const dest = hasDepartures ? data.departures[0].dest : (displayName || 'No service')
   const showAlert = inlineAlertDuration !== 0 && activeAlertSources?.has('ferry') && alertSettings?.ferry !== false && data.alert
@@ -906,7 +963,7 @@ function FerryCard({ data, displayName, alertSettings, activeAlertSources, inlin
         <span className="card-title-stop">{dest}</span>
       </div>
       <div className="card-body">
-        {hasDepartures ? (
+        {loading ? <SkeletonRows count={3} /> : hasDepartures ? (
           <div className="transit-list">
             {data.departures.map((f, i) => (
               <div key={i} className="transit-row">
@@ -925,7 +982,7 @@ function FerryCard({ data, displayName, alertSettings, activeAlertSources, inlin
   )
 }
 
-function PathCard({ data, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function PathCard({ data, loading, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
   const hasDepartures = data.departures && data.departures.length > 0
   const showAlert = inlineAlertDuration !== 0 && (activeAlertSources?.has('path_hob33') && alertSettings?.path_hob33 !== false ||
                      activeAlertSources?.has('path_jsq33') && alertSettings?.path_jsq33 !== false) && data.alert
@@ -945,7 +1002,7 @@ function PathCard({ data, displayName, alertSettings, activeAlertSources, inline
         )}
       </div>
       <div className="card-body">
-        {hasDepartures ? (
+        {loading ? <SkeletonRows count={4} /> : hasDepartures ? (
           <div className="transit-list">
             {data.departures.map((p, i) => (
               <div key={i} className="transit-row">
@@ -1639,23 +1696,13 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     const routes = sortedRoutes.join(',')
     const stopId = `bus:${selectedBusStop.id}:${routes}`
     const isPabt = selectedBusStop.name.toUpperCase().includes('PORT AUTHORITY')
-    // Format line suffix: all → (all), 1-2 → (126/119), 3+ → (126+)
-    const totalRoutes = busStopRoutes.length
-    let lineSuffix
-    if (sortedRoutes.length === totalRoutes && totalRoutes > 1) {
-      lineSuffix = 'all'
-    } else if (sortedRoutes.length <= 2) {
-      lineSuffix = sortedRoutes.join('/')
-    } else {
-      lineSuffix = `${sortedRoutes[0]}+`
-    }
-    // For PABT, use short title like hardcoded cards: "PABT · 125"
+    // For PABT, use short title: "PABT". For other stops, just the shortened name.
+    // Route info will be shown as badges in the settings stop list.
     let cardName
     if (isPabt) {
-      cardName = `PABT · ${lineSuffix}`
+      cardName = 'PABT'
     } else {
-      const shortName = shortenStopName(selectedBusStop.name)
-      cardName = `${shortName} (${lineSuffix})`
+      cardName = shortenStopName(selectedBusStop.name)
     }
     persistDynamicStopName(stopId, cardName)
     onAdd(stopId)
@@ -1762,9 +1809,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     if (!selectedRailStation || selectedRailLines.size === 0) return
     const lines = [...selectedRailLines].sort().join(',')
     const stopId = `rail:${selectedRailStation.code}:${lines}`
-    const lineLabel = selectedRailLines.size === railLines.length && railLines.length > 1
-      ? 'all lines' : [...selectedRailLines].map(c => railLines.find(l => l.code === c)?.abbr || c).join('/')
-    persistDynamicStopName(stopId, `${selectedRailStation.name} (${lineLabel})`)
+    persistDynamicStopName(stopId, selectedRailStation.name)
     onAdd(stopId)
     handleClose()
   }
@@ -1858,7 +1903,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
   function selectMtaBusStop(stop) {
     const cardId = `mtabus:${stop.id}:${selectedMtaBusRoute.id}`
-    persistDynamicStopName(cardId, `${stop.name} (${selectedMtaBusRoute.name})`)
+    persistDynamicStopName(cardId, stop.name)
     onAdd(cardId)
     handleClose()
   }
@@ -1944,8 +1989,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     const lines = [...selectedSubwayLines].sort().join(',')
     const stopId = `mta:${ids}:${selectedDirection}:${lines}`
     const dirLabel = selectedDirection === 'N' ? 'Uptown' : selectedDirection === 'S' ? 'Downtown' : 'All'
-    const lineLabels = [...selectedSubwayLines].sort().join('/')
-    persistDynamicStopName(stopId, `${selectedStation.name} (${lineLabels} ${dirLabel})`)
+    persistDynamicStopName(stopId, `${selectedStation.name} (${dirLabel})`)
     onAdd(stopId)
     handleClose()
   }
@@ -2707,13 +2751,55 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
     function onDragEnd() {
       dragRef.current = null
     }
+
+    function getStopIcon(id) {
+      if (id.startsWith('mta:')) return <MtaGlobeIcon size={16} />
+      if (id.startsWith('bus:') || id === 'bus_clinton' || id === 'bus_willow' || id === 'bus_washington') return <NjtBusIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('path:') || id.startsWith('path_')) return <PathIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('ferry:') || id.startsWith('ferry_')) return <NywFerryIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('hblr:')) return <LightRailIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('rail:')) return <NjtRailIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('lirr:')) return <HeavyRailIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('mnr:')) return <GrandCentralClock size={16} />
+      if (id.startsWith('mtabus:')) return <MtaBusIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('nycferry:')) return <NycFerryIcon style={{ width: 16, height: 16 }} />
+      return <Bus size={16} />
+    }
+
+    function getStopBadges(id) {
+      // MTA Subway: mta:STATION_IDS:DIR:LINES → show subway line circles
+      if (id.startsWith('mta:')) {
+        const lines = (id.split(':')[3] || '').split(',').filter(Boolean)
+        return lines.map(l => <SubwayBadge key={l} line={l} size={16} />)
+      }
+      // NJT Bus: bus:STOP_ID:ROUTE1,ROUTE2 → show route pills
+      if (id.startsWith('bus:')) {
+        const routes = (id.split(':')[2] || '').split(',').filter(Boolean)
+        return routes.map(r => <span key={r} className="settings-route-pill bus">{r}</span>)
+      }
+      // NJT Rail: rail:STATION:LINE1,LINE2 → show line pills
+      if (id.startsWith('rail:')) {
+        const lines = (id.split(':')[2] || '').split(',').filter(Boolean)
+        return lines.map(l => <span key={l} className="settings-route-pill rail">{l}</span>)
+      }
+      // MTA Bus: mtabus:STOP:ROUTE → show route pill
+      if (id.startsWith('mtabus:')) {
+        const route = id.split(':')[2] || ''
+        const shortRoute = route.replace(/^MTA\+NYCT_/, '').replace(/^MTABC_/, '')
+        return shortRoute ? [<span key={shortRoute} className="settings-route-pill mta-bus">{shortRoute}</span>] : []
+      }
+      return []
+    }
+
     return (
       <div className="settings-stop-list">
         {stops.map((id) => {
           const catalogStop = ALL_STOPS.find((s) => s.id === id)
-          const stopType = catalogStop?.type || 'bus'
-          const stopLine = catalogStop?.line || ''
           const stopName = catalogStop?.name || dynamicStopNames[id] || id
+          const badges = getStopBadges(id)
+          const maxBadges = 2
+          const visibleBadges = badges.slice(0, maxBadges)
+          const overflow = badges.length - maxBadges
           return (
             <div
               key={id}
@@ -2724,8 +2810,14 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
               onDragEnd={onDragEnd}
             >
               <GripVertical className="settings-grip" />
-              <span className={`settings-type-badge ${stopType}`}>{stopLine}</span>
+              <span className="settings-stop-icon">{getStopIcon(id)}</span>
               <span className="settings-stop-name">{stopName}</span>
+              {visibleBadges.length > 0 && (
+                <span className="settings-stop-badges">
+                  {visibleBadges}
+                  {overflow > 0 && <span className="settings-route-pill overflow">+{overflow}</span>}
+                </span>
+              )}
               <div className="settings-stop-actions">
                 <button onClick={() => makeRemove(setter)(id)} className="settings-remove-btn" disabled={stops.length <= minCount}>
                   <Minus size={12} />
@@ -3632,8 +3724,8 @@ export default function App() {
         </div>
         <div className="header-right">
           <CurrentTime />
-          <button className="settings-btn" onClick={() => { /* scroll to top / home */ window.scrollTo(0, 0) }} title="Home">
-            <Home className="settings-btn-icon" />
+          <button className="settings-btn" onClick={() => { setRefreshKey(k => k + 1) }} title="Refresh all data">
+            <RotateCw className="settings-btn-icon" />
           </button>
           <button className={`settings-btn ${alertsPanelOpen ? 'active' : ''}`} title="Alerts" onClick={() => setAlertsPanelOpen(v => !v)}>
             <Bell className="settings-btn-icon" />
@@ -3662,8 +3754,8 @@ export default function App() {
       {/* Row 1: Tunnels + Weather (conditionally shown) */}
       {(showTunnels || showWeather) && (
         <div className="top-row" style={{ gridTemplateColumns: showTunnels && showWeather ? '1fr 1fr' : '1fr' }}>
-          {showTunnels && <TunnelCard data={tunnels} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />}
-          {showWeather && <WeatherCard weatherData={weather} location={activeWeatherLocation.label || activeWeatherLocation} />}
+          {showTunnels && <TunnelCard data={tunnels} loading={!tunnelData} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />}
+          {showWeather && <WeatherCard weatherData={weather} loading={!weatherData} location={activeWeatherLocation.label || activeWeatherLocation} />}
         </div>
       )}
 
@@ -3674,7 +3766,7 @@ export default function App() {
       {(direction === 'outbound' ? outboundStops : inboundStops).map((stopId) => {
         // Preconfigured ferry (legacy IDs)
         if (stopId === 'ferry_hob14' || stopId === 'ferry_w39') {
-          return <FerryCard key={stopId} data={ferry} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <FerryCard key={stopId} data={ferry} loading={!ferryData} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
         }
         // Dynamic ferry (ferry:STOP:ROUTE:DEST)
         if (stopId.startsWith('ferry:')) {
@@ -3683,7 +3775,7 @@ export default function App() {
         }
         // Preconfigured PATH (legacy IDs)
         if (stopId === 'path_hob33' || stopId === 'path_33hob' || stopId === 'path_33newport' || stopId === 'path_hobwtc' || stopId === 'path_wtchob') {
-          return <PathCard key={stopId} data={path} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <PathCard key={stopId} data={path} loading={!pathData} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
         }
         // Dynamic PATH (path:ROUTE:DIR:STOP)
         if (stopId.startsWith('path:')) {
@@ -3725,7 +3817,7 @@ export default function App() {
         // Preconfigured bus stop
         const busStop = busStops[stopId]
         if (busStop) {
-          return <BusStopCard key={stopId} stop={busStop} />
+          return <BusStopCard key={stopId} stop={busStop} loading={!busData} />
         }
         // Dynamic bus stop
         const catalogStop = ALL_STOPS.find(s => s.id === stopId)

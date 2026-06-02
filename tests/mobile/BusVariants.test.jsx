@@ -151,7 +151,7 @@ describe('AddStopPanel — Bus headsign variant flow', () => {
     await waitFor(() => {
       expect(onAdd).toHaveBeenCalledWith(
         'bus:7940:126',
-        'WILLOW AVE AT 15TH ST (126)'
+        'WILLOW AVE AT 15TH ST'
       )
     })
   })

@@ -1,5 +1,29 @@
 # Hoboken Commuter Dashboard — Version History
 
+## 2026-06-02 — Desktop Refresh, Skeleton Loading, Settings Badges & Naming Consistency
+
+### Desktop Header
+- **Refresh button** — replaced Home (scroll-to-top) icon with RotateCw; clicking force-refreshes all polling data across all cards
+
+### Skeleton Loading States
+- **Shimmer skeletons** — all transit cards (Bus, MTA Subway, NJT Rail, HBLR, LIRR, MNR, MTA Bus, NYC Ferry, PATH, Ferry) now show pulsing grey skeleton rows while data loads, instead of "No upcoming buses/trains/ferries" text
+- **Tunnel & Weather cards** — show skeleton placeholders during initial fetch instead of "--" and "Loading…" text
+
+### Stop Cards in Settings — Transit Icons & Route Badges
+- **Transit mode SVG icons** — settings stop list now shows the actual transit mode icon (MTA globe, NJT bus, PATH oculus, etc.) instead of generic colored text badges
+- **Route/line badges** — MTA subway stops show colored line circles, NJT bus shows route pills, NJT rail shows line pills, MTA bus shows route pill; truncated to 2 with "+N" overflow
+- **Consistent between desktop and mobile** — both platforms use the same icon + badge pattern in settings
+
+### Naming Consistency (Desktop & Mobile)
+- **Direction only in parentheses** — MTA Subway shows `(Uptown)` / `(Downtown)` / `(Both)` only; line info is shown via badges
+- **No route/line text in stop names** — NJT Bus, NJT Rail, LIRR, MNR, MTA Bus no longer embed route or line info in the display name; all communicated via badges
+- **Ferry unchanged** — keeps `→ destination` format (which is the direction equivalent)
+
+### Bug Fix — Show Line Badges Toggle
+- **Settings card badges respect toggle** — "Show Line Badges" toggle in the mobile edit panel now correctly hides/shows badges in both the Settings stop list AND the transit cards on My Stops page. Previously the settings list badges were always visible regardless of the toggle.
+
+---
+
 ## 2026-06-02 — Desktop Alerts Panel & Test Coverage
 
 ### Desktop Alerts Panel

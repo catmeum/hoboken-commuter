@@ -326,7 +326,7 @@ describe('AddStopPanel — LIRR flow', () => {
 
     expect(onAdd).toHaveBeenCalledWith(
       'lirr:15:Babylon,Hempstead',
-      'Jamaica (All branches)'
+      'Jamaica'
     )
   })
 
@@ -365,7 +365,7 @@ describe('AddStopPanel — LIRR flow', () => {
 
     expect(onAdd).toHaveBeenCalledWith(
       'lirr:15:Babylon',
-      'Jamaica (Babylon)'
+      'Jamaica'
     )
   })
 
@@ -508,7 +508,7 @@ describe('AddStopPanel — Metro-North flow', () => {
 
     expect(onAdd).toHaveBeenCalledWith(
       'mnr:52:Hudson',
-      'Croton-Harmon (All lines)'
+      'Croton-Harmon'
     )
   })
 
@@ -548,7 +548,7 @@ describe('AddStopPanel — Metro-North flow', () => {
 
     expect(onAdd).toHaveBeenCalledWith(
       'mnr:1:Hudson,Harlem',
-      'Grand Central Terminal (Hudson, Harlem)'
+      'Grand Central Terminal'
     )
   })
 
@@ -703,7 +703,7 @@ describe('AddStopPanel — MTA Bus flow', () => {
 
     expect(onAdd).toHaveBeenCalledWith(
       'mtabus:401490:MTA NYCT_M1',
-      '5 AV/W 42 ST (M1)'
+      '5 AV/W 42 ST'
     )
   })
 

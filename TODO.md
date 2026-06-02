@@ -2,16 +2,13 @@
 
 ## Active — Next Session
 
-- [ ] **Desktop version home button conversion** - Change the home button to being a plus icon. When clicked, open the New Stop settings page (functions like a quick link)
-- [ ] **Rename app to "My Stop Now"** — FIRST: Check that git branch merged to master. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
-- [ ] **Skeleton loading states** — replace all fallback/placeholder text with pulsing grey skeleton loaders (Facebook/iOS style). Transit cards, weather pill, tunnel pills should all show a shimmer skeleton while data loads instead of "Loading…" or empty states.
-- [ ] **Stop cards in settings with transit badges** — My Stop Cards show proper colored subway line circles, route pills, source badges. (look at alerts implementation for guidance) For Ferry, just use ferry custom SVG.
 - [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
 - [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
 - [ ] **Update presets with inbound + outbound** — include both directions.
 - [ ] **Transit card icons per type** — add ferry SVG icon (currently emoji ⛴️).
 - [ ] **NY Waterway route coverage** — verify Hoboken 14th downtown service.
 - [ ] **NYC Ferry empty departures** — investigate GTFS-RT feed gaps.
+- [ ] **Rename app to "My Stop Now"** — FIRST: Evaluate options for a better git strategy to deploy the mobile and desktop versions independently. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
 
 
 ## v3 Mobile App — Implementation Tasks
@@ -44,6 +41,11 @@
 
 ## Completed
 
+- [x] **Desktop home button → Refresh icon** — replaced Home icon (scroll-to-top) with RotateCw that force-refreshes all polling data via refreshKey increment.
+- [x] **Skeleton loading states** — shimmer skeletons for all card types (tunnel, weather, bus, subway, rail, HBLR, LIRR, MNR, MTA Bus, NYC Ferry, PATH, Ferry) during initial data fetch.
+- [x] **Stop cards in settings with transit mode icons** — settings stop list uses actual transit SVG icons + colored route/line badges with +N overflow (desktop and mobile).
+- [x] **Direction/mode naming consistency** — stop names no longer embed route/line info in parens; badges communicate that info. Subway shows direction only. Applied to both desktop and mobile add-stop flows.
+- [x] **Show Line Badges toggle fix** — settings card badges now respect the toggle (stopHiddenBadges passed to SettingsPage).
 - [x] **AddStopPanel tests for all 11 transit modes** — 32 new tests covering Ferry, HBLR, Newark LR, LIRR, Metro-North, MTA Bus, NYC Ferry. Total AddStopPanel tests: 53.
 - [x] **Desktop alerts panel** — slide-in sidebar from bell icon with full alert list, dismiss/restore, dismiss all, independent bidirectional toggle, badge count on bell icon.
 - [x] **Removed inline alerts from transit cards** — alerts now centralized in the alerts panel only. Cards are cleaner.

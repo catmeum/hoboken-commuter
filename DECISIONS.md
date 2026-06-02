@@ -2,6 +2,17 @@
 
 Things that aren't obvious from the code alone.
 
+## Stop naming: direction in parens, lines/routes as badges (June 2026)
+
+Stop display names use parentheses ONLY for direction info:
+- MTA Subway: `34 St - Herald Sq (Uptown)` — lines shown as colored circle badges
+- NJT Bus: `Washington / 11th` — route numbers shown as green pills
+- NJT Rail: `Hoboken` — line abbreviations shown as orange pills
+- PATH: `Hoboken · HOB-33 to 33rd` — direction baked into the label
+- Ferry: `Hoboken → Midtown` — arrow format for direction
+
+This is consistent between desktop and mobile. Route/line info is encoded in the stop ID (e.g. `bus:12345:119,126,89`) and parsed by the settings UI to render badges, but not included in the display name string.
+
 ## Why an Express backend instead of all-frontend?
 
 Three reasons:

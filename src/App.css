@@ -861,6 +861,86 @@
   50% { opacity: 0.4; }
 }
 
+/* ── Skeleton Loading ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--border-color) 25%, var(--bg-subtle) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.skeleton-row .skeleton-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeleton-row .skeleton-text {
+  height: 12px;
+  border-radius: 3px;
+  flex: 1;
+}
+
+.skeleton-row .skeleton-time {
+  width: 44px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.skeleton-tunnel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.skeleton-tunnel-row .skeleton-name {
+  width: 60px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.skeleton-tunnel-row .skeleton-value {
+  width: 36px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.skeleton-weather-period {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.skeleton-weather-period .skeleton-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.skeleton-weather-period .skeleton-temp {
+  width: 32px;
+  height: 14px;
+  border-radius: 4px;
+}
+
 /* ── Settings Button ── */
 .settings-btn {
   display: flex;
@@ -1173,6 +1253,15 @@
   color: var(--text-primary);
 }
 
+.settings-stop-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
 .settings-type-badge {
   font-size: 9px;
   font-weight: 700;
@@ -1191,6 +1280,28 @@
 .settings-type-badge.lirr { background: #0039a6; }
 .settings-type-badge.mnr { background: #0039a6; }
 .settings-type-badge.mta-bus { background: var(--accent-purple); }
+
+.settings-stop-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.settings-route-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: #fff;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.settings-route-pill.bus { background: var(--accent-green); }
+.settings-route-pill.rail { background: #e66b00; }
+.settings-route-pill.mta-bus { background: var(--accent-purple); }
+.settings-route-pill.overflow { background: var(--text-muted); font-size: 8px; }
 
 .settings-stop-badge {
   font-size: 9px;
