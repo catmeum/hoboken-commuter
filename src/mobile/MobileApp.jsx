@@ -58,6 +58,7 @@ export default function MobileApp() {
   // ── Alerts state ──
   const [alerts, setAlerts] = useState([])
   const [dismissedAlerts, setDismissedAlerts] = useState([])
+  const [alertHighlightSource, setAlertHighlightSource] = useState(null)
 
   // ── Persist settings ──
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.stops, JSON.stringify(stops)) }, [stops])
@@ -153,6 +154,7 @@ export default function MobileApp() {
     if (p === 'settings') {
       setSettingsOpen(true)
     } else {
+      if (p === 'alerts') setAlertHighlightSource(null)
       setPage(p)
     }
   }, [])
@@ -319,7 +321,7 @@ export default function MobileApp() {
           alerts={filteredAlerts}
           dismissedAlerts={dismissedAlerts}
           setAlerts={setAlerts}
-          onNavigateToAlerts={() => setPage('alerts')}
+          onNavigateToAlerts={(stopId) => { setAlertHighlightSource(stopId || null); setPage('alerts') }}
         />
       )}
       {page === 'alerts' && (
@@ -329,8 +331,7 @@ export default function MobileApp() {
           onDismiss={dismissAlert}
           onDismissAll={dismissAllAlerts}
           onRestore={restoreAlert}
-          alertBadge={alertBadge}
-          alertStaleness={alertStaleness}
+          highlightSource={alertHighlightSource}
         />
       )}
 

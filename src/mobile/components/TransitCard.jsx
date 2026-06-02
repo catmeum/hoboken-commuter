@@ -104,14 +104,14 @@ function ExpandableBadges({ children, maxVisible = 3 }) {
 
 // ── Generic transit card shell ──
 // alert prop: 'active' = fresh undismissed, 'dismissed' = greyed out, falsy = no icon
-function CardShell({ icon, station, badges, alert, onAlertTap, children }) {
+function CardShell({ icon, station, badges, alert, onAlertTap, stopId, children }) {
   return (
     <div className="ms-card">
       <div className="ms-card-head">
         <span className="ms-icon">{icon}</span>
         {badges}
         <span className="ms-station">{station}</span>
-        {alert === 'active' && <button className="ms-alert ms-alert-active" onClick={onAlertTap}><AlertTriangle size={14} /></button>}
+        {alert === 'active' && <button className="ms-alert ms-alert-active" onClick={() => onAlertTap && onAlertTap(stopId)}><AlertTriangle size={14} /></button>}
         {alert === 'dismissed' && <span className="ms-alert ms-alert-dismissed"><AlertTriangle size={14} /></span>}
       </div>
       {children}
@@ -163,6 +163,8 @@ export function MtaSubwayCard({ stopId, displayName, hiddenBadges, alertState, o
       icon={<MtaGlobeIcon size={16} />}
       station={stationName}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={
         <ExpandableBadges maxVisible={2}>
           {visibleLines.map(l => (
@@ -218,6 +220,8 @@ export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlert
       icon={<NjtBusIcon size={16} />}
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={
         <>
           {visibleRoutes.map(r => (
@@ -283,6 +287,8 @@ export function PathCard({ stopId, displayName, hiddenBadges, alertState, onAler
       icon={<PathIcon size={16} />}
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={!hiddenBadges?.includes('__all__') ? <span className="ms-badge ms-badge-rail" style={{ background: '#0369a1' }}>PATH</span> : null}
     >
       {departures.length > 0 ? (
@@ -319,6 +325,8 @@ export function FerryCard({ stopId, displayName, alertState, onAlertTap }) {
       icon="⛴️"
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={null}
     >
       {departures.length > 0 ? (
@@ -361,6 +369,8 @@ export function RailCard({ stopId, displayName, hiddenBadges, alertState, onAler
       icon={<NjtRailIcon size={16} />}
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={showBadges ? (
         <ExpandableBadges maxVisible={2}>
           {lineNames.map(l => (
@@ -406,6 +416,8 @@ export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
       icon={<LightRailIcon size={16} />}
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={<span className="ms-badge ms-badge-rail" style={{ background: '#6B3FA0' }}>HBLR</span>}
     >
       {buses.length > 0 ? (
@@ -450,6 +462,8 @@ export function LirrCard({ stopId, displayName, hiddenBadges, alertState, onAler
       icon={<HeavyRailIcon size={16} />}
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={showBadges ? (
         <ExpandableBadges maxVisible={2}>
           {lineNames.map(l => (
@@ -494,6 +508,8 @@ export function MnrCard({ stopId, displayName, hiddenBadges, alertState, onAlert
       icon={<GrandCentralClock size={16} />}
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={showBadges ? (
         <ExpandableBadges maxVisible={2}>
           {lineNames.map(l => (
@@ -531,6 +547,8 @@ export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
       icon="⛴️"
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={<span className="ms-badge ms-badge-rail" style={{ background: '#1D8BC9' }}>NYC</span>}
     >
       {departures.length > 0 ? (
@@ -567,6 +585,8 @@ export function MtaBusCard({ stopId, displayName, alertState, onAlertTap }) {
       icon={<NjtBusIcon size={16} />}
       station={name}
       alert={alertState}
+      onAlertTap={onAlertTap}
+      stopId={stopId}
       badges={<span className="ms-badge ms-badge-bus" style={{ background: '#0039A6' }}>MTA</span>}
     >
       {departures.length > 0 ? (

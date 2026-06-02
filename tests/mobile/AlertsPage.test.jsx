@@ -75,4 +75,51 @@ describe('AlertsPage', () => {
     fireEvent.click(screen.getByText('Restore'))
     expect(onRestore).toHaveBeenCalledWith(dismissed[0])
   })
+
+  it('highlights matching alerts when highlightSource is provided', () => {
+    const { container } = render(
+      <AlertsPage
+        alerts={mockAlerts}
+        dismissedAlerts={[]}
+        onDismiss={onDismiss}
+        onRestore={onRestore}
+        highlightSource="mta:101:S:4,5"
+      />
+    )
+    // MTA alert should be highlighted, tunnel alert should not
+    const alertCards = container.querySelectorAll('.m-alert-card')
+    expect(alertCards[0].classList.contains('m-alert-highlight')).toBe(false) // tunnel
+    expect(alertCards[1].classList.contains('m-alert-highlight')).toBe(true)  // mta
+  })
+
+  it('does not highlight any alerts when highlightSource is not provided', () => {
+    const { container } = render(
+      <AlertsPage
+        alerts={mockAlerts}
+        dismissedAlerts={[]}
+        onDismiss={onDismiss}
+        onRestore={onRestore}
+      />
+    )
+    const highlighted = container.querySelectorAll('.m-alert-highlight')
+    expect(highlighted.length).toBe(0)
+  })
+
+  it('highlights tunnel alerts when highlightSource starts with bus:', () => {
+    // Tunnel alerts have id starting with "tunnel-" and source "PANYNJ"
+    // Bus stops don't match tunnel alerts — neither should be highlighted
+    const { container } = render(
+      <AlertsPage
+        alerts={mockAlerts}
+        dismissedAlerts={[]}
+        onDismiss={onDismiss}
+        onRestore={onRestore}
+        highlightSource="bus:7940:126"
+      />
+    )
+    const alertCards = container.querySelectorAll('.m-alert-card')
+    // bus source matches alert id containing 'bus' — tunnel doesn't
+    expect(alertCards[0].classList.contains('m-alert-highlight')).toBe(false) // tunnel
+    expect(alertCards[1].classList.contains('m-alert-highlight')).toBe(false) // mta
+  })
 })

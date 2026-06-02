@@ -24,7 +24,12 @@ describe('AddStopPanel — Bus headsign variant flow', () => {
         ok: true,
         json: () => Promise.resolve({ routes: ['126', '119'] }),
       })
-      // Headsign variants (triggered by confirmBus)
+      // Stop directions (multi-platform check — no picker needed)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ needsPicker: false, directions: [] }),
+      })
+      // Headsign variants (triggered by checkBusVariants)
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({
@@ -70,6 +75,11 @@ describe('AddStopPanel — Bus headsign variant flow', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ routes: ['126'] }),
+      })
+      // Stop directions (multi-platform check — no picker needed)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ needsPicker: false, directions: [] }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -157,6 +167,11 @@ describe('AddStopPanel — Bus headsign variant flow', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: () => Promise.resolve({ routes: ['165', '166'] }),
+      })
+      // Stop directions (multi-platform check — no picker needed)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ needsPicker: false, directions: [] }),
       })
       .mockResolvedValueOnce({
         ok: true,

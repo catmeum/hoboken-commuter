@@ -1,6 +1,27 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
-function AlertCard({ alert, onDismiss }) {
+// ── Source matching helper (mirrors getAlertState in TransitCard) ──
+function getSourceMatchers(stopId) {
+  if (!stopId) return []
+  if (stopId.startsWith('mta:')) return ['mta']
+  if (stopId.startsWith('bus:') || /^\d/.test(stopId)) return ['bus']
+  if (stopId.startsWith('path:')) return ['path']
+  if (stopId.startsWith('ferry:')) return ['ferry']
+  if (stopId.startsWith('rail:')) return ['rail', 'njt']
+  if (stopId.startsWith('hblr:')) return ['hblr']
+  if (stopId.startsWith('lirr:')) return ['lirr']
+  if (stopId.startsWith('mnr:')) return ['mnr']
+  if (stopId.startsWith('nycferry:')) return ['nycferry']
+  if (stopId.startsWith('mtabus:')) return ['mtabus', 'mta']
+  return []
+}
+
+function alertMatchesSource(alert, sourceMatchers) {
+  if (!sourceMatchers.length) return false
+  return sourceMatchers.some(s => alert.id?.includes(s) || alert.source?.toLowerCase().includes(s))
+}
+
+function AlertCard({ alert, onDismiss, highlighted, highlightRef }) {
   const startX = useRef(0)
   const [offset, setOffset] = useState(0)
   const [dismissing, setDismissing] = useState(false)
@@ -26,7 +47,7 @@ function AlertCard({ alert, onDismiss }) {
   }
 
   return (
-    <div className={`m-alert-card ${dismissing ? 'dismissing' : ''}`}>
+    <div ref={highlightRef} className={`m-alert-card ${dismissing ? 'dismissing' : ''} ${highlighted ? 'm-alert-highlight' : ''}`}>
       <div className="m-alert-dismiss-bg">Dismiss</div>
       <div
         className="m-alert-card-inner"
@@ -53,8 +74,34 @@ function AlertCard({ alert, onDismiss }) {
   )
 }
 
-export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onDismissAll, onRestore }) {
+export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onDismissAll, onRestore, highlightSource }) {
   const [showDismissed, setShowDismissed] = useState(false)
+  const [highlightActive, setHighlightActive] = useState(!!highlightSource)
+
+  // Clear highlight after 2.5 seconds
+  useEffect(() => {
+    if (!highlightSource) {
+      setHighlightActive(false)
+      return
+    }
+    setHighlightActive(true)
+    const timer = setTimeout(() => {
+      setHighlightActive(false)
+    }, 2500)
+    return () => clearTimeout(timer)
+  }, [highlightSource])
+
+  const sourceMatchers = getSourceMatchers(highlightSource)
+  const firstHighlightRef = useRef(null)
+
+  // Scroll to first highlighted alert
+  useEffect(() => {
+    if (highlightActive && firstHighlightRef.current) {
+      setTimeout(() => {
+        firstHighlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
+    }
+  }, [highlightActive])
 
   return (
     <div className="m-alerts-page">
@@ -66,9 +113,19 @@ export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onDismi
       <div className="m-alerts-list">
         {alerts.length > 0 ? (
           <>
-            {alerts.map((alert, i) => (
-              <AlertCard key={`${alert.text}-${i}`} alert={alert} onDismiss={onDismiss} />
-            ))}
+            {alerts.map((alert, i) => {
+              const isHighlighted = highlightActive && sourceMatchers.length > 0 && alertMatchesSource(alert, sourceMatchers)
+              const isFirstHighlight = isHighlighted && !alerts.slice(0, i).some(a => alertMatchesSource(a, sourceMatchers))
+              return (
+                <AlertCard
+                  key={`${alert.text}-${i}`}
+                  alert={alert}
+                  onDismiss={onDismiss}
+                  highlighted={isHighlighted}
+                  highlightRef={isFirstHighlight ? firstHighlightRef : null}
+                />
+              )
+            })}
             {alerts.length > 1 && (
               <button className="m-dismiss-all-btn" onClick={onDismissAll}>
                 Dismiss all

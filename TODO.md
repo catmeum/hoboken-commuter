@@ -2,9 +2,6 @@
 
 ## Active — Next Session
 
-- [ ] **(Fix) BusVariants.test.jsx — 3 failures** — `confirmBus` now calls `/api/bus/stop-directions` before `/api/bus/stop-headsigns` for multi-platform stops (PABT). Tests need an extra fetch mock for the direction check.
-- [ ] **(Fix) alert triangle button is non functional** - If there's an alert icon, when 
-- [ ] **(Fix) Add Stop — step 3 (line/direction picker)** — after selecting lines, let user pick specific directions if any of the lines have multiple directions.
 - [ ] **New Stop Add Tests** — Add test cases for every transit mode to ensure that there is never a stuck "loading lines..." or other error and all transit modes can successfully have stops added (including complex stops like NJT bus stops with multi directions / multiple variations of the same bus line)
 - [ ] **Desktop version alerts implementation** — Copy alerts center functionality from mobile app. Show as a closeable page that pulls up from bottom of the screen. Open/close triggered by tapping on the bell icon.
 - [ ] **Rename app to "My Stop Now"** — FIRST: Check that git branch merged to master. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
@@ -83,6 +80,9 @@
 - [x] **Expandable badge rows** — MTA Subway and NJT Rail badges truncate with tappable "+N" to expand/collapse.
 - [x] **PABT full support** — multi-platform stop consolidation (80+ IDs), direction_id filtering (outbound only), headsign variant picker for route 126 (Willow vs Washington gates), gate info display on cards, stop ID resilience across GTFS updates.
 - [x] **Add Stop multi-step flow** — MTA Subway (search → lines + direction picker), NJT Bus (search → route picker → variant picker for PABT). All 10 transit modes wired to correct server endpoints.
+- [x] **(Fix) BusVariants.test.jsx — 3 failures** — added missing `/api/bus/stop-directions` mock for multi-platform stops. Tests now pass.
+- [x] **(Fix) Add Stop — step 3 (line/direction picker)** — already implemented: direction picker exists for subway, bus direction, PATH, and bus variant flows.
+- [x] **(Fix) Alert triangle button non-functional** — `onAlertTap` wasn't forwarded from card components to `CardShell`. Fixed all 10 card types. Also added highlight glow: tapping the alert icon navigates to Alerts page and scrolls to + highlights matching alerts with an inset orange glow that fades after 2.5s.
 - [x] **v3 Mobile app scaffold** — full React mobile app at `/mobile` with Welcome, My Stops, Alerts, Settings pages. React Router, localStorage persistence, custom SVG icons, Vitest test suite.
 - [x] **Welcome page — preset picker** — "Pick stops manually" leads to neighborhood preset cards (Hoboken, Newport, Midtown, Downtown, Brooklyn, Queens) or "Start from scratch".
 - [x] **Transit card wiring** — all modes (MTA Subway, NJT Bus, PATH, Ferry, NJT Rail, HBLR) properly connected to server APIs with correct stop ID formats.

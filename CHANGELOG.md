@@ -1,5 +1,20 @@
 # Hoboken Commuter Dashboard — Version History
 
+## 2026-06-02 — Bug Fixes & Alert UX
+
+### Fixes
+- **BusVariants tests** — fixed 3 test failures by adding missing `/api/bus/stop-directions` mock for multi-platform stops (PABT)
+- **Alert triangle button** — fixed non-functional alert icon on all 10 transit card types (`onAlertTap` wasn't forwarded to `CardShell`)
+
+### Enhancements
+- **Alert highlight on tap** — tapping a card's alert triangle navigates to Alerts page, auto-scrolls to the first matching alert, and highlights matching alerts with an inset orange glow that fades after 2.5s
+- **Source-based matching** — highlight logic identifies alerts by transit source (mta, bus, path, ferry, etc.) matching the originating card
+
+### Tests
+- Added 3 new AlertsPage tests: highlight matching, no-highlight default, source filtering
+
+---
+
 ## v3.0.0-alpha (2026-05-30) — Mobile App
 
 ### Mobile App (`/mobile`)
