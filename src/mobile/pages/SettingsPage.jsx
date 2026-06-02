@@ -27,13 +27,20 @@ export default function SettingsPage({
   showTunnels, setShowTunnels,
   tunnels, setTunnels,
   alertBadge, setAlertBadge,
+  alertStaleness, setAlertStaleness,
   stops, stopNames,
-  onRemoveStop,
+  onRemoveStop, onEditStop,
   onOpenAddStop, onReset,
+  onReorderStops,
 }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [showAllStops, setShowAllStops] = useState(false)
   const [showAllTunnels, setShowAllTunnels] = useState(false)
+  // Drag to reorder state
+  const [dragIndex, setDragIndex] = useState(null)
+  const [dragOverIndex, setDragOverIndex] = useState(null)
+  const dragStartY = useRef(0)
+  const dragItemHeight = useRef(0)
   // Snapshot the tunnel order on open — selected float to top only on re-open
   const [tunnelOrder, setTunnelOrder] = useState(() => sortTunnelsForDisplay(tunnels))
   const prevOpen = useRef(false)
@@ -49,6 +56,8 @@ export default function SettingsPage({
   const themeOrder = ['auto', 'dark', 'light']
   const badgeLabels = { count: '🔴 Count', dot: '● Dot', off: '○ Off' }
   const badgeOrder = ['count', 'dot', 'off']
+  const stalenessLabels = { off: 'Off', '30': '30 min', '60': '1 hour', '180': '3 hours', '720': '12 hours' }
+  const stalenessOrder = ['off', '30', '60', '180', '720']
 
   function cycleTheme() {
     const idx = themeOrder.indexOf(theme)
@@ -58,6 +67,11 @@ export default function SettingsPage({
   function cycleBadge() {
     const idx = badgeOrder.indexOf(alertBadge)
     setAlertBadge(badgeOrder[(idx + 1) % badgeOrder.length])
+  }
+
+  function cycleStaleness() {
+    const idx = stalenessOrder.indexOf(alertStaleness)
+    setAlertStaleness(stalenessOrder[(idx + 1) % stalenessOrder.length])
   }
 
   function toggleTunnel(id) {
@@ -100,6 +114,10 @@ export default function SettingsPage({
           <button className="m-set-mode-btn" onClick={cycleBadge}>{badgeLabels[alertBadge]}</button>
         </div>
         <div className="m-set-toggle-row">
+          <span>Hide Old Alerts</span>
+          <button className="m-set-mode-btn" onClick={cycleStaleness}>{stalenessLabels[alertStaleness]}</button>
+        </div>
+        <div className="m-set-toggle-row">
           <span>Show Weather</span>
           <button className={`m-set-switch ${showWeather ? 'on' : ''}`} onClick={() => setShowWeather(v => !v)} />
         </div>
@@ -112,22 +130,7 @@ export default function SettingsPage({
           </div>
         )}
         {showWeather && (
-          <div className="m-set-toggle-row">
-            <span>Weather Location</span>
-            <input
-              type="text"
-              className="m-set-zip-input"
-              placeholder="Zip code"
-              maxLength={5}
-              inputMode="numeric"
-              defaultValue={weatherZip || ''}
-              onBlur={(e) => {
-                const val = e.target.value.replace(/\D/g, '')
-                if (val.length === 5) setWeatherZip(val)
-                else if (val.length === 0) setWeatherZip('')
-              }}
-            />
-          </div>
+          <ZipCodeInput weatherZip={weatherZip} setWeatherZip={setWeatherZip} />
         )}
         <div className="m-set-toggle-row">
           <span>Show Tunnels</span>
@@ -173,8 +176,32 @@ export default function SettingsPage({
       <section className="m-set-section">
         <h3 className="m-set-label">My Stops</h3>
         <div className="m-set-stop-list">
-          {visibleStops.map((stopId) => (
-            <SwipeableStopItem key={stopId} stopId={stopId} name={stopNames[stopId] || stopId} onRemove={onRemoveStop} />
+          {visibleStops.map((stopId, idx) => (
+            <SwipeableStopItem
+              key={stopId}
+              stopId={stopId}
+              index={idx}
+              name={stopNames[stopId] || stopId}
+              onRemove={onRemoveStop}
+              onEdit={onEditStop}
+              isDragging={dragIndex === idx}
+              isDragOver={dragOverIndex === idx}
+              onDragStart={(i, y, h) => { setDragIndex(i); dragStartY.current = y; dragItemHeight.current = h }}
+              onDragMove={(y) => {
+                if (dragIndex === null) return
+                const diff = y - dragStartY.current
+                const moveBy = Math.round(diff / (dragItemHeight.current + 6))
+                const target = Math.max(0, Math.min(visibleStops.length - 1, dragIndex + moveBy))
+                setDragOverIndex(target)
+              }}
+              onDragEnd={() => {
+                if (dragIndex !== null && dragOverIndex !== null && dragIndex !== dragOverIndex) {
+                  onReorderStops(dragIndex, dragOverIndex)
+                }
+                setDragIndex(null)
+                setDragOverIndex(null)
+              }}
+            />
           ))}
         </div>
         {hiddenCount > 0 && (
@@ -215,30 +242,107 @@ export default function SettingsPage({
   )
 }
 
-// Swipeable stop item — reveals disabled "Edit" button on swipe left
-function SwipeableStopItem({ stopId, name, onRemove }) {
+// Zip code input with confirm button and reset-to-auto option
+function ZipCodeInput({ weatherZip, setWeatherZip }) {
+  const [draft, setDraft] = useState(weatherZip || '')
+  const isValid = /^\d{5}$/.test(draft)
+  const isDirty = draft !== (weatherZip || '')
+  const hasManualZip = weatherZip && /^\d{5}$/.test(weatherZip)
+
+  return (
+    <div className="m-set-toggle-row" style={{ flexWrap: 'wrap', gap: 6 }}>
+      <span>Weather Location</span>
+      <div className="m-set-zip-wrap">
+        <input
+          type="text"
+          className="m-set-zip-input"
+          placeholder="Zip"
+          maxLength={5}
+          inputMode="numeric"
+          value={draft}
+          onFocus={() => setDraft('')}
+          onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+        />
+        {isDirty && isValid && (
+          <button
+            className="m-set-zip-confirm"
+            onClick={() => setWeatherZip(draft)}
+          >✓</button>
+        )}
+      </div>
+      {hasManualZip && (
+        <button
+          className="m-set-zip-reset"
+          onClick={() => { setWeatherZip(''); setDraft('') }}
+        >
+          Use auto-location
+        </button>
+      )}
+    </div>
+  )
+}
+
+// Swipeable stop item — reveals "Edit" button on swipe left, drag grip for reordering
+function SwipeableStopItem({ stopId, index, name, onRemove, onEdit, isDragging, isDragOver, onDragStart, onDragMove, onDragEnd }) {
   const [offset, setOffset] = useState(0)
   const startX = useRef(0)
+  const dragging = useRef(false)
+  const itemRef = useRef(null)
 
   function handleTouchStart(e) {
     startX.current = e.touches[0].clientX
   }
 
   function handleTouchMove(e) {
+    if (dragging.current) return // don't swipe while dragging
     const diff = e.touches[0].clientX - startX.current
+    // Allow swiping left to reveal edit, and swiping right to close
     if (diff < 0) {
       setOffset(Math.max(diff, -70))
+    } else if (offset < 0) {
+      // Swiping right while open — close it
+      setOffset(Math.min(0, offset + diff))
     }
   }
 
   function handleTouchEnd() {
+    if (dragging.current) return
     // Snap open or closed
     setOffset(offset < -35 ? -70 : 0)
   }
 
+  function handleEdit() {
+    setOffset(0)
+    onEdit(stopId)
+  }
+
+  // Drag handlers on grip
+  function handleGripTouchStart(e) {
+    e.stopPropagation()
+    dragging.current = true
+    const rect = itemRef.current?.getBoundingClientRect()
+    onDragStart(index, e.touches[0].clientY, rect?.height || 48)
+  }
+
+  function handleGripTouchMove(e) {
+    e.stopPropagation()
+    if (dragging.current) {
+      onDragMove(e.touches[0].clientY)
+    }
+  }
+
+  function handleGripTouchEnd(e) {
+    e.stopPropagation()
+    dragging.current = false
+    onDragEnd()
+  }
+
   return (
-    <div className="m-set-stop-item-wrap">
-      <div className="m-set-stop-edit-bg">Edit</div>
+    <div
+      ref={itemRef}
+      className={`m-set-stop-item-wrap ${isDragging ? 'm-set-dragging' : ''} ${isDragOver ? 'm-set-drag-over' : ''}`}
+    >
+      <div className="m-set-stop-edit-bg" onClick={handleEdit}>Edit</div>
       <div
         className="m-set-stop-item"
         style={{ transform: `translateX(${offset}px)`, transition: offset === 0 || offset === -70 ? 'transform 0.2s ease' : 'none' }}
@@ -246,7 +350,12 @@ function SwipeableStopItem({ stopId, name, onRemove }) {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        <span className="m-set-grip">⋮⋮</span>
+        <span
+          className="m-set-grip"
+          onTouchStart={handleGripTouchStart}
+          onTouchMove={handleGripTouchMove}
+          onTouchEnd={handleGripTouchEnd}
+        >⋮⋮</span>
         <span className="m-set-stop-name">{name}</span>
         <button className="m-set-remove" onClick={() => onRemove(stopId)}>✕</button>
       </div>

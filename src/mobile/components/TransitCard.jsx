@@ -136,7 +136,7 @@ function DepartureRow({ dest, eta, etaClock, badgeColor, source }) {
 }
 
 // ── MTA Subway Card ──
-export function MtaSubwayCard({ stopId, displayName, alertState, onAlertTap }) {
+export function MtaSubwayCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 3) return null
@@ -156,6 +156,7 @@ export function MtaSubwayCard({ stopId, displayName, alertState, onAlertTap }) {
   const departures = data?.departures || []
   const stationName = displayName || data?.stationName || stopId
   const lines = stopId.split(':')[3]?.split(',') || []
+  const visibleLines = hiddenBadges?.includes('__all__') ? [] : lines
 
   return (
     <CardShell
@@ -164,7 +165,7 @@ export function MtaSubwayCard({ stopId, displayName, alertState, onAlertTap }) {
       alert={alertState}
       badges={
         <ExpandableBadges maxVisible={2}>
-          {lines.map(l => (
+          {visibleLines.map(l => (
             <SubwayBadge key={l} line={l} size={22} />
           ))}
         </ExpandableBadges>
@@ -182,7 +183,7 @@ export function MtaSubwayCard({ stopId, displayName, alertState, onAlertTap }) {
 }
 
 // ── NJT Bus Card ──
-export function BusCard({ stopId, displayName, alertState, onAlertTap }) {
+export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const [showGateInfo, setShowGateInfo] = useState(false)
   const fetcher = useCallback(async () => {
     // Formats: bus:STOP_IDS:ROUTES:HEADSIGN or bus:STOP_IDS:ROUTES or legacy
@@ -208,6 +209,7 @@ export function BusCard({ stopId, displayName, alertState, onAlertTap }) {
   const buses = data?.buses || []
   const name = displayName || shortenStopName(data?.name || data?.stop) || stopId
   const routes = [...new Set(buses.map(b => b.route))].slice(0, 3)
+  const visibleRoutes = hiddenBadges?.includes('__all__') ? [] : routes
   const gate = data?.gate
   const gateSchedule = data?.gateSchedule
 
@@ -218,7 +220,7 @@ export function BusCard({ stopId, displayName, alertState, onAlertTap }) {
       alert={alertState}
       badges={
         <>
-          {routes.map(r => (
+          {visibleRoutes.map(r => (
             <span key={r} className="ms-badge ms-badge-bus" style={{ background: njtRouteColor(r) }}>{r}</span>
           ))}
           {gate && (
@@ -262,7 +264,7 @@ export function BusCard({ stopId, displayName, alertState, onAlertTap }) {
 }
 
 // ── PATH Card ──
-export function PathCard({ stopId, displayName, alertState, onAlertTap }) {
+export function PathCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 4) return null
@@ -281,7 +283,7 @@ export function PathCard({ stopId, displayName, alertState, onAlertTap }) {
       icon={<PathIcon size={16} />}
       station={name}
       alert={alertState}
-      badges={<span className="ms-badge ms-badge-rail" style={{ background: '#0369a1' }}>PATH</span>}
+      badges={!hiddenBadges?.includes('__all__') ? <span className="ms-badge ms-badge-rail" style={{ background: '#0369a1' }}>PATH</span> : null}
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => (
@@ -334,7 +336,7 @@ export function FerryCard({ stopId, displayName, alertState, onAlertTap }) {
 }
 
 // ── NJT Rail Card ──
-export function RailCard({ stopId, displayName, alertState, onAlertTap }) {
+export function RailCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 2) return null
@@ -352,19 +354,20 @@ export function RailCard({ stopId, displayName, alertState, onAlertTap }) {
   const lineNames = [...new Set(departures.map(d => d.lineName))]
   const lineColors = {}
   departures.forEach(d => { if (d.lineName && d.lineColor) lineColors[d.lineName] = d.lineColor })
+  const showBadges = !hiddenBadges?.includes('__all__')
 
   return (
     <CardShell
       icon={<NjtRailIcon size={16} />}
       station={name}
       alert={alertState}
-      badges={
+      badges={showBadges ? (
         <ExpandableBadges maxVisible={2}>
           {lineNames.map(l => (
             <span key={l} className="ms-badge ms-badge-rail" style={{ background: lineColors[l] || '#00953B', fontSize: 'clamp(7px, 1.8vw, 9px)' }}>{l}</span>
           ))}
         </ExpandableBadges>
-      }
+      ) : null}
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => (
@@ -423,7 +426,7 @@ export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
 }
 
 // ── LIRR Card ──
-export function LirrCard({ stopId, displayName, alertState, onAlertTap }) {
+export function LirrCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const routes = stopId.split(':')[2] || ''
@@ -440,19 +443,20 @@ export function LirrCard({ stopId, displayName, alertState, onAlertTap }) {
   const lineNames = [...new Set(departures.map(d => d.dest?.split(' ')[0]).filter(Boolean))]
   const lineColors = {}
   departures.forEach(d => { if (d.dest && d.lineColor) lineColors[d.dest.split(' ')[0]] = d.lineColor })
+  const showBadges = !hiddenBadges?.includes('__all__')
 
   return (
     <CardShell
       icon={<HeavyRailIcon size={16} />}
       station={name}
       alert={alertState}
-      badges={
+      badges={showBadges ? (
         <ExpandableBadges maxVisible={2}>
           {lineNames.map(l => (
             <span key={l} className="ms-badge ms-badge-rail" style={{ background: lineColors[l] || '#0039A6', fontSize: 'clamp(6px, 1.6vw, 8px)' }}>{l}</span>
           ))}
         </ExpandableBadges>
-      }
+      ) : null}
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => (
@@ -466,7 +470,7 @@ export function LirrCard({ stopId, displayName, alertState, onAlertTap }) {
 }
 
 // ── Metro-North Card ──
-export function MnrCard({ stopId, displayName, alertState, onAlertTap }) {
+export function MnrCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const routes = stopId.split(':')[2] || ''
@@ -483,19 +487,20 @@ export function MnrCard({ stopId, displayName, alertState, onAlertTap }) {
   const lineNames = [...new Set(departures.map(d => d.dest).filter(Boolean))]
   const lineColors = {}
   departures.forEach(d => { if (d.dest && d.lineColor) lineColors[d.dest] = d.lineColor })
+  const showBadges = !hiddenBadges?.includes('__all__')
 
   return (
     <CardShell
       icon={<GrandCentralClock size={16} />}
       station={name}
       alert={alertState}
-      badges={
+      badges={showBadges ? (
         <ExpandableBadges maxVisible={2}>
           {lineNames.map(l => (
             <span key={l} className="ms-badge ms-badge-rail" style={{ background: lineColors[l] || '#0039A6', fontSize: 'clamp(6px, 1.6vw, 8px)' }}>{l.slice(0, 5)}</span>
           ))}
         </ExpandableBadges>
-      }
+      ) : null}
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => (
@@ -605,17 +610,17 @@ function getAlertState(stopId, alerts, dismissedAlerts) {
 }
 
 // ── Card router — picks the right card component based on stop ID prefix ──
-export default function TransitCard({ stopId, displayName, alerts, dismissedAlerts, onAlertTap }) {
+export default function TransitCard({ stopId, displayName, hiddenBadges, alerts, dismissedAlerts, onAlertTap }) {
   const alertState = getAlertState(stopId, alerts, dismissedAlerts)
-  if (stopId.startsWith('mta:')) return <MtaSubwayCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
-  if (stopId.startsWith('bus:') || /^\d/.test(stopId)) return <BusCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
-  if (stopId.startsWith('path:')) return <PathCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('mta:')) return <MtaSubwayCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('bus:') || /^\d/.test(stopId)) return <BusCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('path:')) return <PathCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('ferry:')) return <FerryCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
-  if (stopId.startsWith('rail:')) return <RailCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('rail:')) return <RailCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('hblr:')) return <HblrCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
-  if (stopId.startsWith('lirr:')) return <LirrCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
-  if (stopId.startsWith('mnr:')) return <MnrCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('lirr:')) return <LirrCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('mnr:')) return <MnrCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('nycferry:')) return <NycFerryCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('mtabus:')) return <MtaBusCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
-  return <BusCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  return <BusCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
 }

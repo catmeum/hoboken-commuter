@@ -36,3 +36,6 @@ dist-ssr
 # Test output artifacts
 tests_output.txt
 *.test-output
+
+# Kiro files
+.kiro/*

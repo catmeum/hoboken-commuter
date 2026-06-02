@@ -29,12 +29,16 @@ const MODES = [
   { id: 'nycferry', label: 'NYC Ferry', icon: <NycFerryIcon size={16} />, placeholder: 'Search for a ferry stop…', enabled: true },
 ]
 
-export default function AddStopPanel({ open, onClose, onAdd }) {
-  const [step, setStep] = useState('modes') // modes | search | subway-dir | bus-lines
+export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpdate }) {
+  const [step, setStep] = useState('modes') // modes | search | subway-dir | bus-lines | edit-name
   const [mode, setMode] = useState(null)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [searching, setSearching] = useState(false)
+
+  // Edit mode state
+  const [editDisplayName, setEditDisplayName] = useState('')
+  const [editHiddenBadges, setEditHiddenBadges] = useState([])
 
   // Subway step 2 state
   const [selectedStation, setSelectedStation] = useState(null)
@@ -122,10 +126,18 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   // Reset on open
   useEffect(() => {
     if (open && !prevOpenRef.current) {
-      resetAll()
+      if (editingStop) {
+        // Edit mode — show the edit-name step
+        resetAll() // eslint-disable-line react-hooks/set-state-in-effect
+        setStep('edit-name')
+        setEditDisplayName(editingStop.displayName || '')
+        setEditHiddenBadges(editingStop.hiddenBadges || [])
+      } else {
+        resetAll()
+      }
     }
     prevOpenRef.current = open
-  }, [open])
+  }, [open, editingStop])
 
   // Focus search on step change
   useEffect(() => {
@@ -142,7 +154,9 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   }
 
   function goBack() {
-    if (step === 'subway-dir') {
+    if (step === 'edit-name') {
+      onClose()
+    } else if (step === 'subway-dir') {
       setStep('search')
       setSelectedStation(null)
       setStationLines([])
@@ -384,7 +398,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     // All other modes: add directly
     const stopId = buildSimpleStopId(modeId, result)
     const displayName = result.name || result.label || result.id
-    onAdd(stopId, displayName)
+    handleAdd(stopId, displayName)
   }
 
   // ── Confirm subway ──
@@ -396,7 +410,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     const stopId = `mta:${ids}:${dir}:${lines}`
     const dirLabel = selectedDirection === 'N' ? 'Uptown' : selectedDirection === 'S' ? 'Downtown' : 'Both'
     const displayName = `${selectedStation.name} (${dirLabel})`
-    onAdd(stopId, displayName)
+    handleAdd(stopId, displayName)
   }
 
   // ── Confirm bus — check for headsign variants (PABT) ──
@@ -446,7 +460,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
         } else {
           const stopId = `bus:${stopIds}:${routes}`
           const displayName = `${selectedBusStop.name} (${routes})`
-          onAdd(stopId, displayName)
+          handleAdd(stopId, displayName)
         }
       })
   }
@@ -469,7 +483,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     const stopIds = variant.stopIds || selectedBusStop.id
     const stopId = `bus:${stopIds}:${routes}:${headsign}`
     const displayName = `${selectedBusStop.name} · ${routes} ${variant.variant}`
-    onAdd(stopId, displayName)
+    handleAdd(stopId, displayName)
   }
 
   // ── Select PATH direction option ──
@@ -491,7 +505,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
       dirLabel = `${selected[0].label} +${selected.length - 1}`
     }
     const displayName = `${selectedPathStation.name} · ${dirLabel}`
-    onAdd(stopId, displayName)
+    handleAdd(stopId, displayName)
   }
 
   // ── Confirm NJT Rail ──
@@ -510,7 +524,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
       lineLabel = `${first?.abbr} +${selectedRailLines.size - 1}`
     }
     const displayName = `${selectedRailStation.name} (${lineLabel})`
-    onAdd(stopId, displayName)
+    handleAdd(stopId, displayName)
   }
 
   // ── Confirm LIRR ──
@@ -522,7 +536,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     if (selectedLirrRoutes.size === lirrRoutes.length) label = 'All branches'
     else if (selectedLirrRoutes.size <= 2) label = lirrRoutes.filter(r => selectedLirrRoutes.has(r.id)).map(r => r.name.replace(' Branch', '')).join(', ')
     else label = `${lirrRoutes.find(r => selectedLirrRoutes.has(r.id))?.name.replace(' Branch', '')} +${selectedLirrRoutes.size - 1}`
-    onAdd(stopId, `${selectedLirrStation.name} (${label})`)
+    handleAdd(stopId, `${selectedLirrStation.name} (${label})`)
   }
 
   // ── Confirm MNR ──
@@ -534,7 +548,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
     if (selectedMnrRoutes.size === mnrRoutes.length) label = 'All lines'
     else if (selectedMnrRoutes.size <= 2) label = mnrRoutes.filter(r => selectedMnrRoutes.has(r.id)).map(r => r.name).join(', ')
     else label = `${mnrRoutes.find(r => selectedMnrRoutes.has(r.id))?.name} +${selectedMnrRoutes.size - 1}`
-    onAdd(stopId, `${selectedMnrStation.name} (${label})`)
+    handleAdd(stopId, `${selectedMnrStation.name} (${label})`)
   }
 
   // ── Simple stop ID builder for modes without step 2 ──
@@ -549,6 +563,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
 
   // ── Title ──
   function getTitle() {
+    if (step === 'edit-name') return 'Edit Stop'
     if (step === 'modes') return 'Add a Stop'
     if (step === 'subway-dir') return `${selectedStation?.name} — Lines & Direction`
     if (step === 'bus-lines') return `${selectedBusStop?.name} — Select Routes`
@@ -564,6 +579,11 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
   }
 
   const modeConfig = mode ? MODES.find(m => m.id === mode.id) || mode : null
+
+  // When in edit mode (reconfigure flow), wrap onAdd to call onUpdate with the old stop ID
+  const handleAdd = editingStop
+    ? (stopId, displayName) => onUpdate(editingStop.stopId, stopId, displayName)
+    : onAdd
 
   return (
     <div className={`m-addstop-panel ${open ? 'open' : ''}`}>
@@ -593,6 +613,55 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
           ))}
         </div>
       )}
+
+      {/* Step: Edit stop — rename + reconfigure */}
+      {step === 'edit-name' && editingStop && (() => {
+        return (
+        <div className="m-addstop-step">
+          <p className="m-addstop-section-label">Display Name</p>
+          <input
+            type="text"
+            className="m-addstop-search"
+            value={editDisplayName}
+            onChange={e => setEditDisplayName(e.target.value)}
+            placeholder="Custom display name…"
+            autoFocus
+          />
+
+          <div className="m-addstop-toggle-row" style={{ marginTop: 12, marginBottom: 16 }}>
+            <span style={{ fontSize: 13 }}>Show Line Badges</span>
+            <button
+              className={`m-set-switch ${!editHiddenBadges.includes('__all__') ? 'on' : ''}`}
+              onClick={() => {
+                setEditHiddenBadges(prev =>
+                  prev.includes('__all__') ? [] : ['__all__']
+                )
+              }}
+            />
+          </div>
+
+          <button
+            className="m-addstop-confirm"
+            onClick={() => {
+              const name = editDisplayName.trim() || editingStop.displayName
+              onUpdate(editingStop.stopId, editingStop.stopId, name, editHiddenBadges)
+            }}
+            disabled={!editDisplayName.trim()}
+            style={{ position: 'relative', bottom: 'auto', boxShadow: 'none' }}
+          >
+            Save
+          </button>
+          <button
+            className="m-addstop-mode"
+            style={{ marginTop: 12, justifyContent: 'center' }}
+            onClick={() => setStep('modes')}
+          >
+            <span>🔄</span>
+            <span>Reconfigure Stop (Replace)</span>
+          </button>
+        </div>
+        )
+      })()}
 
       {/* Step: Search */}
       {step === 'search' && (
@@ -842,7 +911,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
                         const tag = selectedFerryTerminal.tag || selectedFerryTerminal.id
                         const stopId = `ferry:${tag}:${route.no}:${dest}`
                         const displayName = `${selectedFerryTerminal.name} → ${dest}`
-                        onAdd(stopId, displayName)
+                        handleAdd(stopId, displayName)
                       }}
                     >
                       <div className="m-addstop-result-name">→ {dest}</div>
@@ -856,7 +925,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
                       const tag = selectedFerryTerminal.tag || selectedFerryTerminal.id
                       const stopId = `ferry:${tag}:${route.no}:`
                       const displayName = `${selectedFerryTerminal.name} (${route.name})`
-                      onAdd(stopId, displayName)
+                      handleAdd(stopId, displayName)
                     }}
                   >
                     <div className="m-addstop-result-name">{route.name}</div>
@@ -957,7 +1026,7 @@ export default function AddStopPanel({ open, onClose, onAdd }) {
                 onClick={() => {
                   const stopId = `mtabus:${s.id}:${selectedMtaBusRoute.id}`
                   const displayName = `${s.name} (${selectedMtaBusRoute.name})`
-                  onAdd(stopId, displayName)
+                  handleAdd(stopId, displayName)
                 }}
               >
                 <div className="m-addstop-result-name">{s.name}</div>

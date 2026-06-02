@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import TransitCard from '../components/TransitCard'
 import InfoPills from '../components/InfoPills'
 
-export default function MyStopsPage({ stops, stopNames, showWeather, showTunnels, tunnels, alerts, dismissedAlerts, tempUnit, onNavigateToAlerts }) {
+export default function MyStopsPage({ stops, stopNames, stopHiddenBadges, showWeather, showTunnels, tunnels, alerts, dismissedAlerts, tempUnit, weatherZip, onNavigateToAlerts }) {
   const [time, setTime] = useState(new Date())
   const [pullProgress, setPullProgress] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -77,6 +77,7 @@ export default function MyStopsPage({ stops, stopNames, showWeather, showTunnels
           tunnelFilter={tunnels}
           activeAlerts={alerts}
           tempUnit={tempUnit}
+          weatherZip={weatherZip}
         />
 
         {stops.length === 0 ? (
@@ -91,6 +92,7 @@ export default function MyStopsPage({ stops, stopNames, showWeather, showTunnels
               key={`${stopId}-${refreshKey}`}
               stopId={stopId}
               displayName={stopNames[stopId]}
+              hiddenBadges={stopHiddenBadges?.[stopId]}
               alerts={alerts}
               dismissedAlerts={dismissedAlerts}
               onAlertTap={onNavigateToAlerts}

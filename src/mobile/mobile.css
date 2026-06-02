@@ -284,9 +284,39 @@
   font-size: 10px;
   color: var(--m-text-muted);
   margin-left: 4px;
-  display: none;
 }
-.ms-tunnel-pill.expanded .ms-tunnel-speed { display: inline; }
+
+/* Tunnel expanded bidirectional */
+.ms-tunnel-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ms-tunnel-expanded-name {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.ms-tunnel-dir-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ms-tunnel-dir-label {
+  font-size: 10px;
+  color: var(--m-text-muted);
+  font-weight: 500;
+  min-width: 34px;
+}
+.ms-tunnel-dir-time {
+  font-size: 11px;
+  font-weight: 600;
+}
+.ms-tunnel-dir-speed {
+  font-size: 10px;
+  color: var(--m-text-muted);
+  margin-left: auto;
+}
 
 /* Weather expanded card */
 .ms-weather-expand {
@@ -655,6 +685,29 @@
   border: 1px solid var(--m-card-border); background: var(--m-card-bg);
   color: var(--m-text); font-size: 12px; cursor: pointer; font-family: inherit;
 }
+.m-set-zip-input {
+  width: 64px; padding: 4px 8px; border-radius: 8px;
+  border: 1px solid var(--m-card-border); background: var(--m-card-bg);
+  color: var(--m-text); font-size: 13px; font-family: inherit;
+  text-align: center;
+}
+.m-set-zip-input::placeholder { color: var(--m-text-muted); }
+.m-set-zip-input:focus { outline: none; border-color: var(--m-accent); }
+.m-set-zip-wrap {
+  display: flex; align-items: center; gap: 6px;
+}
+.m-set-zip-confirm {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: var(--m-accent); color: white;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  animation: m-slideDown 0.15s ease;
+}
+.m-set-zip-reset {
+  width: 100%; font-size: 11px; color: var(--m-accent);
+  background: none; border: none; font-family: inherit;
+  cursor: pointer; text-align: right; padding: 2px 0;
+}
 .m-set-switch {
   width: 40px; height: 22px; border-radius: 11px; border: none;
   background: var(--m-card-border); position: relative; cursor: pointer;
@@ -682,8 +735,7 @@
   display: flex; align-items: center; justify-content: center;
   color: white; font-size: 12px; font-weight: 600;
   border-radius: 0 12px 12px 0;
-  opacity: 0.4;
-  pointer-events: none; /* disabled — coming soon */
+  cursor: pointer;
 }
 .m-set-stop-item {
   display: flex; align-items: center; gap: 6px;
@@ -692,7 +744,9 @@
   position: relative; z-index: 2;
   transition: transform 0.2s ease;
 }
-.m-set-grip { opacity: 0.3; font-size: 11px; cursor: grab; user-select: none; }
+.m-set-grip { opacity: 0.3; font-size: 11px; cursor: grab; user-select: none; touch-action: none; }
+.m-set-stop-item-wrap.m-set-dragging { opacity: 0.5; transform: scale(0.96); }
+.m-set-stop-item-wrap.m-set-drag-over { border-top: 2px solid var(--m-accent); border-radius: 12px; }
 .m-set-stop-name { flex: 1; font-size: 13px; font-weight: 500; }
 .m-set-remove {
   border: none; background: none; color: var(--m-text-muted);
@@ -717,7 +771,8 @@
   display: flex; align-items: center; gap: 8px;
   padding: 10px 12px; border-radius: 10px;
   background: var(--m-card-bg); border: 1px solid var(--m-card-border);
-  font-size: 13px; cursor: pointer; transition: border-color 0.2s;
+  color: var(--m-text); font-size: 13px; font-family: inherit;
+  cursor: pointer; transition: border-color 0.2s;
 }
 .m-set-tunnel-opt.selected { border-color: var(--m-accent); }
 .m-set-tunnel-opt.disabled {
@@ -945,6 +1000,13 @@
 }
 .m-addstop-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
 .m-addstop-confirm:active:not(:disabled) { transform: scale(0.98); }
+
+/* Badge toggle in edit mode */
+.m-addstop-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 12px; border-radius: 12px;
+  background: var(--m-card-bg); border: 1px solid var(--m-card-border);
+}
 
 /* ═══ Bus Card — Gate Info ═══ */
 .ms-gate-badge {

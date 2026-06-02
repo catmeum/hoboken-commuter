@@ -41,30 +41,73 @@ function displayTemp(temp, unit) {
 }
 
 // ── Info Pills Row (weather + tunnels) ──
-export default function InfoPills({ showWeather, showTunnels, tunnelFilter, activeAlerts, tempUnit }) {
+export default function InfoPills({ showWeather, showTunnels, tunnelFilter, activeAlerts, tempUnit, weatherZip }) {
   const [weatherExpanded, setWeatherExpanded] = useState(false)
-  const [weatherLocation, setWeatherLocation] = useState('hoboken')
+  const [weatherLocation, setWeatherLocation] = useState(null)
+  const [resolvedZipLocation, setResolvedZipLocation] = useState(null)
 
-  // Try to get user's location for weather on mount
+  // Resolve zip code to NWS grid or fall back to geolocation
   useEffect(() => {
     if (!showWeather) return
-    if (!navigator.geolocation) return
+
+    if (weatherZip && /^\d{5}$/.test(weatherZip)) {
+      // Resolve zip to grid
+      fetch(`/api/weather/resolve-zip?zip=${weatherZip}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (d && d.url) {
+            setResolvedZipLocation({ label: d.label || weatherZip, url: d.url })
+            setWeatherLocation('zip')
+          } else {
+            setWeatherLocation('hoboken')
+          }
+        })
+        .catch(() => setWeatherLocation('hoboken'))
+      return
+    }
+
+    // No zip — use geolocation
+    setResolvedZipLocation(null)
+    if (!navigator.geolocation) {
+      setWeatherLocation('hoboken')
+      return
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const { latitude, longitude } = pos.coords
         const distToHoboken = Math.abs(latitude - 40.744) + Math.abs(longitude + 74.032)
         const distToNyc = Math.abs(latitude - 40.758) + Math.abs(longitude + 73.978)
-        if (distToNyc < distToHoboken) {
-          setWeatherLocation('nyc')
-        }
+        setWeatherLocation(distToNyc < distToHoboken ? 'nyc' : 'hoboken')
       },
-      () => { /* denied or error — keep default */ },
+      () => setWeatherLocation('hoboken'),
       { timeout: 5000 }
     )
-  }, [showWeather])
+  }, [showWeather, weatherZip])
 
-  const weatherFetcher = useCallback(() => fetchWeather(weatherLocation), [weatherLocation])
-  const tunnelFetcher = useCallback(() => fetchTunnels('outbound', tunnelFilter), [tunnelFilter])
+  const weatherFetcher = useCallback(() => {
+    if (weatherLocation === 'zip' && resolvedZipLocation) {
+      return fetchWeather(resolvedZipLocation)
+    }
+    return fetchWeather(weatherLocation || 'hoboken')
+  }, [weatherLocation, resolvedZipLocation])
+  const tunnelFetcher = useCallback(async () => {
+    // Always fetch both directions
+    const [out, inb] = await Promise.all([
+      fetchTunnels('outbound', tunnelFilter),
+      fetchTunnels('inbound', tunnelFilter),
+    ])
+    // Merge: show each tunnel with both directions
+    const merged = (out.tunnels || []).map((t, i) => {
+      const inTunnel = (inb.tunnels || [])[i]
+      return {
+        ...t,
+        outbound: { crossingMinutes: t.crossingMinutes, speed: t.speed, severity: t.severity },
+        inbound: inTunnel ? { crossingMinutes: inTunnel.crossingMinutes, speed: inTunnel.speed, severity: inTunnel.severity } : null,
+        bidirectional: true,
+      }
+    })
+    return { tunnels: merged }
+  }, [tunnelFilter])
 
   const { data: weatherData } = usePolling(weatherFetcher, 300_000)
   const { data: tunnelData } = usePolling(tunnelFetcher, 60_000)
@@ -88,7 +131,7 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
         {showWeather && !weatherNow && (
           <div className="ms-info-pill ms-weather-pill">⏳ Loading…</div>
         )}
-        {showTunnels && filteredTunnels.map(t => {
+        {showTunnels && filteredTunnels.length === 1 && filteredTunnels.map(t => {
           const tunnelName = t.name.toLowerCase()
           const hasActiveAlert = (activeAlerts || []).some(a =>
             a.id?.includes(`tunnel-${tunnelName}`) || a.text?.toLowerCase().includes(tunnelName)
@@ -98,6 +141,21 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
           )
         })}
       </div>
+
+      {/* Tunnel pills on separate row when >1 */}
+      {showTunnels && filteredTunnels.length > 1 && (
+        <div className="ms-info-row">
+          {filteredTunnels.map(t => {
+            const tunnelName = t.name.toLowerCase()
+            const hasActiveAlert = (activeAlerts || []).some(a =>
+              a.id?.includes(`tunnel-${tunnelName}`) || a.text?.toLowerCase().includes(tunnelName)
+            )
+            return (
+              <TunnelPill key={t.name} tunnel={t} hasAlert={hasActiveAlert} />
+            )
+          })}
+        </div>
+      )}
 
       {/* Weather expanded card — Apple Weather style hourly scroll */}
       {showWeather && weatherExpanded && weatherData && (
@@ -134,6 +192,51 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
 function TunnelPill({ tunnel, hasAlert }) {
   const [expanded, setExpanded] = useState(false)
 
+  // Bidirectional display
+  if (tunnel.bidirectional && tunnel.inbound) {
+    const outDotColor = severityColor(tunnel.outbound?.severity || tunnel.severity)
+    const inDotColor = severityColor(tunnel.inbound.severity)
+    const outMin = tunnel.outbound?.crossingMinutes || tunnel.crossingMinutes
+    const inMin = tunnel.inbound.crossingMinutes
+    const outSpeed = tunnel.outbound?.speed || tunnel.speed
+    const inSpeed = tunnel.inbound.speed
+
+    return (
+      <div
+        className={`ms-info-pill ms-tunnel-pill ${hasAlert ? 'ms-tunnel-alert' : ''} ${expanded ? 'expanded' : ''}`}
+        onClick={() => {
+          setExpanded(v => !v)
+          if (!expanded) setTimeout(() => setExpanded(false), 6000)
+        }}
+      >
+        {!expanded ? (
+          <>
+            <span className="ms-info-dot" style={{ background: outDotColor }} />
+            <span className="ms-info-dot" style={{ background: inDotColor }} />
+            {tunnel.name} {outMin}/{inMin}m
+          </>
+        ) : (
+          <span className="ms-tunnel-expanded">
+            <span className="ms-tunnel-expanded-name">{tunnel.name}</span>
+            <span className="ms-tunnel-dir-row">
+              <span className="ms-info-dot" style={{ background: outDotColor }} />
+              <span className="ms-tunnel-dir-label">NJ→NY</span>
+              <span className="ms-tunnel-dir-time">{outMin}m</span>
+              <span className="ms-tunnel-dir-speed">{outSpeed || '—'} mph</span>
+            </span>
+            <span className="ms-tunnel-dir-row">
+              <span className="ms-info-dot" style={{ background: inDotColor }} />
+              <span className="ms-tunnel-dir-label">NY→NJ</span>
+              <span className="ms-tunnel-dir-time">{inMin}m</span>
+              <span className="ms-tunnel-dir-speed">{inSpeed || '—'} mph</span>
+            </span>
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  // Fallback: single-direction
   const dotColor = severityColor(tunnel.severity)
 
   return (
@@ -141,14 +244,12 @@ function TunnelPill({ tunnel, hasAlert }) {
       className={`ms-info-pill ms-tunnel-pill ${hasAlert ? 'ms-tunnel-alert' : ''} ${expanded ? 'expanded' : ''}`}
       onClick={() => {
         setExpanded(v => !v)
-        if (!expanded) {
-          setTimeout(() => setExpanded(false), 3000)
-        }
+        if (!expanded) setTimeout(() => setExpanded(false), 3000)
       }}
     >
       <span className="ms-info-dot" style={{ background: dotColor }} />
       {tunnel.name} {tunnel.crossingMinutes}m
-      <span className="ms-tunnel-speed">· {tunnel.speed || '—'} mph</span>
+      {expanded && <span className="ms-tunnel-speed">· {tunnel.speed || '—'} mph</span>}
     </div>
   )
 }

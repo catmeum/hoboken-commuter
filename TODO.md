@@ -2,56 +2,35 @@
 
 ## Active — Next Session
 
-- [x] **Alert cards with transit badges** — MTA alerts show proper colored subway line circles, bus alerts show route pills, PATH/tunnel show source badges.
-- [x] **Alert icon → notification center sync** — cards derive icon state from central alerts/dismissedAlerts.
-- [x] **Dismiss all alerts** — button appears when 2+ active alerts.
-- [x] **Tap alert icon → navigate to alerts** — tapping the alert triangle navigates to Alerts page.
-- [x] **Three-state alert icon** — amber triangle (active), greyed (dismissed), hidden. Uses lucide AlertTriangle SVG.
-- [x] **Alert timestamps** — tunnel alerts show "X min ago", others show "time unknown" when no timestamp available.
-- [x] **NJT Bus direction picker** — direction picker after route selection for multi-ID stops.
-- [x] **All transit types supported in Add Stop** — all 11 modes with proper multi-step pickers.
-- [x] **Fix duplicate alerts** — polling replaces entire array with deduped live feed.
-- [x] **LIRR/MNR per-station route filter** — built from static GTFS.
-- [ ] **Alert icon staleness setting** — setting to control how long alert icon stays active before greying out.
+- [ ] **(Fix) BusVariants.test.jsx — 3 failures** — `confirmBus` now calls `/api/bus/stop-directions` before `/api/bus/stop-headsigns` for multi-platform stops (PABT). Tests need an extra fetch mock for the direction check.
+- [ ] **(Fix) alert triangle button is non functional** - If there's an alert icon, when 
+- [ ] **(Fix) Add Stop — step 3 (line/direction picker)** — after selecting lines, let user pick specific directions if any of the lines have multiple directions.
+- [ ] **New Stop Add Tests** — Add test cases for every transit mode to ensure that there is never a stuck "loading lines..." or other error and all transit modes can successfully have stops added (including complex stops like NJT bus stops with multi directions / multiple variations of the same bus line)
+- [ ] **Desktop version alerts implementation** — Copy alerts center functionality from mobile app. Show as a closeable page that pulls up from bottom of the screen. Open/close triggered by tapping on the bell icon.
+- [ ] **Rename app to "My Stop Now"** — FIRST: Check that git branch merged to master. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
+- [ ] **Skeleton loading states** — replace all fallback/placeholder text with pulsing grey skeleton loaders (Facebook/iOS style). Transit cards, weather pill, tunnel pills should all show a shimmer skeleton while data loads instead of "Loading…" or empty states.
+- [ ] **Stop cards in settings with transit badges** — My Stop Cards show proper colored subway line circles, route pills, source badges. (look at alerts implementation for guidance) For Ferry, just use ferry custom SVG.
+- [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
+- [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
+- [ ] **Update presets with inbound + outbound** — include both directions.
+- [ ] **Transit card icons per type** — add ferry SVG icon (currently emoji ⛴️).
 - [ ] **NY Waterway route coverage** — verify Hoboken 14th downtown service.
 - [ ] **NYC Ferry empty departures** — investigate GTFS-RT feed gaps.
-- [ ] **Update presets with inbound + outbound** — include both directions.
-- [ ] **Weather zip code in Settings** — zip code input for manual weather location override (partially implemented).
-- [ ] **Buy Me a Coffee link** — swap Venmo with buymeacoffee.com/mystopnow.
-- [ ] **Transit card icons per type** — add ferry SVG icon (currently emoji ⛴️).
-- [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills, MobileApp alert aggregation. Full manual E2E walkthrough.
+
 
 ## v3 Mobile App — Implementation Tasks
 
-- [x] **React shell** — tab routing, page transitions (slide-up settings), floating tab bar component
-- [x] **Welcome page** — zip code onboarding with `/api/nearby-stops`, preset picker flow, "Start from scratch" option
-- [x] **My Stops page** — scrollable card list, weather/tunnel pills (tap-to-expand), pull-to-refresh, custom SVG icons, proper severity dot colors
-- [x] **Transit cards** — reuse v1 data fetching, render with custom SVG icons (MtaGlobe, NjtBus, PATH Oculus, NjtRail, HBLR Clocktower), route-colored badges, ETA hierarchy
-- [x] **Alerts page** — swipe-to-dismiss, dismissed alerts section with restore, empty state, badge count, live alert aggregation from transit APIs
-- [x] **Settings page** — slide-up panel, display settings (appearance, alert badge style, weather °F/°C, tunnels), stop management (remove, expand/collapse >6), tunnel config (pick up to 2), widgets coming soon, danger zone reset
-- [x] **Add Stop flow** — stepped picker (mode → search → add), slides up over settings
-- [x] **Custom SVG icons** — replaced emoji with existing transit icons (NJT Bus XD60, PATH Oculus, MTA Globe, NJT Rail, HBLR Clocktower)
-- [x] **Tunnel pill glow** — orange glow tied to undismissed alerts in notification panel, removed when alert dismissed
-- [x] **Pull-to-refresh** — pull gesture triggers full re-mount of all data-fetching components (cards + info pills)
-- [x] **Tab bar icons** — lucide-react Home, Bell, Settings icons matching desktop dashboard style
-- [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
-- [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
-- [ ] **My Stops sorting** — sort My Stops cards by proximity to current location (closest first), Order added, or by Soonest Arrival (which stop has an arrival first)
-- [ ] **Add Stop — step 3 (line/direction picker)** — after selecting a station, let user pick specific lines and direction (N/S) before adding
-- [ ] **Edit stop (swipe-to-edit)** — swipe left on a stop in Settings to reveal "Edit" button.  Opens the line/direction picker pre-populated with current config. Depends on step 3 picker being built first. Swipe right when edit button is revealed, to cover edit button. UI shell is in place (disabled).
-- [ ] **Tunnel direction picker + up to 4** — let user pick direction (NJ→NY or NY→NJ) per tunnel and allow up to 4 selections (e.g. Lincoln outbound + Lincoln inbound + Holland outbound + GWB inbound)
-- [ ] **Drag-reorder stops** — touch-based drag reorder in Settings stop list (grip handles rendered, logic TBD)
-- [ ] **Skeleton loading states** — replace all fallback/placeholder text with pulsing grey skeleton loaders (Facebook/iOS style). Transit cards, weather pill, tunnel pills should all show a shimmer skeleton while data loads instead of "Loading…" or empty states.
-- [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
 - [ ] **PWA setup** — manifest.json, service worker, iOS meta tags for home screen install
-
 
 ## Feature Backlog
 
-- [ ] **Rename app to "My Stop Now"** — rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias.
-- [ ] **Dashboard theme refresh (desktop)** — apply v3 visual language (rounded cards, accent purple, liquid glass elements) to the desktop dashboard. Keep existing functionality, just restyle.
 - [ ] **Explore page with map** — MapLibre GL map showing nearby transit stops as colored markers. Bottom sheet with list. Medium effort — add after list-based Add Stop flow is solid.
 - [ ] **iPhone app (Capacitor)** — wrap PWA as native iOS app for App Store. Longer term after PWA is stable.
+- [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills, MobileApp alert aggregation. Full manual E2E walkthrough.
+- [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
+- [ ] **My Stops sorting** — sort My Stops cards by proximity to current location (closest first), Order added, or by Soonest Arrival (which stop has an arrival first)
+- [ ] **Buy Me a Coffee link** — swap Venmo with buymeacoffee.com/mystopnow.
+
 
 ## UX / Loading State (Future)
 
@@ -69,6 +48,33 @@
 
 ## Completed
 
+- [x] **Edit stop (swipe-to-edit)** — swipe left reveals "Edit" button in Settings, opens AddStopPanel in edit mode (rename + reconfigure). Swipe right cancels.
+- [x] **Show Line Badges toggle** — per-stop toggle in edit panel to hide/show transit line badges on cards. Works for all transit types.
+- [x] **Alert staleness setting** — cycle through Off/30m/1hr/3hr/12hr in Settings. Alerts older than threshold filtered from badge count and display.
+- [x] **Tunnel direction — always both** — tunnel pills always fetch + show both NJ→NY and NY→NJ with individual severity dots. Tap to expand shows stacked rows with speed.
+- [x] **Drag-reorder stops** — touch-based drag reorder in Settings stop list via grip handles.
+- [x] **Weather zip code** — controlled input with ✓ confirm button, resolves zip to NWS grid via server endpoint. "Use auto-location" resets to geolocation.
+- [x] **React shell** — tab routing, page transitions (slide-up settings), floating tab bar component
+- [x] **Welcome page** — zip code onboarding with `/api/nearby-stops`, preset picker flow, "Start from scratch" option
+- [x] **My Stops page** — scrollable card list, weather/tunnel pills (tap-to-expand), pull-to-refresh, custom SVG icons, proper severity dot colors
+- [x] **Transit cards** — reuse v1 data fetching, render with custom SVG icons (MtaGlobe, NjtBus, PATH Oculus, NjtRail, HBLR Clocktower), route-colored badges, ETA hierarchy
+- [x] **Alerts page** — swipe-to-dismiss, dismissed alerts section with restore, empty state, badge count, live alert aggregation from transit APIs
+- [x] **Settings page** — slide-up panel, display settings (appearance, alert badge style, weather °F/°C, tunnels), stop management (remove, expand/collapse >6), tunnel config (pick up to 2), widgets coming soon, danger zone reset
+- [x] **Add Stop flow** — stepped picker (mode → search → add), slides up over settings
+- [x] **Custom SVG icons** — replaced emoji with existing transit icons (NJT Bus XD60, PATH Oculus, MTA Globe, NJT Rail, HBLR Clocktower)
+- [x] **Tunnel pill glow** — orange glow tied to undismissed alerts in notification panel, removed when alert dismissed
+- [x] **Pull-to-refresh** — pull gesture triggers full re-mount of all data-fetching components (cards + info pills)
+- [x] **Tab bar icons** — lucide-react Home, Bell, Settings icons matching desktop dashboard style
+- [x] **Alert cards with transit badges** — MTA alerts show proper colored subway line circles, bus alerts show route pills, PATH/tunnel show source badges.
+- [x] **Alert icon → notification center sync** — cards derive icon state from central alerts/dismissedAlerts.
+- [x] **Dismiss all alerts** — button appears when 2+ active alerts.
+- [x] **Tap alert icon → navigate to alerts** — tapping the alert triangle navigates to Alerts page.
+- [x] **Three-state alert icon** — amber triangle (active), greyed (dismissed), hidden. Uses lucide AlertTriangle SVG.
+- [x] **Alert timestamps** — tunnel alerts show "X min ago", others show "time unknown" when no timestamp available.
+- [x] **NJT Bus direction picker** — direction picker after route selection for multi-ID stops.
+- [x] **All transit types supported in Add Stop** — all 11 modes with proper multi-step pickers.
+- [x] **Fix duplicate alerts** — polling replaces entire array with deduped live feed.
+- [x] **LIRR/MNR per-station route filter** — built from static GTFS.
 - [x] **Pull-to-refresh only at top** — fixed: only triggers when scrollTop=0, page container has proper overflow for scroll detection.
 - [x] **NJT bus header truncation** — headsigns cleaned: strip route prefix, VIA→arrow, 28ch max.
 - [x] **NJT bus route colors** — consistent colors per route in cards and picker.
