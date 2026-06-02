@@ -286,7 +286,7 @@ async function loadGTFS() {
   }
   console.log('[GTFS] Loaded', Object.keys(stopNamesMap).length, 'stop names,', Object.keys(stopCoordsMap).length, 'with coordinates')
 
-  const allStopIds = getAllStopIds() // null = all stops
+  getAllStopIds() // ensure stop IDs are initialized
   const stCsv = zip.readAsText('stop_times.txt').trim().split('\n')
   const stHeader = stCsv[0].split(',')
   const stTripIdx = stHeader.indexOf('trip_id')
@@ -675,7 +675,6 @@ const PABT_GATES_BY_ROUTE = {
   '151': { day: '222', late: '325', overnight: '82' },
   '153': { day: '222', late: '325', overnight: '82' },
   // Meadowlands / Secaucus
-  '320': { day: '320', late: '320', overnight: '320' },
   '351': { day: '216', late: '323', overnight: '79' },
   '352': { day: '216', late: '323', overnight: '79' },
   '354': { day: '216', late: '323', overnight: '79' },
@@ -1140,7 +1139,7 @@ app.get('/api/path/alerts', async (req, res) => {
   try {
     const pathAlert = await fetchPathAlerts()
     res.json({ alert: pathAlert?.text || null, startedAt: pathAlert?.startedAt || null })
-  } catch (err) {
+  } catch {
     res.json({ alert: null })
   }
 })
@@ -1291,7 +1290,6 @@ app.get('/api/path/query', async (req, res) => {
     const stopName = PATH_STATION_NAMES[stop] || stop
     // Support comma-separated route IDs (e.g. "861,862")
     const routeSet = new Set(route.split(',').filter(Boolean))
-    const routeLabel = [...routeSet].map(r => PATH_ROUTE_NAMES[r] || r).join('/')
 
     const departures = []
     for (const entity of feed.entity) {
@@ -1421,7 +1419,7 @@ app.get('/api/ferry', async (req, res) => {
 // Dynamic ferry query — accepts stopTag and optional routeNo/destMatch
 app.get('/api/ferry/query', async (req, res) => {
   try {
-    const { stop, route, dest } = req.query
+    const { stop, route, dest, routes } = req.query
     if (!stop) return res.json({ departures: [], alert: null })
 
     const data = await fetchFerryData(stop)
@@ -1429,27 +1427,67 @@ app.get('/api/ferry/query', async (req, res) => {
     const platform = data.platforms?.[0]
     const platformName = platform?.name || 'Unknown'
 
+    // Parse multi-route filter: routes=18:Midtown,12:Brookfield
+    let routeFilters = null
+    if (routes) {
+      routeFilters = routes.split(',').map(pair => {
+        const colonIdx = pair.indexOf(':')
+        if (colonIdx < 1) return null
+        return { no: pair.slice(0, colonIdx), dest: pair.slice(colonIdx + 1) }
+      }).filter(Boolean).slice(0, 10)
+    }
+
     if (platform) {
       for (const r of platform.routes || []) {
-        if (route && r.no !== route) continue
-        for (const d of r.destinations || []) {
-          if (dest && !d.name?.toLowerCase().includes(dest.toLowerCase())) continue
-          for (const trip of d.trips || []) {
-            let etaMin, source, etaTimeStr
-            if (trip.eta != null) {
-              etaMin = trip.eta
-              source = 'realtime'
-              const dt = new Date(Date.now() + trip.eta * 60_000)
-              etaTimeStr = formatTimeFromDate(dt)
-            } else if (trip.scheduledMin != null) {
-              const { totalMinutes: nowMin } = nowEastern()
-              etaMin = trip.scheduledMin - nowMin
-              if (etaMin <= 0) continue
-              source = 'schedule'
-              etaTimeStr = formatTime(Math.floor(trip.scheduledMin / 60), trip.scheduledMin % 60)
-            } else continue
-            if (etaMin > 0) {
-              departures.push({ dest: `${platformName} → ${d.name}`, eta: etaMin, etaTime: etaTimeStr, source })
+        // Apply route filtering
+        if (routeFilters) {
+          // Multi-route mode: check if this route matches any filter
+          const matchingFilters = routeFilters.filter(f => f.no === r.no)
+          if (matchingFilters.length === 0) continue
+          for (const d of r.destinations || []) {
+            const destMatches = matchingFilters.some(f => !f.dest || d.name?.toLowerCase().includes(f.dest.toLowerCase()))
+            if (!destMatches) continue
+            for (const trip of d.trips || []) {
+              let etaMin, source, etaTimeStr
+              if (trip.eta != null) {
+                etaMin = trip.eta
+                source = 'realtime'
+                const dt = new Date(Date.now() + trip.eta * 60_000)
+                etaTimeStr = formatTimeFromDate(dt)
+              } else if (trip.scheduledMin != null) {
+                const { totalMinutes: nowMin } = nowEastern()
+                etaMin = trip.scheduledMin - nowMin
+                if (etaMin <= 0) continue
+                source = 'schedule'
+                etaTimeStr = formatTime(Math.floor(trip.scheduledMin / 60), trip.scheduledMin % 60)
+              } else continue
+              if (etaMin > 0) {
+                departures.push({ dest: `${platformName} → ${d.name}`, eta: etaMin, etaTime: etaTimeStr, source })
+              }
+            }
+          }
+        } else {
+          // Legacy single-route mode or unfiltered
+          if (route && r.no !== route) continue
+          for (const d of r.destinations || []) {
+            if (dest && !d.name?.toLowerCase().includes(dest.toLowerCase())) continue
+            for (const trip of d.trips || []) {
+              let etaMin, source, etaTimeStr
+              if (trip.eta != null) {
+                etaMin = trip.eta
+                source = 'realtime'
+                const dt = new Date(Date.now() + trip.eta * 60_000)
+                etaTimeStr = formatTimeFromDate(dt)
+              } else if (trip.scheduledMin != null) {
+                const { totalMinutes: nowMin } = nowEastern()
+                etaMin = trip.scheduledMin - nowMin
+                if (etaMin <= 0) continue
+                source = 'schedule'
+                etaTimeStr = formatTime(Math.floor(trip.scheduledMin / 60), trip.scheduledMin % 60)
+              } else continue
+              if (etaMin > 0) {
+                departures.push({ dest: `${platformName} → ${d.name}`, eta: etaMin, etaTime: etaTimeStr, source })
+              }
             }
           }
         }
@@ -1892,7 +1930,7 @@ app.get('/api/mta/query', async (req, res) => {
             }
           }
         }
-      } catch (e) { /* skip failed feeds */ }
+      } catch { /* skip failed feeds */ }
     }
 
     departures.sort((a, b) => a.eta - b.eta)

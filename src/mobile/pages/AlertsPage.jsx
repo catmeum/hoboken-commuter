@@ -94,6 +94,7 @@ export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onDismi
   const [highlightActive, setHighlightActive] = useState(!!highlightSource)
 
   // Clear highlight after 2.5 seconds
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!highlightSource) {
       setHighlightActive(false)
@@ -105,6 +106,7 @@ export default function AlertsPage({ alerts, dismissedAlerts, onDismiss, onDismi
     }, 2500)
     return () => clearTimeout(timer)
   }, [highlightSource])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const sourceMatchers = getSourceMatchers(highlightSource)
   const firstHighlightRef = useRef(null)

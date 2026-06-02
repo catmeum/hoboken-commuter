@@ -41,21 +41,23 @@ export async function fetchAlerts(stops) {
   const alerts = []
 
   try {
-    // Tunnel alerts
+    // Tunnel alerts — only show the most recent per tunnel (superseded alerts are noise)
     const tunnelData = await fetchTunnels()
     if (tunnelData?.tunnels) {
       for (const t of tunnelData.tunnels) {
         const allAlerts = t.allAlerts || t.alertsWithAge || []
-        for (const a of allAlerts) {
-          const text = typeof a === 'string' ? a : a.text
+        // Only take the first (most recent) alert
+        const latest = allAlerts[0]
+        if (latest) {
+          const text = typeof latest === 'string' ? latest : latest.text
           if (text) {
-            const ageMs = a.ageMinutes != null ? a.ageMinutes * 60000 : null
+            const ageMs = latest.ageMinutes != null ? latest.ageMinutes * 60000 : null
             alerts.push({
               id: `tunnel-${t.name}-${text.slice(0, 30)}`,
               source: 'PANYNJ',
               text,
               startedAt: ageMs != null ? Date.now() - ageMs : null,
-              timestamp: a.ageMinutes != null ? `${a.ageMinutes} min ago` : '',
+              timestamp: latest.ageMinutes != null ? `${latest.ageMinutes} min ago` : '',
               badges: [{ label: `🚗 ${t.name} Tunnel`, color: 'transparent', textColor: 'inherit' }],
             })
           }

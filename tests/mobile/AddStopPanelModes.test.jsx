@@ -40,13 +40,14 @@ describe('AddStopPanel — NY Waterway Ferry flow', () => {
     fireEvent.click(screen.getByText('Hoboken / 14th St'))
 
     await waitFor(() => {
-      expect(screen.getByText('Select a destination')).toBeInTheDocument()
+      expect(screen.getByText('Select destinations')).toBeInTheDocument()
       expect(screen.getByText('→ W. Midtown')).toBeInTheDocument()
       expect(screen.getByText('→ Brookfield Place')).toBeInTheDocument()
+      expect(screen.getByText('Add to My Stops')).toBeInTheDocument()
     })
   })
 
-  it('generates correct stop ID when destination is selected', async () => {
+  it('generates correct stop ID with all routes selected (uses "all" format)', async () => {
     global.fetch = vi.fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -71,11 +72,12 @@ describe('AddStopPanel — NY Waterway Ferry flow', () => {
     fireEvent.click(screen.getByText('Hoboken / 14th St'))
 
     await waitFor(() => expect(screen.getByText('→ W. Midtown')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('→ W. Midtown'))
+    // All routes pre-selected — click confirm
+    fireEvent.click(screen.getByText('Add to My Stops'))
 
     expect(onAdd).toHaveBeenCalledWith(
-      'ferry:hoboken_14:1:W. Midtown',
-      'Hoboken / 14th St → W. Midtown'
+      'ferry:hoboken_14:all',
+      'Hoboken / 14th St'
     )
   })
 
@@ -104,11 +106,12 @@ describe('AddStopPanel — NY Waterway Ferry flow', () => {
     fireEvent.click(screen.getByText('Pier 11 / Wall St'))
 
     await waitFor(() => expect(screen.getByText('Belford Ferry')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Belford Ferry'))
+    // All pre-selected — click confirm
+    fireEvent.click(screen.getByText('Add to My Stops'))
 
     expect(onAdd).toHaveBeenCalledWith(
-      'ferry:pier_11:5:',
-      'Pier 11 / Wall St (Belford Ferry)'
+      'ferry:pier_11:all',
+      'Pier 11 / Wall St'
     )
   })
 
@@ -134,7 +137,7 @@ describe('AddStopPanel — NY Waterway Ferry flow', () => {
     await waitFor(() => expect(screen.getByText('Hoboken / 14th St')).toBeInTheDocument(), { timeout: 2000 })
     fireEvent.click(screen.getByText('Hoboken / 14th St'))
 
-    await waitFor(() => expect(screen.getByText('Select a destination')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Select destinations')).toBeInTheDocument())
     fireEvent.click(screen.getByText('←'))
 
     expect(screen.getByPlaceholderText('Search for a ferry terminal…')).toBeInTheDocument()

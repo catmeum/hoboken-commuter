@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, GrandCentralClock } from '../../components/icons'
+import { ferryDestColor } from '../../components/transitColors'
 import { AlertTriangle } from 'lucide-react'
 
 // ── Helpers ──
@@ -303,14 +304,30 @@ export function PathCard({ stopId, displayName, hiddenBadges, alertState, onAler
 }
 
 // ── Ferry Card ──
-export function FerryCard({ stopId, displayName, alertState, onAlertTap }) {
+export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
-    const parts = stopId.split(':')
-    if (parts.length < 3) return null
-    const [, stopTag, routeNo, destMatch] = parts
+    const colonIdx = stopId.indexOf(':')
+    const afterPrefix = stopId.slice(colonIdx + 1) // e.g. "9:all" or "9:18:Midtown,12:Brookfield"
+    const tagEnd = afterPrefix.indexOf(':')
+    if (tagEnd < 0) return null
+    const stopTag = afterPrefix.slice(0, tagEnd)
+    const routePart = afterPrefix.slice(tagEnd + 1) // "all" or "18:Midtown" or "18:Midtown,12:Brookfield"
+
     let url = `/api/ferry/query?stop=${stopTag}`
-    if (routeNo) url += `&route=${routeNo}`
-    if (destMatch) url += `&dest=${destMatch}`
+    if (routePart === 'all') {
+      // No filter — fetch all routes
+    } else if (routePart.includes(',')) {
+      // Multi-route: pass as routes param
+      url += `&routes=${encodeURIComponent(routePart)}`
+    } else {
+      // Single route: legacy format ROUTE_NO:DEST or just ROUTE_NO
+      const singleColonIdx = routePart.indexOf(':')
+      if (singleColonIdx > 0) {
+        url += `&route=${routePart.slice(0, singleColonIdx)}&dest=${encodeURIComponent(routePart.slice(singleColonIdx + 1))}`
+      } else {
+        url += `&route=${routePart}`
+      }
+    }
     const res = await fetch(url)
     if (!res.ok) return null
     return await res.json()
@@ -318,7 +335,24 @@ export function FerryCard({ stopId, displayName, alertState, onAlertTap }) {
   const { data } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
-  const name = displayName || data?.terminalName || stopId
+  const name = displayName || data?.platformName || stopId
+
+  // Extract destination names from stop ID for badges
+  const destBadges = (() => {
+    const colonIdx = stopId.indexOf(':')
+    const afterPrefix = stopId.slice(colonIdx + 1)
+    const tagEnd = afterPrefix.indexOf(':')
+    if (tagEnd < 0) return []
+    const routePart = afterPrefix.slice(tagEnd + 1)
+    if (routePart === 'all') return ['All routes']
+    const pairs = routePart.includes(',') ? routePart.split(',') : [routePart]
+    return [...new Set(pairs.map(p => {
+      const ci = p.indexOf(':')
+      return ci > 0 ? p.slice(ci + 1) : p
+    }).filter(Boolean))]
+  })()
+
+  const showBadges = !hiddenBadges?.includes('__all__')
 
   return (
     <CardShell
@@ -327,14 +361,20 @@ export function FerryCard({ stopId, displayName, alertState, onAlertTap }) {
       alert={alertState}
       onAlertTap={onAlertTap}
       stopId={stopId}
-      badges={null}
+      badges={showBadges && destBadges.length > 0 ? (
+        <ExpandableBadges maxVisible={2}>
+          {destBadges.map(d => (
+            <span key={d} className="ms-badge ms-badge-rail" style={{ background: ferryDestColor(d), fontSize: 'clamp(6px, 1.6vw, 9px)' }}>{d}</span>
+          ))}
+        </ExpandableBadges>
+      ) : null}
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => {
-          // Shorten: "Hoboken 14th Street → Midtown/W39th" → "Midtown/W39th"
+          // Extract short destination from "Terminal → Dest"
           let dest = d.dest || ''
           if (dest.includes('→')) dest = dest.split('→').pop().trim()
-          return <DepartureRow key={i} dest={`→ ${dest}`} eta={d.eta} etaClock={d.etaTime} />
+          return <DepartureRow key={i} dest={dest} eta={d.eta} etaClock={d.etaTime} badgeColor={ferryDestColor(dest)} source={d.source} />
         })
       ) : (
         <div className="ms-empty">No upcoming ferries</div>
@@ -655,7 +695,7 @@ export default function TransitCard({ stopId, displayName, hiddenBadges, alerts,
   if (stopId.startsWith('mta:')) return <MtaSubwayCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('bus:') || /^\d/.test(stopId)) return <BusCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('path:')) return <PathCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
-  if (stopId.startsWith('ferry:')) return <FerryCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
+  if (stopId.startsWith('ferry:')) return <FerryCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('rail:')) return <RailCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('hblr:')) return <HblrCard stopId={stopId} displayName={displayName} alertState={alertState} onAlertTap={onAlertTap} />
   if (stopId.startsWith('lirr:')) return <LirrCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />

@@ -47,6 +47,7 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
   const [resolvedZipLocation, setResolvedZipLocation] = useState(null)
 
   // Resolve zip code to NWS grid or fall back to geolocation
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!showWeather) return
 
@@ -83,6 +84,7 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
       { timeout: 5000 }
     )
   }, [showWeather, weatherZip])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const weatherFetcher = useCallback(() => {
     if (weatherLocation === 'zip' && resolvedZipLocation) {

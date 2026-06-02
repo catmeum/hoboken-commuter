@@ -81,6 +81,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
   // Ferry step 2 state
   const [selectedFerryTerminal, setSelectedFerryTerminal] = useState(null)
   const [ferryRoutes, setFerryRoutes] = useState([])
+  const [selectedFerryDests, setSelectedFerryDests] = useState(new Set())
 
   // MTA Bus step 2 state
   const [selectedMtaBusRoute, setSelectedMtaBusRoute] = useState(null)
@@ -119,6 +120,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     setSelectedMnrRoutes(new Set())
     setSelectedFerryTerminal(null)
     setFerryRoutes([])
+    setSelectedFerryDests(new Set())
     setSelectedMtaBusRoute(null)
     setMtaBusStops([])
   }
@@ -187,6 +189,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
       setStep('search')
       setSelectedFerryTerminal(null)
       setFerryRoutes([])
+      setSelectedFerryDests(new Set())
     } else if (step === 'mtabus-stops') {
       setStep('search')
       setSelectedMtaBusRoute(null)
@@ -345,12 +348,22 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     }
 
     if (modeId === 'ferry') {
-      // Go to step 2: pick destination
+      // Go to step 2: pick destinations (multi-select)
       setSelectedFerryTerminal(result)
       setStep('ferry-dest')
       fetch(`/api/ferry/terminal-routes?tag=${result.tag || result.id}`)
         .then(r => r.ok ? r.json() : { routes: [] })
-        .then(d => setFerryRoutes(d.routes || []))
+        .then(d => {
+          const routes = d.routes || []
+          setFerryRoutes(routes)
+          // Pre-select all destinations
+          const allDests = new Set()
+          for (const r of routes) {
+            for (const dest of r.destinations || []) allDests.add(`${r.no}:${dest}`)
+            if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+          }
+          setSelectedFerryDests(allDests)
+        })
       return
     }
 
@@ -880,44 +893,98 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
         </div>
       )}
 
-      {/* Step: Ferry — pick destination */}
+      {/* Step: Ferry — pick destinations (multi-select) */}
       {step === 'ferry-dest' && selectedFerryTerminal && (
         <div className="m-addstop-step">
-          <p className="m-addstop-section-label">Select a destination</p>
+          <div className="m-addstop-section-header">
+            <p className="m-addstop-section-label">Select destinations</p>
+            <button className="m-addstop-select-all" onClick={() => {
+              const allDests = new Set()
+              for (const r of ferryRoutes) {
+                for (const d of r.destinations || []) allDests.add(`${r.no}:${d}`)
+                if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+              }
+              setSelectedFerryDests(prev => prev.size === allDests.size ? new Set() : allDests)
+            }}>
+              {(() => {
+                const allDests = new Set()
+                for (const r of ferryRoutes) {
+                  for (const d of r.destinations || []) allDests.add(`${r.no}:${d}`)
+                  if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+                }
+                return selectedFerryDests.size === allDests.size ? 'Deselect all' : 'Select all'
+              })()}
+            </button>
+          </div>
           <div className="m-addstop-route-list">
             {ferryRoutes.length > 0 ? ferryRoutes.flatMap(route =>
               route.destinations.length > 0
-                ? route.destinations.map(dest => (
-                    <button
-                      key={`${route.no}:${dest}`}
-                      className="m-addstop-result"
-                      onClick={() => {
-                        const tag = selectedFerryTerminal.tag || selectedFerryTerminal.id
-                        const stopId = `ferry:${tag}:${route.no}:${dest}`
-                        const displayName = `${selectedFerryTerminal.name} → ${dest}`
-                        handleAdd(stopId, displayName)
-                      }}
-                    >
-                      <div className="m-addstop-result-name">→ {dest}</div>
-                      <div className="m-addstop-result-sub">{route.name}</div>
-                    </button>
-                  ))
-                : [<button
-                    key={route.no}
-                    className="m-addstop-result"
-                    onClick={() => {
-                      const tag = selectedFerryTerminal.tag || selectedFerryTerminal.id
-                      const stopId = `ferry:${tag}:${route.no}:`
-                      const displayName = `${selectedFerryTerminal.name} (${route.name})`
-                      handleAdd(stopId, displayName)
-                    }}
-                  >
-                    <div className="m-addstop-result-name">{route.name}</div>
-                  </button>]
+                ? route.destinations.map(dest => {
+                    const key = `${route.no}:${dest}`
+                    return (
+                      <button
+                        key={key}
+                        className={`m-addstop-route-btn ${selectedFerryDests.has(key) ? 'active' : ''}`}
+                        onClick={() => setSelectedFerryDests(prev => {
+                          const next = new Set(prev)
+                          next.has(key) ? next.delete(key) : next.add(key)
+                          return next
+                        })}
+                      >
+                        <div className="m-addstop-result-name">→ {dest}</div>
+                        <div className="m-addstop-result-sub">{route.name}</div>
+                      </button>
+                    )
+                  })
+                : [{
+                    key: `${route.no}:`,
+                    el: (() => {
+                      const key = `${route.no}:`
+                      return (
+                        <button
+                          key={key}
+                          className={`m-addstop-route-btn ${selectedFerryDests.has(key) ? 'active' : ''}`}
+                          onClick={() => setSelectedFerryDests(prev => {
+                            const next = new Set(prev)
+                            next.has(key) ? next.delete(key) : next.add(key)
+                            return next
+                          })}
+                        >
+                          <div className="m-addstop-result-name">{route.name}</div>
+                        </button>
+                      )
+                    })()
+                  }].map(x => x.el)
             ) : (
               <div className="m-addstop-hint">Loading destinations…</div>
             )}
           </div>
+
+          <button
+            className="m-addstop-confirm"
+            onClick={() => {
+              const tag = selectedFerryTerminal.tag || selectedFerryTerminal.id
+              const termName = selectedFerryTerminal.name
+              // Build all possible destinations for comparison
+              const allDests = new Set()
+              for (const r of ferryRoutes) {
+                for (const d of r.destinations || []) allDests.add(`${r.no}:${d}`)
+                if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+              }
+              let stopId
+              if (selectedFerryDests.size === allDests.size) {
+                stopId = `ferry:${tag}:all`
+              } else {
+                const pairs = [...selectedFerryDests]
+                stopId = `ferry:${tag}:${pairs.join(',')}`
+              }
+              // Display name is just the terminal name — badges show destinations
+              handleAdd(stopId, termName)
+            }}
+            disabled={selectedFerryDests.size === 0}
+          >
+            Add to My Stops
+          </button>
         </div>
       )}
 

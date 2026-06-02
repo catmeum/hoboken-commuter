@@ -90,6 +90,7 @@ export async function fetchTunnels(direction = 'outbound', selected = ['lincoln'
       }))
 
     // Return alerts with timestamps — UI filters based on inline duration setting
+    // Only keep the most recent alert per tunnel — superseded status updates are noise
     const now = new Date()
     const alertsWithAge = alerts.map((a) => {
       try {
@@ -99,13 +100,15 @@ export async function fetchTunnels(direction = 'outbound', selected = ['lincoln'
         return { text: a.text, ageMinutes: Math.round((now - alertDate) / 60000) }
       } catch { return { text: a.text, ageMinutes: 9999 } }
     })
+    // Sort by age ascending (most recent first)
+    alertsWithAge.sort((a, b) => a.ageMinutes - b.ageMinutes)
 
     return {
       name: tunnel.name,
       ...crossing,
       severity: crossing.closed ? 'severe' : crossing.severity,
-      alertsWithAge,                                 // all alerts with age
-      allAlerts: alerts.map(a => a.text),           // ticker (all)
+      alertsWithAge: alertsWithAge.slice(0, 1), // only the most recent
+      allAlerts: alertsWithAge.length > 0 ? [alertsWithAge[0].text] : [], // only the most recent for ticker
     }
   })
 

@@ -2,12 +2,12 @@
 
 ## Active — Next Session
 
-- [ ] **Fix all lint errors** — 104 ESLint errors across server/index.js, App.jsx, and test files (unused vars, no-undef for Buffer/global/process, duplicate keys, empty blocks, set-state-in-effect, impure render calls). Clean pass should be the goal.
-- [ ] **Pinned cards** — allow pinning up to 6 transit cards to the top of My Stops for quick-glance priority
-- [ ] **Up to 25 cards** — increase max card limit from desktop's 6 to 25 for mobile
-- [ ] **Update mobile presets with inbound + outbound** — include both directions.
-- [ ] **NY Waterway route coverage** — verify Hoboken 14th downtown service.
-- [ ] **NYC Ferry empty departures** — investigate GTFS-RT feed gaps.
+- [x] **Fix all lint errors** — 104 ESLint errors across server/index.js, App.jsx, and test files (unused vars, no-undef for Buffer/global/process, duplicate keys, empty blocks, set-state-in-effect, impure render calls). Clean pass should be the goal.
+- [x] **Update mobile presets with inbound + outbound** — include both directions.
+- [x] **NY Waterway route coverage** — verify Hoboken 14th downtown service. **Verified:** Route 12 (Hoboken 14th → Pier 11/Wall St → Brookfield Place) exists in the Connexionz API feed alongside Route 18 (Midtown). It's accessible via the dynamic ferry terminal picker on both desktop and mobile.
+- [ ] **NYC Ferry empty departures** — investigate GTFS-RT feed gaps. **Finding:** The NYC Ferry GTFS-RT feed (`tripupdate`) only reports actively tracked real-time trips — there is no static schedule fallback. Most stops show 0 departures outside peak hours or when ferries aren't actively running on their route. High-frequency stops (E 34th, Wall St/Pier 11) consistently have data; low-frequency routes (Rockaway, Soundview) may be empty for hours. This is a feed limitation, not a parsing bug. A potential improvement would be to fall back to static GTFS schedule data when the RT feed is empty. Update: Backup schedules **do** exist: https://www.ferry.nyc/routes-and-schedules/
+- [ ] **Tap to expand individual line information for a stop** - On smaller screens, some of the long bus lines (and potentially on other transit modes) are cut off. Find ways to reduce the length of text and allow for tapping on an individual line (i.e. 126 * Hoboken via willow Ave | 1min | 6:17 |sched) to be temporarily expanded (automatically shrinks back after 10 seconds if not tapped again first) so all of the text can show for a given ride / individual line information.
+- [ ] **Enable on/off toggle for active alerts on mobile** - On desktop, a user can choose (of the active lines being displayed) which transit line alerts they do or do not want to see by toggling them on/off in settings. Bring this functionality to Mobile. 
 - [ ] **Rename app to "My Stop Now"** — FIRST: Evaluate options for a better git strategy to deploy the mobile and desktop versions independently. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
 
 
@@ -29,7 +29,6 @@
 
 - [ ] **GTFS loading status API** — update `/api/bus/gtfs-status` to return `{ status: "building" | "ready", progress?: string }` so the frontend can poll it during startup
 - [ ] **App-level loading screen** — on initial load, poll `/api/bus/gtfs-status` every 3s; while `status === "building"` show a full-screen overlay with spinner and "Loading transit data, please wait…"
-- [ ] **Panel-level graceful degradation** — instead of panels hanging, show skeleton loader or "Data loading…" placeholder while GTFS builds, then auto-refresh when ready
 - [ ] **Auto-refresh on ready** — when poll detects `status === "ready"`, dismiss loading screen and trigger a data fetch across all panels automatically
 
 ## Backlog

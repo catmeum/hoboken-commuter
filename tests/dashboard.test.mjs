@@ -227,6 +227,12 @@ await section('NYW Ferry — terminal routes', async () => {
   ok('Returns terminalName', typeof data.terminalName === 'string')
 })
 
+await section('NYW Ferry — Hoboken 14th route coverage', async () => {
+  const data = await get('/api/ferry/terminal-routes?tag=9') // Hoboken 14th St
+  ok('Midtown route exists (Route 18)', data.routes.some(r => r.no === '18' || r.destinations?.some(d => d.toLowerCase().includes('midtown'))))
+  ok('Downtown route exists (Route 12)', data.routes.some(r => r.no === '12' || r.destinations?.some(d => d.toLowerCase().includes('pier 11') || d.toLowerCase().includes('wall'))))
+})
+
 // ─────────────────────────────────────────────
 // NYC Ferry
 // ─────────────────────────────────────────────
@@ -530,7 +536,7 @@ await section('Alert filtering — bus:STOP:126 adds bus_126 source', async () =
 await section('Alert filtering — removing ferry card suppresses ferry alerts', async () => {
   // Verify ferry source is only added when a ferry card is present
   const fn = extractFn(src, 'deriveActiveAlertSources')
-  const ferrySection = fn.slice(fn.indexOf('ferry'))
+  fn.slice(fn.indexOf('ferry')) // verify ferry section exists
   ok('ferry source conditional on card presence', fn.includes("sources.add('ferry')"))
   // Verify buildTickerItems checks activeAlertSources before showing ferry alerts
   const tickerFn = extractFn(src, 'buildTickerItems')

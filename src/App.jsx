@@ -29,6 +29,7 @@ import { fetchWeather } from './services/weather'
 import { fetchBusArrivals, fetchDynamicStop } from './services/bus'
 import { fetchPath } from './services/path'
 import { fetchFerry } from './services/ferry'
+import { ferryDestColor } from './components/transitColors'
 import './App.css'
 
 // ── Theme logic ──
@@ -54,12 +55,14 @@ function usePolling(fetchFn, intervalMs, refreshKey = 0) {
     }
   }, [fetchFn])
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setData(null) // clear stale data immediately
+    setData(null) // clear stale data immediately — intentional reset on dep change
     poll()
     const id = setInterval(poll, intervalMs)
     return () => clearInterval(id)
   }, [poll, intervalMs, refreshKey])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return { data, error }
 }
@@ -376,9 +379,7 @@ function ThemeToggle({ theme, onToggle }) {
   )
 }
 
-function TunnelCard({ data, loading, alertSettings, activeAlertSources, inlineAlertDuration }) {
-  const on = (id) => activeAlertSources.has(id) && alertSettings[id] !== false
-  const maxAge = inlineAlertDuration === Infinity ? Infinity : (inlineAlertDuration ?? 60)
+function TunnelCard({ data, loading }) {
   return (
     <div className="card tunnel-card">
       <div className="card-header">
@@ -393,10 +394,6 @@ function TunnelCard({ data, loading, alertSettings, activeAlertSources, inlineAl
         {loading ? <SkeletonTunnels /> : (
         <div className="tunnel-grid">
           {data.tunnels.map((t) => {
-            const alertId = t.name.toLowerCase() === 'lincoln' ? 'lincoln_tunnel' : 'holland_tunnel'
-            const inlineAlerts = inlineAlertDuration !== 0 && on(alertId) && t.alertsWithAge
-              ? t.alertsWithAge.filter(a => maxAge === Infinity || a.ageMinutes < maxAge)
-              : []
             return (
               <div key={t.name} className="tunnel-entry">
                 <div className="tunnel-entry-name">{t.name}</div>
@@ -420,7 +417,7 @@ function TunnelCard({ data, loading, alertSettings, activeAlertSources, inlineAl
   )
 }
 
-function WeatherCard({ weatherData, loading, location }) {
+function WeatherCard({ weatherData, loading }) {
   const periods = weatherData?.periods || WEATHER_FALLBACK.periods
   const label = weatherData?.label || WEATHER_FALLBACK.label
 
@@ -597,7 +594,7 @@ function DynamicBusCard({ stopId, displayName }) {
 
 // Self-polling PATH card for dynamically added PATH stops
 // ID format: path:ROUTE:DIR:STOP (e.g. path:862:1:26727)
-function DynamicPathCard({ stopId, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function DynamicPathCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 4) return null
@@ -610,19 +607,38 @@ function DynamicPathCard({ stopId, displayName, alertSettings, activeAlertSource
 
   const pathData = data || { departures: [], alert: null }
   const name = displayName || data?.stationName || null
-  return <PathCard data={pathData} loading={!data} displayName={name} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+  return <PathCard data={pathData} loading={!data} displayName={name} />
 }
 
 // Self-polling ferry card for dynamically added ferry stops
-// ID format: ferry:STOP_TAG:ROUTE_NO:DEST_MATCH (e.g. ferry:10:19:Midtown)
-function DynamicFerryCard({ stopId, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+// ID formats:
+//   ferry:TAG:all                          — all routes at terminal
+//   ferry:TAG:ROUTE:DEST                   — single route (legacy-compatible)
+//   ferry:TAG:ROUTE1:DEST1,ROUTE2:DEST2    — multiple routes
+function DynamicFerryCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
-    const parts = stopId.split(':')
-    if (parts.length < 3) return null
-    const [, stopTag, routeNo, destMatch] = parts
+    const colonIdx = stopId.indexOf(':')
+    const afterPrefix = stopId.slice(colonIdx + 1) // e.g. "9:all" or "9:18:Midtown,12:Brookfield"
+    const tagEnd = afterPrefix.indexOf(':')
+    if (tagEnd < 0) return null
+    const stopTag = afterPrefix.slice(0, tagEnd)
+    const routePart = afterPrefix.slice(tagEnd + 1) // "all" or "18:Midtown" or "18:Midtown,12:Brookfield"
+
     let url = `/api/ferry/query?stop=${stopTag}`
-    if (routeNo) url += `&route=${routeNo}`
-    if (destMatch) url += `&dest=${destMatch}`
+    if (routePart === 'all') {
+      // No filter — fetch all routes
+    } else if (routePart.includes(',')) {
+      // Multi-route: pass as routes param
+      url += `&routes=${encodeURIComponent(routePart)}`
+    } else {
+      // Single route: legacy format ROUTE_NO:DEST or just ROUTE_NO
+      const singleColonIdx = routePart.indexOf(':')
+      if (singleColonIdx > 0) {
+        url += `&route=${routePart.slice(0, singleColonIdx)}&dest=${encodeURIComponent(routePart.slice(singleColonIdx + 1))}`
+      } else {
+        url += `&route=${routePart}`
+      }
+    }
     const res = await fetch(url)
     if (!res.ok) return null
     return await res.json()
@@ -630,12 +646,12 @@ function DynamicFerryCard({ stopId, displayName, alertSettings, activeAlertSourc
   const { data } = usePolling(fetcher, 30_000)
 
   const ferryData = data || { departures: [], alert: null }
-  return <FerryCard data={ferryData} loading={!data} displayName={displayName} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+  return <FerryCard data={ferryData} loading={!data} displayName={displayName} />
 }
 
 // Self-polling MTA Subway card
 // ID format: mta:STATION_IDS:DIRECTION:LINES (e.g. mta:D17,R17:S:B,D,F,N,Q,R,W)
-function DynamicMtaCard({ stopId, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function DynamicMtaCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 3) return null
@@ -654,9 +670,7 @@ function DynamicMtaCard({ stopId, displayName, alertSettings, activeAlertSources
   const { data } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
-  const alerts = data?.alerts || []
   const stationName = displayName || data?.stationName || stopId
-  const showAlerts = inlineAlertDuration !== 0 && activeAlertSources?.has('mta_subway') && alertSettings?.mta_subway !== false
 
   return (
     <div className="card subway-card">
@@ -688,7 +702,7 @@ function DynamicMtaCard({ stopId, displayName, alertSettings, activeAlertSources
 
 // Self-polling NJT Rail card
 // ID format: rail:STATION_CODE:LINE1,LINE2 (e.g. rail:HB:GS,ML)
-function DynamicRailCard({ stopId, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function DynamicRailCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 2) return null
@@ -702,9 +716,7 @@ function DynamicRailCard({ stopId, displayName, alertSettings, activeAlertSource
   const { data } = usePolling(fetcher, 60_000) // poll every 60s (rate limit aware)
 
   const departures = data?.departures || []
-  const alerts = data?.alerts || []
   const stationName = displayName || data?.stationName || stopId
-  const showAlerts = inlineAlertDuration !== 0 && activeAlertSources?.has('njt_rail') && alertSettings?.njt_rail !== false
 
   return (
     <div className="card path-card">
@@ -736,7 +748,7 @@ function DynamicRailCard({ stopId, displayName, alertSettings, activeAlertSource
 
 // Self-polling HBLR card — uses bus GTFS-RT (route "HBLR")
 // ID format: hblr:STOP_ID:DIR (e.g. hblr:30189:south)
-function DynamicHblrCard({ stopId, displayName, alertSettings, activeAlertSources }) {
+function DynamicHblrCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     if (parts.length < 2) return null
@@ -756,7 +768,6 @@ function DynamicHblrCard({ stopId, displayName, alertSettings, activeAlertSource
       persistDynamicStopName(stopId, shortenStopName(data.stop))
     }
   }, [data?.stop, stopId, displayName])
-  const showAlerts = activeAlertSources?.has('hblr') && alertSettings?.hblr !== false
 
   return (
     <div className="card path-card">
@@ -789,7 +800,7 @@ function DynamicHblrCard({ stopId, displayName, alertSettings, activeAlertSource
 
 // Self-polling LIRR card
 // ID format: lirr:STOP_ID (e.g. lirr:102)
-function DynamicLirrCard({ stopId, displayName, inlineAlertDuration }) {
+function DynamicLirrCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const res = await fetch(`/api/lirr/query?stop=${id}`)
@@ -827,7 +838,7 @@ function DynamicLirrCard({ stopId, displayName, inlineAlertDuration }) {
 
 // Self-polling Metro-North card
 // ID format: mnr:STOP_ID (e.g. mnr:1)
-function DynamicMnrCard({ stopId, displayName, inlineAlertDuration }) {
+function DynamicMnrCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const res = await fetch(`/api/mnr/query?stop=${id}`)
@@ -865,7 +876,7 @@ function DynamicMnrCard({ stopId, displayName, inlineAlertDuration }) {
 
 // Self-polling MTA Bus card
 // ID format: mtabus:STOP_ID:ROUTE (e.g. mtabus:308209:MTA+NYCT_M1)
-function DynamicMtaBusCard({ stopId, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function DynamicMtaBusCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
     const [, stop, route] = parts
@@ -877,10 +888,8 @@ function DynamicMtaBusCard({ stopId, displayName, alertSettings, activeAlertSour
   }, [stopId])
   const { data } = usePolling(fetcher, 30_000)
   const departures = data?.departures || []
-  const alerts = data?.alerts || []
   const timedOut = data?.timeout === true
   const name = displayName || stopId
-  const showAlerts = inlineAlertDuration !== 0 && activeAlertSources?.has('mta_bus') && alertSettings?.mta_bus !== false
   return (
     <div className="card bus-card">
       <div className="card-header">
@@ -913,7 +922,7 @@ function DynamicMtaBusCard({ stopId, displayName, alertSettings, activeAlertSour
 
 // Self-polling NYC Ferry card
 // ID format: nycferry:STOP_ID (e.g. nycferry:17)
-function DynamicNycFerryCard({ stopId, displayName, inlineAlertDuration }) {
+function DynamicNycFerryCard({ stopId, displayName }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const res = await fetch(`/api/nycferry/query?stop=${id}`)
@@ -949,10 +958,9 @@ function DynamicNycFerryCard({ stopId, displayName, inlineAlertDuration }) {
   )
 }
 
-function FerryCard({ data, loading, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function FerryCard({ data, loading, displayName }) {
   const hasDepartures = data.departures && data.departures.length > 0
-  const dest = hasDepartures ? data.departures[0].dest : (displayName || 'No service')
-  const showAlert = inlineAlertDuration !== 0 && activeAlertSources?.has('ferry') && alertSettings?.ferry !== false && data.alert
+  const cardTitle = displayName || (hasDepartures ? 'NYW Ferry' : 'No service')
 
   return (
     <div className="card ferry-card">
@@ -960,19 +968,27 @@ function FerryCard({ data, loading, displayName, alertSettings, activeAlertSourc
         <NywFerryIcon className="card-icon" />
         <span className="card-title">NYW Ferry</span>
         <span className="card-title-sep">·</span>
-        <span className="card-title-stop">{dest}</span>
+        <span className="card-title-stop">{cardTitle}</span>
       </div>
       <div className="card-body">
         {loading ? <SkeletonRows count={3} /> : hasDepartures ? (
           <div className="transit-list">
-            {data.departures.map((f, i) => (
-              <div key={i} className="transit-row">
-                <span className="transit-badge ferry">Ferry</span>
-                <span className={`transit-time ${etaClass(f.eta)}`}>{f.eta} min</span>
-                <span className="transit-eta-clock">{f.etaTime || etaTime(f.eta)}</span>
-                {f.source === 'schedule' && <span className="bus-sched-indicator">~</span>}
-              </div>
-            ))}
+            {data.departures.map((f, i) => {
+              // Extract short destination: "Hoboken 14th Street → Midtown/W39th" → "Midtown/W39th"
+              let shortDest = f.dest || ''
+              if (shortDest.includes('→')) shortDest = shortDest.split('→').pop().trim()
+              const color = ferryDestColor(shortDest)
+              // Truncate long names for the badge
+              const badgeLabel = shortDest.length > 14 ? shortDest.slice(0, 12) + '…' : shortDest
+              return (
+                <div key={i} className="transit-row">
+                  <span className="transit-badge" style={{ background: color, minWidth: 'clamp(40px, 5vw, 70px)', fontSize: 'clamp(6px, 0.8vw, 10px)' }}>{badgeLabel}</span>
+                  <span className={`transit-time ${etaClass(f.eta)}`}>{f.eta} min</span>
+                  <span className="transit-eta-clock">{f.etaTime || etaTime(f.eta)}</span>
+                  {f.source === 'schedule' && <span className="bus-sched-indicator">~</span>}
+                </div>
+              )
+            })}
           </div>
         ) : (
           <div className="bus-empty">No upcoming ferries</div>
@@ -982,12 +998,8 @@ function FerryCard({ data, loading, displayName, alertSettings, activeAlertSourc
   )
 }
 
-function PathCard({ data, loading, displayName, alertSettings, activeAlertSources, inlineAlertDuration }) {
+function PathCard({ data, loading, displayName }) {
   const hasDepartures = data.departures && data.departures.length > 0
-  const showAlert = inlineAlertDuration !== 0 && (activeAlertSources?.has('path_hob33') && alertSettings?.path_hob33 !== false ||
-                     activeAlertSources?.has('path_jsq33') && alertSettings?.path_jsq33 !== false) && data.alert
-  // Group departures by destination for display
-  const dests = [...new Set((data.departures || []).map(d => d.dest))]
 
   return (
     <div className="card path-card">
@@ -1464,12 +1476,6 @@ const LINES_BY_MODE = {
   ferry: [], // ferry uses search-based picker, not static stops
   path: [], // PATH uses search-based picker, not static stops
   hblr: [], // HBLR uses bus GTFS-RT search-based picker
-  lirr: [], // LIRR uses search-based picker
-  mnr: [], // Metro-North uses search-based picker
-  'mta-bus': [], // MTA Bus uses search-based picker
-  nycferry: [], // NYC Ferry uses search-based picker
-  hblr: [],
-  subway: [], // subway uses search-based picker, not static stops
   lirr: [
     { id: 'LIRR', name: 'LIRR (all lines)', stops: [
       { id: 'mta:LIRR:8', name: 'Penn Station' },
@@ -1482,7 +1488,9 @@ const LINES_BY_MODE = {
       { id: 'mta:MNR:1', name: 'Grand Central' },
     ]},
   ],
-  'mta-bus': [],
+  'mta-bus': [], // MTA Bus uses search-based picker
+  nycferry: [], // NYC Ferry uses search-based picker
+  subway: [], // subway uses search-based picker, not static stops
 }
 
 // Flat lookup for display in stop lists
@@ -1558,7 +1566,7 @@ const STOP_NAMES_KEY = 'hoboken-commuter-stop-names'
 try {
   const saved = localStorage.getItem(STOP_NAMES_KEY)
   if (saved) Object.assign(dynamicStopNames, JSON.parse(saved))
-} catch {}
+} catch { /* ignore corrupt localStorage */ }
 
 function persistDynamicStopName(id, name) {
   dynamicStopNames[id] = name
@@ -1567,7 +1575,7 @@ function persistDynamicStopName(id, name) {
     const existing = saved ? JSON.parse(saved) : {}
     existing[id] = name
     localStorage.setItem(STOP_NAMES_KEY, JSON.stringify(existing))
-  } catch {}
+  } catch { /* ignore localStorage errors */ }
 }
 
 function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
@@ -1592,6 +1600,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
   const [ferrySearchResults, setFerrySearchResults] = useState([])
   const [selectedFerryTerminal, setSelectedFerryTerminal] = useState(null)
   const [ferryRoutes, setFerryRoutes] = useState([])
+  const [selectedFerryDests, setSelectedFerryDests] = useState(new Set())
   // PATH station search → line/direction selection
   const [pathSearch, setPathSearch] = useState('')
   const [pathSearchResults, setPathSearchResults] = useState([])
@@ -1630,7 +1639,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     setBusSearch(''); setBusSearchResults([])
     setSelectedBusStop(null); setBusStopRoutes([]); setSelectedBusRoutes(new Set())
     setFerrySearch(''); setFerrySearchResults([])
-    setSelectedFerryTerminal(null); setFerryRoutes([])
+    setSelectedFerryTerminal(null); setFerryRoutes([]); setSelectedFerryDests(new Set())
     setPathSearch(''); setPathSearchResults([])
     setSelectedPathStation(null); setPathRoutes([])
     setRailSearch(''); setRailSearchResults([])
@@ -1650,7 +1659,7 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     setSelectedLine(null)
     setSelectedBusStop(null)
     setBusSearch(''); setBusSearchResults([])
-    setSelectedFerryTerminal(null); setFerrySearch(''); setFerrySearchResults([]); setFerryRoutes([])
+    setSelectedFerryTerminal(null); setFerrySearch(''); setFerrySearchResults([]); setFerryRoutes([]); setSelectedFerryDests(new Set())
     setSelectedPathStation(null); setPathSearch(''); setPathSearchResults([]); setPathRoutes([])
     setSelectedRailStation(null); setRailSearch(''); setRailSearchResults([]); setRailLines([]); setSelectedRailLines(new Set())
     setHblrSearch(''); setHblrSearchResults([])
@@ -1734,15 +1743,39 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
     try {
       const res = await fetch(`/api/ferry/terminal-routes?tag=${tag}`)
       const data = await res.json()
-      setFerryRoutes(data.routes || [])
-    } catch { setFerryRoutes([]) }
+      const routes = data.routes || []
+      setFerryRoutes(routes)
+      // Pre-select all destinations
+      const allDests = new Set()
+      for (const r of routes) {
+        for (const d of r.destinations || []) {
+          allDests.add(`${r.no}:${d}`)
+        }
+        if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+      }
+      setSelectedFerryDests(allDests)
+    } catch { setFerryRoutes([]); setSelectedFerryDests(new Set()) }
   }
 
-  function selectFerryRoute(routeNo, destName) {
+  function confirmFerrySelection() {
     const tag = selectedFerryTerminal.tag
     const termName = selectedFerryTerminal.name
-    const stopId = `ferry:${tag}:${routeNo}:${destName || ''}`
-    persistDynamicStopName(stopId, `${termName} → ${destName || routeNo}`)
+    // Build all possible destinations for comparison
+    const allDests = new Set()
+    for (const r of ferryRoutes) {
+      for (const d of r.destinations || []) allDests.add(`${r.no}:${d}`)
+      if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+    }
+    // Determine format
+    let stopId
+    if (selectedFerryDests.size === allDests.size) {
+      stopId = `ferry:${tag}:all`
+    } else {
+      const pairs = [...selectedFerryDests]
+      stopId = `ferry:${tag}:${pairs.join(',')}`
+    }
+    // Display name is just the terminal name — badges show the destinations
+    persistDynamicStopName(stopId, termName)
     onAdd(stopId)
     handleClose()
   }
@@ -2148,21 +2181,70 @@ function NewTransitCardDialog({ open, onClose, onAdd, excludeIds }) {
 
           {/* Ferry: Select route/destination at terminal */}
           {step === 'ferry-routes' && selectedFerryTerminal && (
-            <div className="new-card-lines">
+            <div className="subway-dir-picker">
               {ferryRoutes.length > 0 ? (
-                ferryRoutes.flatMap((route) =>
-                  route.destinations.length > 0
-                    ? route.destinations.map((dest) => (
-                        <button key={`${route.no}:${dest}`} className="new-card-line-btn" onClick={() => selectFerryRoute(route.no, dest)}>
-                          <span className="new-card-line-name">→ {dest}</span>
-                          <span className="new-card-line-count">{route.name}</span>
-                        </button>
-                      ))
-                    : [<button key={route.no} className="new-card-line-btn" onClick={() => selectFerryRoute(route.no, '')}>
-                        <span className="new-card-line-name">{route.name}</span>
-                      </button>]
-                )
+                <>
+                  <div className="subway-lines-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>Routes at this terminal</span>
+                    <button className="new-card-back" style={{ fontSize: '11px', marginBottom: 0 }} onClick={() => {
+                      const allDests = new Set()
+                      for (const r of ferryRoutes) {
+                        for (const d of r.destinations || []) allDests.add(`${r.no}:${d}`)
+                        if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+                      }
+                      setSelectedFerryDests(prev => prev.size === allDests.size ? new Set() : allDests)
+                    }}>
+                      {(() => {
+                        const allDests = new Set()
+                        for (const r of ferryRoutes) {
+                          for (const d of r.destinations || []) allDests.add(`${r.no}:${d}`)
+                          if ((r.destinations || []).length === 0) allDests.add(`${r.no}:`)
+                        }
+                        return selectedFerryDests.size === allDests.size ? 'Deselect all' : 'Select all'
+                      })()}
+                    </button>
+                  </div>
+                  <div className="subway-dir-options">
+                    {ferryRoutes.flatMap((route) =>
+                      route.destinations.length > 0
+                        ? route.destinations.map((dest) => {
+                            const key = `${route.no}:${dest}`
+                            return (
+                              <label key={key} className={`subway-dir-option ${selectedFerryDests.has(key) ? 'active' : ''}`} style={{ cursor: 'pointer' }}>
+                                <input type="checkbox" style={{ display: 'none' }} checked={selectedFerryDests.has(key)} onChange={() => {
+                                  setSelectedFerryDests(prev => {
+                                    const next = new Set(prev)
+                                    next.has(key) ? next.delete(key) : next.add(key)
+                                    return next
+                                  })
+                                }} />
+                                <span>→ {dest}</span>
+                                <span style={{ fontSize: '10px', opacity: 0.7, marginLeft: 'auto' }}>{route.name}</span>
+                              </label>
+                            )
+                          })
+                        : [(() => {
+                            const key = `${route.no}:`
+                            return (
+                              <label key={key} className={`subway-dir-option ${selectedFerryDests.has(key) ? 'active' : ''}`} style={{ cursor: 'pointer' }}>
+                                <input type="checkbox" style={{ display: 'none' }} checked={selectedFerryDests.has(key)} onChange={() => {
+                                  setSelectedFerryDests(prev => {
+                                    const next = new Set(prev)
+                                    next.has(key) ? next.delete(key) : next.add(key)
+                                    return next
+                                  })
+                                }} />
+                                <span>{route.name}</span>
+                              </label>
+                            )
+                          })()]
+                    )}
+                  </div>
+                </>
               ) : <div className="settings-stop-empty">No active routes at this terminal</div>}
+              <button className="settings-save-btn" onClick={confirmFerrySelection} style={{ marginTop: '12px' }} disabled={selectedFerryDests.size === 0}>
+                Add Card
+              </button>
             </div>
           )}
 
@@ -2676,6 +2758,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
   const dragRef = useRef(null) // { id, setter } for active drag
 
   // Reset drafts when panel opens
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     if (open) {
       setDraftOutStops([...outboundStops])
@@ -2700,6 +2783,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
       fetch('/api/system-status').then(r => r.json()).then(setSystemStatus).catch(() => {})
     }
   }, [open])
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   if (!open) return null
 
@@ -2923,7 +3007,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                           setDraftOutWeather({ label: data.label, url: data.url })
                           setOutZipInput('')
                         }
-                      } catch {} finally { setZipLoading(null) }
+                      } catch { /* ignore fetch error */ } finally { setZipLoading(null) }
                     }}>{zipLoading === 'out' ? '…' : 'Set'}</button>
                     <span className="settings-section-hint">{draftOutStops.length}/6</span>
                   </div>
@@ -2949,7 +3033,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                           setDraftInWeather({ label: data.label, url: data.url })
                           setInZipInput('')
                         }
-                      } catch {} finally { setZipLoading(null) }
+                      } catch { /* ignore fetch error */ } finally { setZipLoading(null) }
                     }}>{zipLoading === 'in' ? '…' : 'Set'}</button>
                     <span className="settings-section-hint">{draftInStops.length}/6</span>
                   </div>
@@ -3369,7 +3453,7 @@ function saveSettings(settings) {
         card_count: (settings.outboundStops?.length || 0) + (settings.inboundStops?.length || 0),
       })
     }
-  } catch {}
+  } catch { /* non-fatal analytics */ }
 }
 
 // ── Desktop Alerts Panel ──
@@ -3387,6 +3471,7 @@ function AlertsPanel({ open, onClose, tickerItems, dismissed, onDismiss, onResto
 
   // Filter by staleness (auto-dismiss): if autoDismissMinutes is 0, no alerts show in panel (ticker only).
   // If Infinity, all alerts stay. Otherwise, only alerts received within the last N minutes.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
   const visibleItems = tickerItems.filter(item => {
     if (item.text === 'No active alerts') return false
@@ -3495,7 +3580,6 @@ function AlertsPanel({ open, onClose, tickerItems, dismissed, onDismiss, onResto
 export default function App() {
   const [theme, setTheme] = useState(isDaytime() ? 'light' : 'dark')
   const [autoTheme, setAutoTheme] = useState(true)
-  const [weatherLocation, setWeatherLocation] = useState('hoboken')
   const [outboundWeather, setOutboundWeather] = useState(() => loadSettings().outboundWeather)
   const [inboundWeather, setInboundWeather] = useState(() => loadSettings().inboundWeather)
   const [direction, setDirection] = useState('outbound')
@@ -3560,7 +3644,7 @@ export default function App() {
         })
       })
       .catch(() => {}) // non-fatal — fallback IDs remain in use
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   function handlePresetSelect(preset) {
     const settings = applyPreset(preset, hblrDefaults)
@@ -3591,7 +3675,6 @@ export default function App() {
   const { data: busData, error: busError } = usePolling(busFetcher, 30_000, refreshKey)
   const defaultBusFallback = direction === 'inbound' ? BUS_FALLBACK_INBOUND : BUS_FALLBACK
   const busStops = busData || defaultBusFallback
-  const busStopOrder = busStops._stopOrder || defaultBusFallback._stopOrder
 
   const ferryFetcher = useCallback(() => fetchFerry(direction), [direction])
   const { data: ferryData, error: ferryError } = usePolling(ferryFetcher, 30_000, refreshKey)
@@ -3736,6 +3819,7 @@ export default function App() {
                 if (dismissedAlertTexts.has(i.text)) return false
                 // Apply staleness filter
                 if (inlineAlertDuration !== Infinity && inlineAlertDuration && i.receivedAt) {
+                  // eslint-disable-next-line react-hooks/purity
                   const ageMin = (Date.now() - i.receivedAt) / 60000
                   if (ageMin > inlineAlertDuration) return false
                 }
@@ -3754,8 +3838,8 @@ export default function App() {
       {/* Row 1: Tunnels + Weather (conditionally shown) */}
       {(showTunnels || showWeather) && (
         <div className="top-row" style={{ gridTemplateColumns: showTunnels && showWeather ? '1fr 1fr' : '1fr' }}>
-          {showTunnels && <TunnelCard data={tunnels} loading={!tunnelData} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />}
-          {showWeather && <WeatherCard weatherData={weather} loading={!weatherData} location={activeWeatherLocation.label || activeWeatherLocation} />}
+          {showTunnels && <TunnelCard data={tunnels} loading={!tunnelData} />}
+          {showWeather && <WeatherCard weatherData={weather} loading={!weatherData} />}
         </div>
       )}
 
@@ -3766,25 +3850,25 @@ export default function App() {
       {(direction === 'outbound' ? outboundStops : inboundStops).map((stopId) => {
         // Preconfigured ferry (legacy IDs)
         if (stopId === 'ferry_hob14' || stopId === 'ferry_w39') {
-          return <FerryCard key={stopId} data={ferry} loading={!ferryData} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <FerryCard key={stopId} data={ferry} loading={!ferryData} displayName={dynamicStopNames[stopId]} />
         }
         // Dynamic ferry (ferry:STOP:ROUTE:DEST)
         if (stopId.startsWith('ferry:')) {
           const catalogStop = ALL_STOPS.find(s => s.id === stopId)
-          return <DynamicFerryCard key={stopId} stopId={stopId} displayName={catalogStop?.name || dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicFerryCard key={stopId} stopId={stopId} displayName={catalogStop?.name || dynamicStopNames[stopId]} />
         }
         // Preconfigured PATH (legacy IDs)
         if (stopId === 'path_hob33' || stopId === 'path_33hob' || stopId === 'path_33newport' || stopId === 'path_hobwtc' || stopId === 'path_wtchob') {
-          return <PathCard key={stopId} data={path} loading={!pathData} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <PathCard key={stopId} data={path} loading={!pathData} displayName={dynamicStopNames[stopId]} />
         }
         // Dynamic PATH (path:ROUTE:DIR:STOP)
         if (stopId.startsWith('path:')) {
-          return <DynamicPathCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicPathCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} />
         }
         // MTA (mta:ROUTE:STOP)
         if (stopId.startsWith('mta:')) {
           const catalogStop = ALL_STOPS.find(s => s.id === stopId)
-          return <DynamicMtaCard key={stopId} stopId={stopId} displayName={catalogStop?.name || dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicMtaCard key={stopId} stopId={stopId} displayName={catalogStop?.name || dynamicStopNames[stopId]} />
         }
         // New-format dynamic bus card (bus:STOP_ID:ROUTES)
         if (stopId.startsWith('bus:')) {
@@ -3792,27 +3876,27 @@ export default function App() {
         }
         // NJT Rail (rail:STATION:LINES)
         if (stopId.startsWith('rail:')) {
-          return <DynamicRailCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicRailCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} />
         }
         // HBLR (hblr:STOP_ID)
         if (stopId.startsWith('hblr:')) {
-          return <DynamicHblrCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicHblrCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} />
         }
         // LIRR (lirr:STOP_ID)
         if (stopId.startsWith('lirr:')) {
-          return <DynamicLirrCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicLirrCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} />
         }
         // Metro-North (mnr:STOP_ID)
         if (stopId.startsWith('mnr:')) {
-          return <DynamicMnrCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicMnrCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} />
         }
         // MTA Bus (mtabus:STOP_ID:ROUTE)
         if (stopId.startsWith('mtabus:')) {
-          return <DynamicMtaBusCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} alertSettings={alertSettings} activeAlertSources={activeAlertSources} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicMtaBusCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} />
         }
         // NYC Ferry (nycferry:STOP_ID)
         if (stopId.startsWith('nycferry:')) {
-          return <DynamicNycFerryCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} inlineAlertDuration={inlineAlertDuration} />
+          return <DynamicNycFerryCard key={stopId} stopId={stopId} displayName={dynamicStopNames[stopId]} />
         }
         // Preconfigured bus stop
         const busStop = busStops[stopId]

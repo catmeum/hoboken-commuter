@@ -1,5 +1,24 @@
 # Hoboken Commuter Dashboard — Version History
 
+## 2026-06-02 — Lint Cleanup, Ferry Multi-Route Picker, Tunnel Alert Dedup
+
+### Code Quality
+- **Zero ESLint errors** — fixed 106 errors across all files: added Node.js globals for server/tests, removed dead per-card alert code, fixed duplicate object keys, added empty-block comments, suppressed intentional patterns
+- **Mobile presets updated** — all 6 neighborhood presets now include stops for both outbound and inbound directions
+- **NYW Ferry route coverage verified** — Route 12 (downtown) confirmed in API alongside Route 18 (Midtown)
+- **NYC Ferry feed gaps investigated** — GTFS-RT only reports real-time tracked trips, no static fallback
+
+### New Features
+- **NYW Ferry multi-route picker** — ferry terminal picker now supports selecting multiple routes/destinations in a single card (checkbox-style, mirrors NJT Rail picker pattern). New stop ID format: `ferry:TAG:all` or `ferry:TAG:R1:D1,R2:D2`
+- **Ferry destination badges** — each departure row shows a colored badge indicating its destination. Distinct colors per destination (Midtown=blue, Pier 11=amber, Brookfield=green, etc.)
+- **Ferry destination colors** — shared `ferryDestColor()` utility in `transitColors.js` with known color assignments and hash-based fallback
+
+### Bug Fixes
+- **Holland Tunnel duplicate alerts** — tunnel alerts now only show the most recent status update per tunnel instead of all historical alerts for the day. Fixes the "8 alerts that are all the same" issue
+- **NYW Ferry Hoboken 14th route test** — added integration test verifying both Route 12 (downtown) and Route 18 (Midtown) remain in the API feed
+
+---
+
 ## 2026-06-02 — Bus Alert Route Filtering Fix
 
 ### Bug Fix
