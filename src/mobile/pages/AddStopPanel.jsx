@@ -53,7 +53,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
 
   // Bus step 3 state (headsign variants for PABT-like stops)
   const [busVariants, setBusVariants] = useState([])
-
+  const [selectedBusVariants, setSelectedBusVariants] = useState(new Set())
   // Bus direction state (for stops with multiple physical IDs)
   const [busDirections, setBusDirections] = useState([])
 
@@ -166,6 +166,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     } else if (step === 'bus-variants') {
       setStep('bus-lines')
       setBusVariants([])
+      setSelectedBusVariants(new Set())
     } else if (step === 'bus-direction') {
       setStep('bus-lines')
       setBusDirections([])
@@ -488,15 +489,30 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     }
   }
 
-  // ── Add bus with headsign filter (from variant picker) ──
-  function addBusVariant(variant) {
-    const routes = variant.route
-    const headsign = variant.keyword
-    // Use variant-specific stop IDs if provided (e.g. PABT 126 Willow vs Washington)
-    const stopIds = variant.stopIds || selectedBusStop.id
-    const stopId = `bus:${stopIds}:${routes}:${headsign}`
-    const displayName = `${selectedBusStop.name} · ${routes} ${variant.variant}`
-    handleAdd(stopId, displayName)
+  // ── Add bus with headsign filter (from variant picker — multi-select) ──
+  function addBusVariants() {
+    const selected = busVariants.filter((_, i) => selectedBusVariants.has(i))
+    if (selected.length === 0) return
+
+    if (selected.length === 1) {
+      // Single variant — same behavior as before
+      const variant = selected[0]
+      const routes = variant.route
+      const headsign = variant.keyword
+      const stopIds = variant.stopIds || selectedBusStop.id
+      const stopId = `bus:${stopIds}:${routes}:${headsign}`
+      const displayName = `${selectedBusStop.name} · ${routes} ${variant.variant}`
+      handleAdd(stopId, displayName)
+    } else {
+      // Multiple variants — combine keywords with semicolons (commas are used within keywords)
+      const routes = [...new Set(selected.map(v => v.route))].join(',')
+      const keywords = selected.map(v => v.keyword).join(';')
+      const stopIds = selected[0].stopIds || selectedBusStop.id
+      const stopId = `bus:${stopIds}:${routes}:${keywords}`
+      const variantNames = selected.map(v => v.variant).join(' + ')
+      const displayName = `${selectedBusStop.name} · ${routes} ${variantNames}`
+      handleAdd(stopId, displayName)
+    }
   }
 
   // ── Select PATH direction option ──
@@ -564,7 +580,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
     if (step === 'subway-dir') return `${selectedStation?.name} — Lines & Direction`
     if (step === 'bus-lines') return `${selectedBusStop?.name} — Select Routes`
     if (step === 'bus-direction') return `${selectedBusStop?.name} — Select Direction`
-    if (step === 'bus-variants') return `${selectedBusStop?.name} — Pick Variant`
+    if (step === 'bus-variants') return `${selectedBusStop?.name} — Select Variants`
     if (step === 'path-dir') return `${selectedPathStation?.name} — Select Direction`
     if (step === 'rail-lines') return `${selectedRailStation?.name} — Select Lines`
     if (step === 'lirr-lines') return `${selectedLirrStation?.name} — Select Branches`
@@ -796,23 +812,42 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
         </div>
       )}
 
-      {/* Step: Bus variants (PABT — pick headsign direction) */}
+      {/* Step: Bus variants (PABT — pick headsign variants, multi-select) */}
       {step === 'bus-variants' && (
         <div className="m-addstop-step">
-          <p className="m-addstop-section-label">Which direction / variant?</p>
-          <p className="m-addstop-hint" style={{ marginBottom: 12 }}>Each variant departs from a different gate</p>
+          <div className="m-addstop-section-header">
+            <p className="m-addstop-section-label">Which variant(s)?</p>
+            <button className="m-addstop-select-all" onClick={() => {
+              if (selectedBusVariants.size === busVariants.length) setSelectedBusVariants(new Set())
+              else setSelectedBusVariants(new Set(busVariants.map((_, i) => i)))
+            }}>
+              {selectedBusVariants.size === busVariants.length ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+          <p className="m-addstop-hint" style={{ marginBottom: 12 }}>Select one or more — each departs from a different gate</p>
           <div className="m-addstop-route-list">
             {busVariants.map((v, i) => (
               <button
                 key={i}
-                className="m-addstop-result"
-                onClick={() => addBusVariant(v)}
+                className={`m-addstop-route-btn ${selectedBusVariants.has(i) ? 'active' : ''}`}
+                onClick={() => setSelectedBusVariants(prev => {
+                  const next = new Set(prev)
+                  next.has(i) ? next.delete(i) : next.add(i)
+                  return next
+                })}
               >
                 <div className="m-addstop-result-name">{v.route} · {v.variant}</div>
                 {v.gate && <div className="m-addstop-result-sub">Gate {v.gate}{v.gateSchedule ? ` (day: ${v.gateSchedule.day}, late: ${v.gateSchedule.late})` : ''}</div>}
               </button>
             ))}
           </div>
+          <button
+            className="m-addstop-confirm"
+            onClick={addBusVariants}
+            disabled={selectedBusVariants.size === 0}
+          >
+            Add to My Stops
+          </button>
         </div>
       )}
 

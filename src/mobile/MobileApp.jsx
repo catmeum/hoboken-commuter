@@ -22,6 +22,7 @@ const STORAGE_KEYS = {
   tunnelDirection: 'msn_tunnel_direction',
   alertBadge: 'msn_alert_badge',
   alertStaleness: 'msn_alert_staleness',
+  alertToggles: 'msn_alert_toggles',
   onboarded: 'msn_onboarded',
 }
 
@@ -30,6 +31,158 @@ function loadJSON(key, fallback) {
     const v = localStorage.getItem(key)
     return v ? JSON.parse(v) : fallback
   } catch { return fallback }
+}
+
+// Derive alert source IDs from the user's configured stops — granular per-line/route
+// Returns a Map of category → Set of individual source IDs
+// e.g. { bus: Set(['bus_126', 'bus_119']), mta: Set(['mta_B', 'mta_D', 'mta_F']), ... }
+const ALERT_CATEGORY_LABELS = {
+  tunnel: '🚗 Tunnels',
+  bus: '🚌 NJT Bus',
+  path: '🚇 PATH',
+  mta: '🔵 MTA Subway',
+  ferry: '⛴️ NY Waterway',
+  nycferry: '⛴️ NYC Ferry',
+  rail: '🚆 NJT Rail',
+  hblr: '🚃 HBLR',
+  lirr: '🚆 LIRR',
+  mnr: '🚆 Metro-North',
+  mtabus: '🚌 MTA Bus',
+}
+
+const ALERT_SOURCE_DISPLAY = {
+  tunnel_lincoln: 'Lincoln Tunnel',
+  tunnel_holland: 'Holland Tunnel',
+  tunnel_gwb_upper: 'GW Bridge (Upper)',
+  tunnel_gwb_lower: 'GW Bridge (Lower)',
+  tunnel_goethals: 'Goethals Bridge',
+  tunnel_bayonne: 'Bayonne Bridge',
+  path_hob33: 'HOB–33rd',
+  path_jsq33: 'JSQ–33rd',
+  ferry: 'NY Waterway',
+  nycferry: 'NYC Ferry',
+  hblr: 'HBLR',
+  rail: 'NJT Rail',
+  lirr: 'LIRR',
+  mnr: 'Metro-North',
+  mtabus: 'MTA Bus',
+}
+
+function deriveAlertSources(stops, showTunnels, tunnelList) {
+  // Returns { category → Set(sourceIds) }
+  const grouped = {}
+  function add(cat, id) {
+    if (!grouped[cat]) grouped[cat] = new Set()
+    grouped[cat].add(id)
+  }
+
+  if (showTunnels && tunnelList) {
+    for (const t of tunnelList) {
+      add('tunnel', `tunnel_${t}`)
+    }
+  }
+
+  for (const id of stops) {
+    // NJT Bus: bus:STOP_ID:ROUTE1,ROUTE2
+    if (id.startsWith('bus:')) {
+      const routes = (id.split(':')[2] || '').split(',').filter(Boolean)
+      for (const r of routes) add('bus', `bus_${r}`)
+    }
+    // Legacy bus stops
+    else if (['clinton', 'willow', 'washington', 'pabt_willow', 'pabt_washington'].includes(id)) {
+      add('bus', 'bus_126')
+      if (id === 'willow' || id === 'washington') add('bus', 'bus_89')
+      if (id === 'washington') add('bus', 'bus_22')
+    }
+    else if (id === 'pabt_119') {
+      add('bus', 'bus_119')
+    }
+    else if (/^\d/.test(id)) {
+      const parts = id.split(':')
+      if (parts.length >= 2) add('bus', `bus_${parts[1]}`)
+    }
+
+    // MTA Subway: mta:STATIONS:DIR:LINES
+    if (id.startsWith('mta:')) {
+      const lines = (id.split(':')[3] || '').split(',').filter(Boolean)
+      for (const l of lines) {
+        // Skip express variants (6X, 7X, FX) — same alerts as base line
+        const base = l.replace(/X$/, '')
+        add('mta', `mta_${base}`)
+      }
+    }
+
+    // PATH
+    if (id.startsWith('path:')) {
+      const route = id.split(':')[1] || ''
+      const routeIds = route.split(',')
+      if (routeIds.some(r => r === '862' || r === '860')) add('path', 'path_hob33')
+      if (routeIds.some(r => r === '861' || r === '1024')) add('path', 'path_jsq33')
+    }
+    if (id === 'path_hob33' || id === 'path_33hob' || id === 'path_hobwtc' || id === 'path_wtchob') {
+      add('path', 'path_hob33')
+    }
+    if (id === 'path_33newport') add('path', 'path_jsq33')
+
+    // Ferry (single source per type)
+    if (id.startsWith('ferry:') || id.startsWith('ferry_')) add('ferry', 'ferry')
+    if (id.startsWith('nycferry:')) add('nycferry', 'nycferry')
+
+    // Rail modes (single source)
+    if (id.startsWith('rail:')) add('rail', 'rail')
+    if (id.startsWith('hblr:')) add('hblr', 'hblr')
+    if (id.startsWith('lirr:')) add('lirr', 'lirr')
+    if (id.startsWith('mnr:')) add('mnr', 'mnr')
+    if (id.startsWith('mtabus:')) add('mtabus', 'mtabus')
+  }
+
+  return grouped
+}
+
+// Determine which source ID an alert maps to for toggle filtering
+function getAlertSourceIds(alert) {
+  const id = alert.id || ''
+  const sources = []
+
+  if (id.startsWith('tunnel-')) {
+    // tunnel-Lincoln-..., tunnel-Holland-..., tunnel-GWB Upper-...
+    // Normalize to match config IDs (lincoln, holland, gwb_upper, etc.)
+    const match = id.match(/^tunnel-([^-]+)-/)
+    if (match) {
+      const name = match[1].toLowerCase().replace(/\s+/g, '_')
+      sources.push(`tunnel_${name}`)
+    }
+  } else if (id.startsWith('bus-')) {
+    // bus alerts have routes array
+    if (alert.routes) {
+      for (const r of alert.routes) sources.push(`bus_${r}`)
+    }
+  } else if (id.startsWith('mta-')) {
+    // MTA alerts have badges with line letters
+    if (alert.badges) {
+      for (const b of alert.badges) {
+        if (b.label && b.label.length <= 2) sources.push(`mta_${b.label}`)
+      }
+    }
+  } else if (id.startsWith('path-')) {
+    // PATH is a single source
+    sources.push('path_hob33', 'path_jsq33') // show if either PATH is enabled
+  } else if (id.startsWith('ferry-')) {
+    sources.push('ferry')
+  } else if (id.startsWith('nycferry-')) {
+    sources.push('nycferry')
+  } else if (id.startsWith('rail-')) {
+    sources.push('rail')
+  } else if (id.startsWith('hblr-')) {
+    sources.push('hblr')
+  } else if (id.startsWith('lirr-')) {
+    sources.push('lirr')
+  } else if (id.startsWith('mnr-')) {
+    sources.push('mnr')
+  } else if (id.startsWith('mtabus-')) {
+    sources.push('mtabus')
+  }
+  return sources
 }
 
 export default function MobileApp() {
@@ -54,6 +207,7 @@ export default function MobileApp() {
   const [tunnelDirection, setTunnelDirection] = useState(() => localStorage.getItem(STORAGE_KEYS.tunnelDirection) || 'both')
   const [alertBadge, setAlertBadge] = useState(() => localStorage.getItem(STORAGE_KEYS.alertBadge) || 'count')
   const [alertStaleness, setAlertStaleness] = useState(() => localStorage.getItem(STORAGE_KEYS.alertStaleness) || 'off')
+  const [alertToggles, setAlertToggles] = useState(() => loadJSON(STORAGE_KEYS.alertToggles, {}))
 
   // ── Alerts state ──
   const [alerts, setAlerts] = useState([])
@@ -73,6 +227,7 @@ export default function MobileApp() {
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.tunnelDirection, tunnelDirection) }, [tunnelDirection])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.alertBadge, alertBadge) }, [alertBadge])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.alertStaleness, alertStaleness) }, [alertStaleness])
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.alertToggles, JSON.stringify(alertToggles)) }, [alertToggles])
 
   // ── Theme application ──
   useEffect(() => {
@@ -246,6 +401,7 @@ export default function MobileApp() {
     setTunnelDirection('both')
     setAlertBadge('count')
     setAlertStaleness('off')
+    setAlertToggles({})
     setAlerts([])
     setDismissedAlerts([])
     setSettingsOpen(false)
@@ -269,18 +425,39 @@ export default function MobileApp() {
 
   const showTabBar = page !== 'welcome'
 
-  // Filter alerts by staleness setting
+  // Filter alerts by staleness setting and alert source toggles
   /* eslint-disable react-hooks/purity */
+  const alertSourceGroups = deriveAlertSources(stops, showTunnels, tunnels)
+  // Flat set of all configured source IDs for checking membership
+  const allConfiguredSources = new Set()
+  for (const ids of Object.values(alertSourceGroups)) {
+    for (const id of ids) allConfiguredSources.add(id)
+  }
   const filteredAlerts = (() => {
-    if (alertStaleness === 'off') return alerts
-    const maxMinutes = parseInt(alertStaleness, 10)
-    if (!maxMinutes) return alerts
-    const now = Date.now()
-    return alerts.filter(a => {
-      if (!a.receivedAt) return true // no timestamp = keep it
-      const ageMin = (now - a.receivedAt) / 60000
-      return ageMin <= maxMinutes
+    let result = alerts
+    // Filter by per-source toggles (granular: bus_126, mta_B, tunnel_lincoln, etc.)
+    result = result.filter(a => {
+      const sourceIds = getAlertSourceIds(a)
+      if (sourceIds.length === 0) return true // unknown source = keep
+      // Only consider source IDs that exist in the user's config
+      const relevantIds = sourceIds.filter(sid => allConfiguredSources.has(sid))
+      if (relevantIds.length === 0) return false // alert source not in user config = hide
+      // Alert shows if ANY of its relevant source IDs are toggled on (not explicitly false)
+      return relevantIds.some(sid => alertToggles[sid] !== false)
     })
+    // Filter by staleness
+    if (alertStaleness !== 'off') {
+      const maxMinutes = parseInt(alertStaleness, 10)
+      if (maxMinutes) {
+        const now = Date.now()
+        result = result.filter(a => {
+          if (!a.receivedAt) return true
+          const ageMin = (now - a.receivedAt) / 60000
+          return ageMin <= maxMinutes
+        })
+      }
+    }
+    return result
   })()
   /* eslint-enable react-hooks/purity */
 
@@ -354,6 +531,9 @@ export default function MobileApp() {
         setAlertBadge={setAlertBadge}
         alertStaleness={alertStaleness}
         setAlertStaleness={setAlertStaleness}
+        alertToggles={alertToggles}
+        setAlertToggles={setAlertToggles}
+        alertSourceGroups={alertSourceGroups}
         stops={stops}
         stopNames={stopNames}
         stopHiddenBadges={stopHiddenBadges}

@@ -978,8 +978,9 @@ app.get('/api/bus/stops', async (req, res) => {
 
     // Optional route filter (e.g. ?routes=126,22)
     const routeFilter = req.query.routes ? req.query.routes.split(',').filter(Boolean) : null
-    // Optional headsign filter (e.g. ?headsigns=WILLOW,HAMILTON+PK) — matches if headsign contains any keyword
-    const headsignFilter = req.query.headsigns ? req.query.headsigns.split(',').filter(Boolean).map(h => h.toUpperCase()) : null
+    // Optional headsign filter (e.g. ?headsigns=WILLOW,HAMILTON+PK or semicolons for multi-variant: WILLOW;PATH)
+    // Supports both comma (keywords within variant) and semicolons (between variant groups)
+    const headsignFilter = req.query.headsigns ? req.query.headsigns.split(/[,;]/).filter(Boolean).map(h => h.toUpperCase()) : null
 
     let buses = await getRealtimeBuses(stopIds, 6, routeFilter, headsignFilter)
     if (buses.length === 0) buses = getScheduleFallback(stopIds, 6, routeFilter, headsignFilter)
@@ -2147,9 +2148,10 @@ app.get('/api/rail/query', strictLimiter, async (req, res) => {
 let nycFerryStopsCache = null
 let nycFerryRoutesCache = null
 let nycFerryTripMapCache = null // tripId → { routeId, headsign }
+let nycFerryScheduleCache = null // stopId → [{ routeId, departureTime, tripId }]
 
 async function loadNycFerryData() {
-  if (nycFerryStopsCache) return { stops: nycFerryStopsCache, routes: nycFerryRoutesCache, tripMap: nycFerryTripMapCache }
+  if (nycFerryStopsCache) return { stops: nycFerryStopsCache, routes: nycFerryRoutesCache, tripMap: nycFerryTripMapCache, schedule: nycFerryScheduleCache }
   try {
     const resp = await fetch('http://nycferry.connexionz.net/rtt/public/utility/gtfs.aspx')
     const buf = Buffer.from(await resp.arrayBuffer())
@@ -2182,24 +2184,47 @@ async function loadNycFerryData() {
     }
     nycFerryRoutesCache = routes
 
-    // Parse trips — build tripId → { routeId, headsign } map
+    // Parse trips — build tripId → { routeId, headsign, serviceId } map
     // The realtime feed has empty routeId, so we resolve via tripId
     const tripHeader = tripLines[0].replace(/"/g, '').split(',')
     const tIdIdx = tripHeader.indexOf('trip_id')
     const tRIdIdx = tripHeader.indexOf('route_id')
     const tHsIdx = tripHeader.indexOf('trip_headsign')
+    const tSvcIdx = tripHeader.indexOf('service_id')
     const tripMap = {}
     for (let i = 1; i < tripLines.length; i++) {
       const cols = tripLines[i].replace(/"/g, '').split(',')
-      tripMap[cols[tIdIdx]] = { routeId: cols[tRIdIdx], headsign: cols[tHsIdx] || '' }
+      tripMap[cols[tIdIdx]] = { routeId: cols[tRIdIdx], headsign: cols[tHsIdx] || '', serviceId: cols[tSvcIdx] || '' }
     }
     nycFerryTripMapCache = tripMap
 
-    console.log('[NYC Ferry] Loaded', stops.length, 'stops,', Object.keys(routes).length, 'routes,', Object.keys(tripMap).length, 'trips')
-    return { stops, routes, tripMap }
+    // Parse stop_times.txt — build schedule for static fallback
+    const stLines = zip.readAsText('stop_times.txt').trim().split('\n')
+    const stHeader = stLines[0].replace(/"/g, '').split(',')
+    const stTripIdx = stHeader.indexOf('trip_id')
+    const stStopIdx = stHeader.indexOf('stop_id')
+    const stDepIdx = stHeader.indexOf('departure_time')
+    const schedule = {}
+    for (let i = 1; i < stLines.length; i++) {
+      const cols = stLines[i].replace(/"/g, '').split(',')
+      const stopId = cols[stStopIdx]
+      const tripId = cols[stTripIdx]
+      const depTime = cols[stDepIdx]
+      if (!stopId || !tripId || !depTime) continue
+      if (!schedule[stopId]) schedule[stopId] = []
+      const tripInfo = tripMap[tripId] || {}
+      schedule[stopId].push({ routeId: tripInfo.routeId || '', departureTime: depTime, tripId, serviceId: tripInfo.serviceId || '' })
+    }
+    for (const sid of Object.keys(schedule)) {
+      schedule[sid].sort((a, b) => a.departureTime.localeCompare(b.departureTime))
+    }
+    nycFerryScheduleCache = schedule
+
+    console.log('[NYC Ferry] Loaded', stops.length, 'stops,', Object.keys(routes).length, 'routes,', Object.keys(tripMap).length, 'trips,', Object.keys(schedule).length, 'scheduled stops')
+    return { stops, routes, tripMap, schedule }
   } catch (err) {
     console.error('[NYC Ferry] Failed to load:', err.message)
-    return { stops: [], routes: {}, tripMap: {} }
+    return { stops: [], routes: {}, tripMap: {}, schedule: {} }
   }
 }
 
@@ -2230,34 +2255,79 @@ app.get('/api/nycferry/query', async (req, res) => {
     if (!stop) return res.json({ departures: [], stationName: '' })
     const data = await loadNycFerryData()
     const stationName = data.stops.find(s => s.id === stop)?.name || stop
-    const feed = await fetchNycFerryFeed()
-    const now = Date.now() / 1000
-    const departures = []
-    for (const entity of feed.entity) {
-      const tu = entity.tripUpdate
-      if (!tu) continue
-      for (const stu of tu.stopTimeUpdate) {
-        if (stu.stopId !== stop) continue
-        const t = (stu.departure?.time?.low || stu.departure?.time || 0) || (stu.arrival?.time?.low || stu.arrival?.time || 0)
-        if (t && t > now) {
-          const d = new Date(t * 1000)
-          // routeId is often empty in the feed — resolve via tripId from static GTFS
-          const tripId = tu.trip?.tripId
-          const tripInfo = data.tripMap?.[tripId] || {}
-          const routeId = tu.trip?.routeId || tripInfo.routeId || ''
-          const routeInfo = data.routes[routeId]
-          const headsign = tripInfo.headsign || ''
-          departures.push({
-            dest: routeInfo ? `${routeInfo.name}${headsign ? ' → ' + headsign : ''}` : (headsign || routeId || '?'),
-            route: routeId,
-            lineColor: routeInfo?.color || '#00839C',
-            eta: Math.round((t - now) / 60),
-            etaTime: formatTimeFromDate(d),
-            source: 'realtime',
-          })
+
+    // Try realtime GTFS-RT feed first
+    let departures = []
+    try {
+      const feed = await fetchNycFerryFeed()
+      const now = Date.now() / 1000
+      for (const entity of feed.entity) {
+        const tu = entity.tripUpdate
+        if (!tu) continue
+        for (const stu of tu.stopTimeUpdate) {
+          if (stu.stopId !== stop) continue
+          const t = (stu.departure?.time?.low || stu.departure?.time || 0) || (stu.arrival?.time?.low || stu.arrival?.time || 0)
+          if (t && t > now) {
+            const d = new Date(t * 1000)
+            const tripId = tu.trip?.tripId
+            const tripInfo = data.tripMap?.[tripId] || {}
+            const routeId = tu.trip?.routeId || tripInfo.routeId || ''
+            const routeInfo = data.routes[routeId]
+            const headsign = tripInfo.headsign || ''
+            departures.push({
+              dest: routeInfo ? `${routeInfo.name}${headsign ? ' → ' + headsign : ''}` : (headsign || routeId || '?'),
+              route: routeId,
+              lineColor: routeInfo?.color || '#00839C',
+              eta: Math.round((t - now) / 60),
+              etaTime: formatTimeFromDate(d),
+              source: 'realtime',
+            })
+          }
         }
       }
+    } catch (rtErr) {
+      console.warn('[NYC Ferry] RT feed failed, falling back to static schedule:', rtErr.message)
     }
+
+    // Supplement RT departures with static GTFS schedule for times not covered by RT
+    // This ensures schedule departures show up when RT only tracks a subset of trips
+    if (data.schedule && data.schedule[stop]) {
+      const { h: nowH, m: nowM, s: nowS, totalMinutes: nowTotalMin } = nowEastern()
+      const nowTime = `${String(nowH).padStart(2,'0')}:${String(nowM).padStart(2,'0')}:${String(nowS).padStart(2,'0')}`
+
+      // Determine today's service_id from calendar.txt (1=weekday, 2=weekend for NYC Ferry)
+      const today = new Date(new Date().toLocaleString('en-US', { timeZone: EASTERN_TZ }))
+      const dow = today.getDay() // 0=Sun, 6=Sat
+      const todayServiceId = (dow === 0 || dow === 6) ? '2' : '1'
+
+      // Build a set of approximate ETAs already covered by RT (±3 min window)
+      const rtEtas = new Set(departures.map(d => d.eta))
+
+      for (const entry of data.schedule[stop]) {
+        if (entry.departureTime <= nowTime) continue
+        // Filter by service day
+        const tripInfo = data.tripMap?.[entry.tripId] || {}
+        // tripInfo doesn't have serviceId, but we stored it during parsing — check trip service
+        if (entry.serviceId && entry.serviceId !== todayServiceId) continue
+        const [eh, em] = entry.departureTime.split(':').map(Number)
+        const etaMin = (eh * 60 + em) - nowTotalMin
+        if (etaMin <= 0 || etaMin >= 180) continue
+        // Skip if RT already has a departure within ±3 min of this scheduled time
+        const nearRT = [...rtEtas].some(rt => Math.abs(rt - etaMin) <= 3)
+        if (nearRT) continue
+        const routeInfo = data.routes[entry.routeId]
+        const headsign = tripInfo.headsign || ''
+        departures.push({
+          dest: routeInfo ? `${routeInfo.name}${headsign ? ' → ' + headsign : ''}` : (headsign || entry.routeId || '?'),
+          route: entry.routeId,
+          lineColor: routeInfo?.color || '#00839C',
+          eta: etaMin,
+          etaTime: formatTime(eh, em),
+          source: 'schedule',
+        })
+      }
+    }
+
     departures.sort((a, b) => a.eta - b.eta)
     res.json({ departures: departures.slice(0, 10), stationName, timestamp: new Date().toISOString() })
   } catch (err) {

@@ -58,7 +58,7 @@ describe('AddStopPanel — Bus headsign variant flow', () => {
 
     // Step 4: variant picker should appear
     await waitFor(() => {
-      expect(screen.getByText('Which direction / variant?')).toBeInTheDocument()
+      expect(screen.getByText('Which variant(s)?')).toBeInTheDocument()
       expect(screen.getByText(/via Willow/)).toBeInTheDocument()
       expect(screen.getByText(/via Washington/)).toBeInTheDocument()
     })
@@ -105,8 +105,11 @@ describe('AddStopPanel — Bus headsign variant flow', () => {
 
     await waitFor(() => expect(screen.getByText(/via Willow/)).toBeInTheDocument())
 
-    // Pick "via Willow"
+    // Pick "via Willow" (toggle it active)
     fireEvent.click(screen.getByText(/126 · via Willow/))
+    // Click confirm button
+    const confirmBtns = screen.getAllByText('Add to My Stops')
+    fireEvent.click(confirmBtns[confirmBtns.length - 1])
 
     expect(onAdd).toHaveBeenCalledWith(
       'bus:15972,16977:126:WILLOW',
@@ -196,7 +199,7 @@ describe('AddStopPanel — Bus headsign variant flow', () => {
     fireEvent.click(screen.getByText('Add to My Stops'))
 
     await waitFor(() => {
-      expect(screen.getByText('Which direction / variant?')).toBeInTheDocument()
+      expect(screen.getByText('Which variant(s)?')).toBeInTheDocument()
       // Gate info should be visible
       expect(screen.getAllByText(/Gate 225/).length).toBeGreaterThan(0)
       expect(screen.getAllByText(/Gate 226/).length).toBeGreaterThan(0)

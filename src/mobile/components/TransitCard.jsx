@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, GrandCentralClock } from '../../components/icons'
 import { ferryDestColor } from '../../components/transitColors'
 import { AlertTriangle } from 'lucide-react'
@@ -121,8 +121,25 @@ function CardShell({ icon, station, badges, alert, onAlertTap, stopId, children 
 }
 
 function DepartureRow({ dest, eta, etaClock, badgeColor, source }) {
+  const [expanded, setExpanded] = useState(false)
+  const timerRef = useRef(null)
+
+  const handleTap = useCallback(() => {
+    if (expanded) {
+      // Second tap collapses immediately
+      setExpanded(false)
+      if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null }
+    } else {
+      setExpanded(true)
+      timerRef.current = setTimeout(() => { setExpanded(false); timerRef.current = null }, 10_000)
+    }
+  }, [expanded])
+
+  // Cleanup timer on unmount
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
+
   return (
-    <div className="ms-row">
+    <div className={`ms-row${expanded ? ' ms-row-expanded' : ''}`} onClick={handleTap}>
       {badgeColor && <span className="ms-dot" style={{ background: badgeColor }} />}
       <span className="ms-dest">{dest}</span>
       <span className={`ms-eta ${etaClass(eta)}`}>{eta} min</span>

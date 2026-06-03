@@ -11,6 +11,113 @@ const TUNNEL_OPTIONS = [
   { id: 'bayonne', label: 'Bayonne Bridge' },
 ]
 
+const ALERT_SOURCE_LABELS = {
+  tunnel: '🚗 Tunnels',
+  bus: '🚌 NJT Bus',
+  path: '🚇 PATH',
+  mta: '🔵 MTA Subway',
+  ferry: '⛴️ NY Waterway',
+  nycferry: '⛴️ NYC Ferry',
+  rail: '🚆 NJT Rail',
+  hblr: '🚃 HBLR',
+  lirr: '🚆 LIRR',
+  mnr: '🚆 Metro-North',
+  mtabus: '🚌 MTA Bus',
+}
+
+// Display names for individual source IDs
+function getSourceLabel(sourceId) {
+  // bus_126 → "126", mta_B → "B", tunnel_lincoln → "Lincoln", path_hob33 → "HOB–33rd"
+  if (sourceId.startsWith('bus_')) return sourceId.replace('bus_', '')
+  if (sourceId.startsWith('mta_')) return sourceId.replace('mta_', '')
+  if (sourceId === 'path_hob33') return 'HOB–33rd'
+  if (sourceId === 'path_jsq33') return 'JSQ–33rd'
+  if (sourceId.startsWith('tunnel_')) {
+    const name = sourceId.replace('tunnel_', '')
+    return name.charAt(0).toUpperCase() + name.slice(1)
+  }
+  return sourceId
+}
+
+// MTA line colors for badge display
+const MTA_LINE_COLORS = {
+  '1': '#EE352E', '2': '#EE352E', '3': '#EE352E',
+  '4': '#00933C', '5': '#00933C', '6': '#00933C',
+  '7': '#B933AD',
+  'A': '#0039A6', 'C': '#0039A6', 'E': '#0039A6',
+  'B': '#FF6319', 'D': '#FF6319', 'F': '#FF6319', 'M': '#FF6319',
+  'G': '#6CBE45', 'J': '#996633', 'Z': '#996633', 'L': '#A7A9AC',
+  'N': '#FCCC0A', 'Q': '#FCCC0A', 'R': '#FCCC0A', 'W': '#FCCC0A',
+  'S': '#808183',
+}
+
+// NJT Bus route colors (matches TransitCard palette)
+const NJT_ROUTE_COLORS_SETTINGS = {
+  '119': '#0e7c47', '125': '#6b21a8', '126': '#1e40af',
+  '22': '#b45309', '64': '#0f766e', '68': '#7c2d12',
+  '85': '#4338ca', '87': '#be123c', '89': '#7c3aed',
+}
+
+function AlertCategoryToggle({ category, sourceIds, alertToggles, setAlertToggles }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasSubs = sourceIds.length > 1
+  const allOn = sourceIds.every(id => alertToggles[id] !== false)
+  const allOff = sourceIds.every(id => alertToggles[id] === false)
+  const someOff = !allOn && !allOff
+
+  function toggleAll() {
+    const newVal = !allOn
+    setAlertToggles(prev => {
+      const next = { ...prev }
+      for (const id of sourceIds) next[id] = newVal
+      return next
+    })
+  }
+
+  function toggleOne(id) {
+    setAlertToggles(prev => ({ ...prev, [id]: prev[id] === false ? true : false }))
+  }
+
+  return (
+    <div className="m-set-alert-category">
+      <div className={`m-set-alert-toggle ${allOff ? 'off' : 'on'}${someOff ? ' partial' : ''}`}>
+        {hasSubs && (
+          <button className="m-set-alert-expand" onClick={() => setExpanded(v => !v)}>
+            {expanded ? '▾' : '▸'}
+          </button>
+        )}
+        <span className="m-set-alert-toggle-label" onClick={() => hasSubs && setExpanded(v => !v)}>
+          {ALERT_SOURCE_LABELS[category] || category}
+        </span>
+        <span className={`m-set-switch-mini ${allOff ? '' : 'on'}`} onClick={toggleAll} />
+      </div>
+      {expanded && hasSubs && (
+        <div className="m-set-alert-subs">
+          {sourceIds.map(id => {
+            const isOn = alertToggles[id] !== false
+            const label = getSourceLabel(id)
+            // Determine badge color for visual identity
+            let badgeColor = null
+            if (id.startsWith('mta_')) badgeColor = MTA_LINE_COLORS[label] || '#808183'
+            if (id.startsWith('bus_')) badgeColor = NJT_ROUTE_COLORS_SETTINGS[label] || '#1e40af'
+            return (
+              <button
+                key={id}
+                className={`m-set-alert-sub ${isOn ? 'on' : 'off'}`}
+                onClick={() => toggleOne(id)}
+              >
+                {badgeColor && <span className="m-set-alert-sub-badge" style={{ background: badgeColor }}>{label}</span>}
+                {!badgeColor && <span className="m-set-alert-sub-label">{label}</span>}
+                <span className={`m-set-switch-mini ${isOn ? 'on' : ''}`} />
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Sort tunnel options: selected first, then the rest in original order
 function sortTunnelsForDisplay(selected) {
   return [...TUNNEL_OPTIONS].sort((a, b) => {
@@ -30,6 +137,8 @@ export default function SettingsPage({
   tunnels, setTunnels,
   alertBadge, setAlertBadge,
   alertStaleness, setAlertStaleness,
+  alertToggles, setAlertToggles,
+  alertSourceGroups,
   stops, stopNames, stopHiddenBadges,
   onRemoveStop, onEditStop,
   onOpenAddStop, onReset,
@@ -112,14 +221,6 @@ export default function SettingsPage({
           <button className="m-set-mode-btn" onClick={cycleTheme}>{themeLabels[theme]}</button>
         </div>
         <div className="m-set-toggle-row">
-          <span>Alert Badge Style</span>
-          <button className="m-set-mode-btn" onClick={cycleBadge}>{badgeLabels[alertBadge]}</button>
-        </div>
-        <div className="m-set-toggle-row">
-          <span>Hide Old Alerts</span>
-          <button className="m-set-mode-btn" onClick={cycleStaleness}>{stalenessLabels[alertStaleness]}</button>
-        </div>
-        <div className="m-set-toggle-row">
           <span>Show Weather</span>
           <button className={`m-set-switch ${showWeather ? 'on' : ''}`} onClick={() => setShowWeather(v => !v)} />
         </div>
@@ -138,6 +239,35 @@ export default function SettingsPage({
           <span>Show Tunnels</span>
           <button className={`m-set-switch ${showTunnels ? 'on' : ''}`} onClick={() => setShowTunnels(v => !v)} />
         </div>
+      </section>
+
+      {/* Alerts — all alert-related settings in one place */}
+      <section className="m-set-section">
+        <h3 className="m-set-label">Alerts</h3>
+        <div className="m-set-toggle-row">
+          <span>Badge Style</span>
+          <button className="m-set-mode-btn" onClick={cycleBadge}>{badgeLabels[alertBadge]}</button>
+        </div>
+        <div className="m-set-toggle-row">
+          <span>Hide Old Alerts</span>
+          <button className="m-set-mode-btn" onClick={cycleStaleness}>{stalenessLabels[alertStaleness]}</button>
+        </div>
+        {alertSourceGroups && Object.keys(alertSourceGroups).length > 0 && (
+          <>
+            <p className="m-set-hint" style={{ marginTop: 10 }}>Toggle which alert types appear in your feed</p>
+            <div className="m-set-alert-toggles">
+              {Object.entries(alertSourceGroups).map(([category, sourceIds]) => (
+                <AlertCategoryToggle
+                  key={category}
+                  category={category}
+                  sourceIds={[...sourceIds]}
+                  alertToggles={alertToggles}
+                  setAlertToggles={setAlertToggles}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
       {/* Tunnel Configuration */}
@@ -288,7 +418,7 @@ function ZipCodeInput({ weatherZip, setWeatherZip }) {
 // Swipeable stop item — reveals "Edit" button on swipe left, drag grip for reordering
 function getStopIcon(id) {
   if (id.startsWith('mta:')) return <MtaGlobeIcon size={14} />
-  if (id.startsWith('bus:') || id === 'bus_clinton' || id === 'bus_willow' || id === 'bus_washington') return <NjtBusIcon size={14} />
+  if (id.startsWith('bus:') || id.startsWith('pabt_') || ['clinton', 'willow', 'washington'].includes(id)) return <NjtBusIcon size={14} />
   if (id.startsWith('path:') || id.startsWith('path_')) return <PathIcon size={14} />
   if (id.startsWith('ferry:') || id.startsWith('ferry_')) return <NywFerryIcon size={14} />
   if (id.startsWith('hblr:')) return <LightRailIcon size={14} />

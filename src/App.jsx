@@ -2838,7 +2838,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
 
     function getStopIcon(id) {
       if (id.startsWith('mta:')) return <MtaGlobeIcon size={16} />
-      if (id.startsWith('bus:') || id === 'bus_clinton' || id === 'bus_willow' || id === 'bus_washington') return <NjtBusIcon style={{ width: 16, height: 16 }} />
+      if (id.startsWith('bus:') || id.startsWith('pabt_') || ['clinton', 'willow', 'washington'].includes(id)) return <NjtBusIcon style={{ width: 16, height: 16 }} />
       if (id.startsWith('path:') || id.startsWith('path_')) return <PathIcon style={{ width: 16, height: 16 }} />
       if (id.startsWith('ferry:') || id.startsWith('ferry_')) return <NywFerryIcon style={{ width: 16, height: 16 }} />
       if (id.startsWith('hblr:')) return <LightRailIcon style={{ width: 16, height: 16 }} />

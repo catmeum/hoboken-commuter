@@ -1,5 +1,19 @@
 # Hoboken Commuter Dashboard — Version History
 
+## 2026-06-02 — NJT Bus Icon Fix, NYC Ferry Schedule Fallback, Mobile Tap-to-Expand & Alert Toggles
+
+### Bug Fixes
+- **NJT Bus custom SVG icon restored in settings** — legacy stop IDs (`clinton`, `willow`, `washington`, `pabt_*`) were falling through to the generic Lucide Bus icon in the desktop and mobile settings stop list. Fixed matching to cover all legacy bus stop ID formats.
+- **Alert toggle filtering fixed** — tunnel alert IDs had a case mismatch ("Lincoln" vs "tunnel_lincoln") causing toggles to not work. Also fixed: alerts for routes not in user's config (128, 165, etc.) now correctly hidden instead of leaking through. PATH alert filtering also fixed for users with only one PATH line configured.
+
+### New Features
+- **NYC Ferry schedule supplement** — the RT feed only tracks actively running ferries, leaving gaps for routes like Rockaway and Soundview. The server now always supplements RT data with static GTFS schedule departures (`stop_times.txt`), filtered by today's service day (weekday/weekend from `calendar.txt`). Scheduled departures within ±3 min of an RT departure are deduplicated. Shows "LIVE" for tracked ferries and "SCHED" for schedule-only times.
+- **Tap-to-expand departure rows on mobile** — on smaller screens where long bus route/destination text is truncated, tapping a departure row expands it to show the full text. Auto-collapses after 10 seconds. A second tap immediately collapses it.
+- **Alert source on/off toggles on mobile** — new consolidated "Alerts" section in mobile Settings. Two-level expandable UI: categories (NJT Bus, MTA Subway, PATH, Tunnels, etc.) with master toggle, tap to expand and see individual per-line/route toggles (e.g., bus 126 on, bus 119 off; subway B on, D off). Badge style and staleness settings moved into this section for discoverability. Persisted in localStorage.
+- **Multi-variant NJT Bus selection** — the variant picker at PABT (and similar terminals) now supports multi-select. Users can pick multiple headsigns (e.g., "126 via Willow" + "126 via Washington") to display them interleaved in a single transit card with "Select all" / "Deselect all" toggle. Server headsign filtering supports semicolons for multi-group keywords.
+
+---
+
 ## 2026-06-02 — Lint Cleanup, Ferry Multi-Route Picker, Tunnel Alert Dedup
 
 ### Code Quality
