@@ -1,4 +1,16 @@
-# Hoboken Commuter Dashboard — Version History
+# My Stop Now — Version History
+
+## 2025-07-14 — Rebrand to "My Stop Now"
+
+### Rebrand
+- **Application renamed from "Hoboken Commuter Dashboard" to "My Stop Now"** — all user-facing references (page titles, headings, meta tags) and developer documentation updated to reflect the new name
+- **Production domain changed to mystopnow.com** — replaces commute.stroszeck.com as the canonical URL
+- **Package name updated to `my-stop-now`** in package.json
+- **localStorage keys migrated** — `hoboken-commuter-settings` → `msn-settings`, `hoboken-commuter-stop-names` → `msn-stop-names` (automatic one-time migration on load)
+- **pm2 process renamed** from `hoboken-commuter` to `my-stop-now`
+- **Developer docs updated** — README.md, DOCUMENTATION.md, DEPLOYMENT.md, DATA_SOURCES.md, DECISIONS.md all reference the new name and domain
+
+---
 
 ## 2026-06-02 — NJT Bus Icon Fix, NYC Ferry Schedule Fallback, Mobile Tap-to-Expand & Alert Toggles
 

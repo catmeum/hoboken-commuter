@@ -7,7 +7,6 @@
 // imports for the server start
 
 import express from 'express'
-import cors from 'cors'
 import dotenv from 'dotenv'
 import rateLimit from 'express-rate-limit'
 import GtfsRealtimeBindings from 'gtfs-realtime-bindings'
@@ -23,11 +22,25 @@ const app = express()
 app.set('trust proxy', 1)
 
 // CORS — restrict to known origin in production, open in dev
-const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || '*'
-app.use(cors({
-  origin: ALLOWED_ORIGIN,
-  methods: ['GET'],
-}))
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN
+app.use((req, res, next) => {
+  if (!ALLOWED_ORIGIN) {
+    // No origin configured — allow all
+    res.set('Access-Control-Allow-Origin', '*')
+  } else {
+    const requestOrigin = req.get('Origin')
+    if (requestOrigin && requestOrigin === ALLOWED_ORIGIN) {
+      res.set('Access-Control-Allow-Origin', ALLOWED_ORIGIN)
+    }
+    // If origin doesn't match, omit the header entirely
+  }
+  res.set('Access-Control-Allow-Methods', 'GET')
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204)
+  }
+  next()
+})
 
 // ══════════════════════════════════════════════════════════
 // Rate limiting
@@ -1115,7 +1128,7 @@ async function fetchPathFeed() {
 async function fetchPathAlerts() {
   if (pathAlertCache && Date.now() - pathAlertCacheTime < PATH_ALERT_CACHE_TTL) return pathAlertCache
   const res = await fetch(PATH_ALERTS_URL, {
-    headers: { 'Accept': 'application/json', 'User-Agent': 'HobokenCommuter/1.0', 'Referer': 'https://www.panynj.gov/path/en/alerts.html' },
+    headers: { 'Accept': 'application/json', 'User-Agent': 'MyStopNow/1.0', 'Referer': 'https://www.panynj.gov/path/en/alerts.html' },
   })
   const data = await res.json()
   const disruptions = data.filter(a => {
@@ -1363,7 +1376,7 @@ async function fetchFerryData(stopTag) {
       'content-type': 'application/json;charset=utf-8',
       'origin': 'https://etacloud.connexionz.net',
       'referer': 'https://etacloud.connexionz.net/',
-      'user-agent': 'HobokenCommuter/1.0',
+      'user-agent': 'MyStopNow/1.0',
     },
   })
   const data = await resp.json()
@@ -2355,7 +2368,7 @@ app.get('/api/weather/resolve-zip', strictLimiter, async (req, res) => {
 
     // Geocode zip to lat/lon using Zippopotam.us (free, no key)
     const geoRes = await fetch(`https://api.zippopotam.us/us/${zip}`, {
-      headers: { 'User-Agent': 'HobokenCommuter/1.0' },
+      headers: { 'User-Agent': 'MyStopNow/1.0' },
     })
     if (!geoRes.ok) {
       return res.status(404).json({ error: 'Zip code not found' })
@@ -2372,7 +2385,7 @@ app.get('/api/weather/resolve-zip', strictLimiter, async (req, res) => {
 
     // Get NWS grid point
     const nwsRes = await fetch(`https://api.weather.gov/points/${lat},${lon}`, {
-      headers: { 'User-Agent': 'HobokenCommuter/1.0 (commuter-dashboard)' },
+      headers: { 'User-Agent': 'MyStopNow/1.0 (transit-dashboard)' },
     })
     if (!nwsRes.ok) {
       return res.status(502).json({ error: 'NWS points API failed' })
@@ -2992,6 +3005,7 @@ app.get('/api/system-status', (req, res) => {
   const railTokenAge = railTokenOk ? parseFloat(((railTokenExpiry - Date.now()) / 3600_000).toFixed(1)) : null
 
   res.json({
+    app: 'My Stop Now',
     uptime: `${uptimeH}h`,
     busGtfs: { ageDays: busGtfsAge, loaded: gtfsLoaded, stale: busGtfsAge > 7 },
     subwayGtfs: { ageDays: subwayAge, stale: subwayAge > 7 },
@@ -3002,14 +3016,40 @@ app.get('/api/system-status', (req, res) => {
 })
 
 // ══════════════════════════════════════════════════════════
+// User-Agent routing — redirect mobile devices to /mobile
+// Only active in production; dev uses Vite's dev server.
+// ══════════════════════════════════════════════════════════
+
+const MOBILE_UA_PATTERNS = /iPhone|Android|iPad|iPod|webOS|BlackBerry|Windows Phone|Opera Mini/i
+
+function userAgentRouter(req, res, next) {
+  // Only activate in production
+  if (process.env.NODE_ENV !== 'production') return next()
+
+  // Only redirect root path
+  if (req.path !== '/') return next()
+
+  // Allow desktop override
+  if (req.query.desktop === '1') return next()
+
+  // Check for mobile UA
+  const ua = req.get('User-Agent') || ''
+  if (MOBILE_UA_PATTERNS.test(ua)) {
+    return res.redirect(302, '/mobile')
+  }
+
+  next()
+}
+
+app.use(userAgentRouter)
+
+// ══════════════════════════════════════════════════════════
 // Production mode — serve built frontend + proxy external APIs
 // In dev, Vite handles these. In prod (NODE_ENV=production),
 // Express serves dist/ and proxies PANYNJ + NWS directly.
 // ══════════════════════════════════════════════════════════
 
 if (process.env.NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '..', 'dist')
-
   // Proxy /api/panynj → https://www.panynj.gov/bin/portauthority/*
   app.get('/api/panynj/*path', async (req, res) => {
     try {
@@ -3032,7 +3072,7 @@ if (process.env.NODE_ENV === 'production') {
       const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''
       const url = `https://api.weather.gov${nwsPath}${qs}`
       const r = await fetch(url, {
-        headers: { 'User-Agent': 'HobokenCommuter/1.0 (commuter-dashboard)' },
+        headers: { 'User-Agent': 'MyStopNow/1.0 (transit-dashboard)' },
         signal: AbortSignal.timeout(10000),
       })
       const data = await r.json()
@@ -3043,13 +3083,24 @@ if (process.env.NODE_ENV === 'production') {
     }
   })
 
-  // Serve React SPA — all non-API routes return index.html
-  app.use(express.static(distPath))
-  app.get('*path', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'))
+  // Serve mobile assets from /mobile path
+  const distRoot = path.join(__dirname, '..')
+  app.use('/mobile', express.static(path.join(distRoot, 'dist', 'mobile'), { index: false }))
+
+  // Serve dashboard assets from root
+  app.use(express.static(path.join(distRoot, 'dist', 'dashboard'), { index: false }))
+
+  // Mobile SPA catch-all
+  app.get('/mobile/*path', (req, res) => {
+    res.sendFile(path.join(distRoot, 'dist', 'mobile', 'mobile.html'))
   })
 
-  console.log('[Server] Production mode — serving', distPath)
+  // Desktop SPA catch-all
+  app.get('*path', (req, res) => {
+    res.sendFile(path.join(distRoot, 'dist', 'dashboard', 'index.html'))
+  })
+
+  console.log('[Server] Production mode — serving dist/dashboard and dist/mobile')
 }
 
 const PORT = process.env.BUS_API_PORT || 3001

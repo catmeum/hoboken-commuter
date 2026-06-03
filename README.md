@@ -1,6 +1,6 @@
-# Hoboken Commuter Dashboard
+# My Stop Now
 
-A real-time commuter dashboard for the NY/NJ metro area. Built for Hoboken-based commuters, it aggregates live transit data from a dozen sources into a single, clean interface — tunnels, buses, trains, ferries, subway, and weather, all in one place. Visit the live version of this dashboard at: [https://commute.stroszeck.com](https://commute.stroszeck.com)
+A real-time commuter dashboard for the NY/NJ metro area. Built for Hoboken-based commuters, it aggregates live transit data from a dozen sources into a single, clean interface — tunnels, buses, trains, ferries, subway, and weather, all in one place. Visit the live version of this dashboard at: [https://mystopnow.com](https://mystopnow.com)
 
 ![Version](https://img.shields.io/badge/version-3.0.0--alpha-blue) ![Stack](https://img.shields.io/badge/stack-React%20%2B%20Vite%20%2B%20Express-lightgrey)
 

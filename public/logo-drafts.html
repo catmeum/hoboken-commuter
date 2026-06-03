@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyStopNow Logo Drafts</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; background: #f5f5f5; }
+h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #666; margin-bottom: 32px; }
+h2 { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.04em; }
+.section { margin-bottom: 48px; }
+.row { display: flex; gap: 32px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 24px; }
+.variant { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.variant-label { font-size: 10px; color: #999; text-align: center; max-width: 120px; }
+.size-label { font-size: 9px; color: #aaa; }
+.bg-light { background: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 24px; }
+.bg-dark { background: #1a1a2e; border: 1px solid #333; border-radius: 12px; padding: 24px; }
+.bg-dark h2 { color: #777; }
+.bg-dark .variant-label { color: #666; }
+.bg-dark .size-label { color: #555; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.with-text { display: flex; align-items: center; gap: 12px; }
+.text-mark { font-family: system-ui, sans-serif; font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+.text-mark.light { color: #1a1a2e; }
+.text-mark.dark { color: #f0f0f0; }
+.homescreen-sim { width: 60px; height: 60px; border-radius: 13px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.homescreen-sim.ios { background: #fff; }
+.homescreen-sim.android { background: #1a1a2e; }
+.phone-row { display: flex; gap: 16px; align-items: center; }
+.phone-label { font-size: 9px; color: #999; }
+</style>
+</head>
+<body>
+<h1>MyStopNow — Logo Concepts</h1>
+<p style="font-size:12px;color:#888;margin-bottom:32px;max-width:600px;line-height:1.6">
+Bus stop cross-section: curb, sign post, open bus door. Minimal mark with purple accent.
+Designed to work as favicon (16–32px), homescreen icon (180–512px), and beside "MYSTOPNOW" text.
+</p>
+
+<div class="grid">
+
+<!-- LIGHT BACKGROUND -->
+<div class="section bg-light">
+<h2>Option A — Open Door + Post</h2>
+<div class="row">
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+      <!-- Curb -->
+      <rect x="0" y="52" width="64" height="12" rx="2" fill="#E0E0E0"/>
+      <rect x="0" y="52" width="64" height="3" rx="1" fill="#BDBDBD"/>
+      <!-- Sign post -->
+      <rect x="14" y="12" width="3.5" height="40" fill="#6B21A8"/>
+      <!-- Sign head -->
+      <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+      <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+      <!-- Bus body (partial, right side) -->
+      <rect x="32" y="22" width="28" height="30" rx="4" fill="#F5F3FF"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" stroke="#7C3AED" stroke-width="1.5" fill="none"/>
+      <!-- Door opening -->
+      <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.15"/>
+      <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#7C3AED" opacity="0.6"/>
+      <!-- Door fold line -->
+      <line x1="39" y1="28" x2="39" y2="50" stroke="#7C3AED" stroke-width="0.8" stroke-dasharray="2,2"/>
+      <!-- Window -->
+      <rect x="47" y="27" width="10" height="8" rx="2" fill="#C4B5FD"/>
+      <!-- Wheel -->
+      <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+      <circle cx="50" cy="52" r="2" fill="#7C3AED"/>
+      <!-- Step -->
+      <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">32px</span>
+  </div>
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="52" width="64" height="12" rx="2" fill="#E0E0E0"/>
+      <rect x="0" y="52" width="64" height="3" rx="1" fill="#BDBDBD"/>
+      <rect x="14" y="12" width="3.5" height="40" fill="#6B21A8"/>
+      <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+      <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" fill="#F5F3FF"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" stroke="#7C3AED" stroke-width="1.5" fill="none"/>
+      <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.15"/>
+      <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#7C3AED" opacity="0.6"/>
+      <line x1="39" y1="28" x2="39" y2="50" stroke="#7C3AED" stroke-width="0.8" stroke-dasharray="2,2"/>
+      <rect x="47" y="27" width="10" height="8" rx="2" fill="#C4B5FD"/>
+      <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+      <circle cx="50" cy="52" r="2" fill="#7C3AED"/>
+      <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">64px</span>
+  </div>
+  <div class="variant">
+    <svg width="128" height="128" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="52" width="64" height="12" rx="2" fill="#E0E0E0"/>
+      <rect x="0" y="52" width="64" height="3" rx="1" fill="#BDBDBD"/>
+      <rect x="14" y="12" width="3.5" height="40" fill="#6B21A8"/>
+      <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+      <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" fill="#F5F3FF"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" stroke="#7C3AED" stroke-width="1.5" fill="none"/>
+      <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.15"/>
+      <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#7C3AED" opacity="0.6"/>
+      <line x1="39" y1="28" x2="39" y2="50" stroke="#7C3AED" stroke-width="0.8" stroke-dasharray="2,2"/>
+      <rect x="47" y="27" width="10" height="8" rx="2" fill="#C4B5FD"/>
+      <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+      <circle cx="50" cy="52" r="2" fill="#7C3AED"/>
+      <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">128px</span>
+  </div>
+</div>
+<div class="with-text">
+  <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+    <rect x="0" y="52" width="64" height="12" rx="2" fill="#E0E0E0"/>
+    <rect x="0" y="52" width="64" height="3" rx="1" fill="#BDBDBD"/>
+    <rect x="14" y="12" width="3.5" height="40" fill="#6B21A8"/>
+    <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+    <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+    <rect x="32" y="22" width="28" height="30" rx="4" fill="#F5F3FF"/>
+    <rect x="32" y="22" width="28" height="30" rx="4" stroke="#7C3AED" stroke-width="1.5" fill="none"/>
+    <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.15"/>
+    <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#7C3AED" opacity="0.6"/>
+    <line x1="39" y1="28" x2="39" y2="50" stroke="#7C3AED" stroke-width="0.8" stroke-dasharray="2,2"/>
+    <rect x="47" y="27" width="10" height="8" rx="2" fill="#C4B5FD"/>
+    <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+    <circle cx="50" cy="52" r="2" fill="#7C3AED"/>
+    <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#A78BFA"/>
+  </svg>
+  <span class="text-mark light">MYSTOPNOW</span>
+</div>
+</div>
+
+<div class="section bg-dark">
+<h2>Option A — Dark Mode</h2>
+<div class="row">
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="52" width="64" height="12" rx="2" fill="#374151"/>
+      <rect x="0" y="52" width="64" height="3" rx="1" fill="#4B5563"/>
+      <rect x="14" y="12" width="3.5" height="40" fill="#A78BFA"/>
+      <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+      <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" fill="#1E1B4B"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" stroke="#A78BFA" stroke-width="1.5" fill="none"/>
+      <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.25"/>
+      <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#A78BFA" opacity="0.7"/>
+      <line x1="39" y1="28" x2="39" y2="50" stroke="#A78BFA" stroke-width="0.8" stroke-dasharray="2,2"/>
+      <rect x="47" y="27" width="10" height="8" rx="2" fill="#6D28D9"/>
+      <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+      <circle cx="50" cy="52" r="2" fill="#A78BFA"/>
+      <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#8B5CF6"/>
+    </svg>
+    <span class="size-label">32px</span>
+  </div>
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="52" width="64" height="12" rx="2" fill="#374151"/>
+      <rect x="0" y="52" width="64" height="3" rx="1" fill="#4B5563"/>
+      <rect x="14" y="12" width="3.5" height="40" fill="#A78BFA"/>
+      <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+      <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" fill="#1E1B4B"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" stroke="#A78BFA" stroke-width="1.5" fill="none"/>
+      <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.25"/>
+      <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#A78BFA" opacity="0.7"/>
+      <line x1="39" y1="28" x2="39" y2="50" stroke="#A78BFA" stroke-width="0.8" stroke-dasharray="2,2"/>
+      <rect x="47" y="27" width="10" height="8" rx="2" fill="#6D28D9"/>
+      <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+      <circle cx="50" cy="52" r="2" fill="#A78BFA"/>
+      <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#8B5CF6"/>
+    </svg>
+    <span class="size-label">64px</span>
+  </div>
+  <div class="variant">
+    <svg width="128" height="128" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="52" width="64" height="12" rx="2" fill="#374151"/>
+      <rect x="0" y="52" width="64" height="3" rx="1" fill="#4B5563"/>
+      <rect x="14" y="12" width="3.5" height="40" fill="#A78BFA"/>
+      <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+      <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" fill="#1E1B4B"/>
+      <rect x="32" y="22" width="28" height="30" rx="4" stroke="#A78BFA" stroke-width="1.5" fill="none"/>
+      <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.25"/>
+      <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#A78BFA" opacity="0.7"/>
+      <line x1="39" y1="28" x2="39" y2="50" stroke="#A78BFA" stroke-width="0.8" stroke-dasharray="2,2"/>
+      <rect x="47" y="27" width="10" height="8" rx="2" fill="#6D28D9"/>
+      <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+      <circle cx="50" cy="52" r="2" fill="#A78BFA"/>
+      <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#8B5CF6"/>
+    </svg>
+    <span class="size-label">128px</span>
+  </div>
+</div>
+<div class="with-text">
+  <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+    <rect x="0" y="52" width="64" height="12" rx="2" fill="#374151"/>
+    <rect x="0" y="52" width="64" height="3" rx="1" fill="#4B5563"/>
+    <rect x="14" y="12" width="3.5" height="40" fill="#A78BFA"/>
+    <rect x="8" y="8" width="16" height="12" rx="3" fill="#7C3AED"/>
+    <circle cx="16" cy="14" r="3.5" fill="#EDE9FE"/>
+    <rect x="32" y="22" width="28" height="30" rx="4" fill="#1E1B4B"/>
+    <rect x="32" y="22" width="28" height="30" rx="4" stroke="#A78BFA" stroke-width="1.5" fill="none"/>
+    <rect x="34" y="28" width="10" height="22" rx="2" fill="#7C3AED" opacity="0.25"/>
+    <rect x="34" y="28" width="5" height="22" rx="1.5" fill="#A78BFA" opacity="0.7"/>
+    <line x1="39" y1="28" x2="39" y2="50" stroke="#A78BFA" stroke-width="0.8" stroke-dasharray="2,2"/>
+    <rect x="47" y="27" width="10" height="8" rx="2" fill="#6D28D9"/>
+    <circle cx="50" cy="52" r="5" fill="#4C1D95"/>
+    <circle cx="50" cy="52" r="2" fill="#A78BFA"/>
+    <rect x="34" y="50" width="10" height="2" rx="0.5" fill="#8B5CF6"/>
+  </svg>
+  <span class="text-mark dark">MYSTOPNOW</span>
+</div>
+</div>
+
+<!-- OPTION B: More minimal / geometric -->
+<div class="section bg-light">
+<h2>Option B — Ultra Minimal (Sign + Door Silhouette)</h2>
+<div class="row">
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+      <!-- Curb line -->
+      <rect x="0" y="54" width="64" height="10" rx="2" fill="#E5E7EB"/>
+      <rect x="0" y="54" width="64" height="2.5" rx="1" fill="#D1D5DB"/>
+      <!-- Sign post — thin elegant -->
+      <rect x="16" y="14" width="2.5" height="40" fill="#6B21A8"/>
+      <!-- Sign circle -->
+      <circle cx="17.25" cy="12" r="7" fill="#7C3AED"/>
+      <circle cx="17.25" cy="12" r="4" fill="none" stroke="#EDE9FE" stroke-width="1.5"/>
+      <!-- Bus side — just the door area -->
+      <rect x="34" y="24" width="26" height="30" rx="3" fill="#F9FAFB" stroke="#9CA3AF" stroke-width="1"/>
+      <!-- Open door -->
+      <path d="M36 30 L36 52 L44 52 L44 30 Z" fill="#EDE9FE"/>
+      <rect x="36" y="30" width="4" height="22" rx="1" fill="#7C3AED" opacity="0.5"/>
+      <!-- Door handle -->
+      <rect x="43" y="39" width="1.5" height="5" rx="0.75" fill="#7C3AED"/>
+      <!-- Steps -->
+      <rect x="36" y="52" width="8" height="2" fill="#A78BFA"/>
+      <!-- Window -->
+      <rect x="48" y="28" width="9" height="7" rx="1.5" fill="#DDD6FE"/>
+      <!-- Wheel -->
+      <circle cx="52" cy="54" r="4.5" fill="#4C1D95"/>
+      <circle cx="52" cy="54" r="1.8" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">32px</span>
+  </div>
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" rx="2" fill="#E5E7EB"/>
+      <rect x="0" y="54" width="64" height="2.5" rx="1" fill="#D1D5DB"/>
+      <rect x="16" y="14" width="2.5" height="40" fill="#6B21A8"/>
+      <circle cx="17.25" cy="12" r="7" fill="#7C3AED"/>
+      <circle cx="17.25" cy="12" r="4" fill="none" stroke="#EDE9FE" stroke-width="1.5"/>
+      <rect x="34" y="24" width="26" height="30" rx="3" fill="#F9FAFB" stroke="#9CA3AF" stroke-width="1"/>
+      <path d="M36 30 L36 52 L44 52 L44 30 Z" fill="#EDE9FE"/>
+      <rect x="36" y="30" width="4" height="22" rx="1" fill="#7C3AED" opacity="0.5"/>
+      <rect x="43" y="39" width="1.5" height="5" rx="0.75" fill="#7C3AED"/>
+      <rect x="36" y="52" width="8" height="2" fill="#A78BFA"/>
+      <rect x="48" y="28" width="9" height="7" rx="1.5" fill="#DDD6FE"/>
+      <circle cx="52" cy="54" r="4.5" fill="#4C1D95"/>
+      <circle cx="52" cy="54" r="1.8" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">64px</span>
+  </div>
+  <div class="variant">
+    <svg width="128" height="128" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" rx="2" fill="#E5E7EB"/>
+      <rect x="0" y="54" width="64" height="2.5" rx="1" fill="#D1D5DB"/>
+      <rect x="16" y="14" width="2.5" height="40" fill="#6B21A8"/>
+      <circle cx="17.25" cy="12" r="7" fill="#7C3AED"/>
+      <circle cx="17.25" cy="12" r="4" fill="none" stroke="#EDE9FE" stroke-width="1.5"/>
+      <rect x="34" y="24" width="26" height="30" rx="3" fill="#F9FAFB" stroke="#9CA3AF" stroke-width="1"/>
+      <path d="M36 30 L36 52 L44 52 L44 30 Z" fill="#EDE9FE"/>
+      <rect x="36" y="30" width="4" height="22" rx="1" fill="#7C3AED" opacity="0.5"/>
+      <rect x="43" y="39" width="1.5" height="5" rx="0.75" fill="#7C3AED"/>
+      <rect x="36" y="52" width="8" height="2" fill="#A78BFA"/>
+      <rect x="48" y="28" width="9" height="7" rx="1.5" fill="#DDD6FE"/>
+      <circle cx="52" cy="54" r="4.5" fill="#4C1D95"/>
+      <circle cx="52" cy="54" r="1.8" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">128px</span>
+  </div>
+</div>
+<div class="with-text">
+  <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+    <rect x="0" y="54" width="64" height="10" rx="2" fill="#E5E7EB"/>
+    <rect x="0" y="54" width="64" height="2.5" rx="1" fill="#D1D5DB"/>
+    <rect x="16" y="14" width="2.5" height="40" fill="#6B21A8"/>
+    <circle cx="17.25" cy="12" r="7" fill="#7C3AED"/>
+    <circle cx="17.25" cy="12" r="4" fill="none" stroke="#EDE9FE" stroke-width="1.5"/>
+    <rect x="34" y="24" width="26" height="30" rx="3" fill="#F9FAFB" stroke="#9CA3AF" stroke-width="1"/>
+    <path d="M36 30 L36 52 L44 52 L44 30 Z" fill="#EDE9FE"/>
+    <rect x="36" y="30" width="4" height="22" rx="1" fill="#7C3AED" opacity="0.5"/>
+    <rect x="43" y="39" width="1.5" height="5" rx="0.75" fill="#7C3AED"/>
+    <rect x="36" y="52" width="8" height="2" fill="#A78BFA"/>
+    <rect x="48" y="28" width="9" height="7" rx="1.5" fill="#DDD6FE"/>
+    <circle cx="52" cy="54" r="4.5" fill="#4C1D95"/>
+    <circle cx="52" cy="54" r="1.8" fill="#A78BFA"/>
+  </svg>
+  <span class="text-mark light">MYSTOPNOW</span>
+</div>
+</div>
+
+<div class="section bg-dark">
+<h2>Option B — Dark Mode</h2>
+<div class="row">
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" rx="2" fill="#1F2937"/>
+      <rect x="0" y="54" width="64" height="2.5" rx="1" fill="#374151"/>
+      <rect x="16" y="14" width="2.5" height="40" fill="#A78BFA"/>
+      <circle cx="17.25" cy="12" r="7" fill="#7C3AED"/>
+      <circle cx="17.25" cy="12" r="4" fill="none" stroke="#EDE9FE" stroke-width="1.5"/>
+      <rect x="34" y="24" width="26" height="30" rx="3" fill="#111827" stroke="#6B7280" stroke-width="1"/>
+      <path d="M36 30 L36 52 L44 52 L44 30 Z" fill="#1E1B4B"/>
+      <rect x="36" y="30" width="4" height="22" rx="1" fill="#A78BFA" opacity="0.6"/>
+      <rect x="43" y="39" width="1.5" height="5" rx="0.75" fill="#A78BFA"/>
+      <rect x="36" y="52" width="8" height="2" fill="#8B5CF6"/>
+      <rect x="48" y="28" width="9" height="7" rx="1.5" fill="#4C1D95"/>
+      <circle cx="52" cy="54" r="4.5" fill="#312E81"/>
+      <circle cx="52" cy="54" r="1.8" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">64px</span>
+  </div>
+  <div class="variant">
+    <svg width="128" height="128" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" rx="2" fill="#1F2937"/>
+      <rect x="0" y="54" width="64" height="2.5" rx="1" fill="#374151"/>
+      <rect x="16" y="14" width="2.5" height="40" fill="#A78BFA"/>
+      <circle cx="17.25" cy="12" r="7" fill="#7C3AED"/>
+      <circle cx="17.25" cy="12" r="4" fill="none" stroke="#EDE9FE" stroke-width="1.5"/>
+      <rect x="34" y="24" width="26" height="30" rx="3" fill="#111827" stroke="#6B7280" stroke-width="1"/>
+      <path d="M36 30 L36 52 L44 52 L44 30 Z" fill="#1E1B4B"/>
+      <rect x="36" y="30" width="4" height="22" rx="1" fill="#A78BFA" opacity="0.6"/>
+      <rect x="43" y="39" width="1.5" height="5" rx="0.75" fill="#A78BFA"/>
+      <rect x="36" y="52" width="8" height="2" fill="#8B5CF6"/>
+      <rect x="48" y="28" width="9" height="7" rx="1.5" fill="#4C1D95"/>
+      <circle cx="52" cy="54" r="4.5" fill="#312E81"/>
+      <circle cx="52" cy="54" r="1.8" fill="#A78BFA"/>
+    </svg>
+    <span class="size-label">128px</span>
+  </div>
+</div>
+<div class="with-text">
+  <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+    <rect x="0" y="54" width="64" height="10" rx="2" fill="#1F2937"/>
+    <rect x="0" y="54" width="64" height="2.5" rx="1" fill="#374151"/>
+    <rect x="16" y="14" width="2.5" height="40" fill="#A78BFA"/>
+    <circle cx="17.25" cy="12" r="7" fill="#7C3AED"/>
+    <circle cx="17.25" cy="12" r="4" fill="none" stroke="#EDE9FE" stroke-width="1.5"/>
+    <rect x="34" y="24" width="26" height="30" rx="3" fill="#111827" stroke="#6B7280" stroke-width="1"/>
+    <path d="M36 30 L36 52 L44 52 L44 30 Z" fill="#1E1B4B"/>
+    <rect x="36" y="30" width="4" height="22" rx="1" fill="#A78BFA" opacity="0.6"/>
+    <rect x="43" y="39" width="1.5" height="5" rx="0.75" fill="#A78BFA"/>
+    <rect x="36" y="52" width="8" height="2" fill="#8B5CF6"/>
+    <rect x="48" y="28" width="9" height="7" rx="1.5" fill="#4C1D95"/>
+    <circle cx="52" cy="54" r="4.5" fill="#312E81"/>
+    <circle cx="52" cy="54" r="1.8" fill="#A78BFA"/>
+  </svg>
+  <span class="text-mark dark">MYSTOPNOW</span>
+</div>
+</div>
+
+<!-- OPTION C: Most abstract / favicon-optimized -->
+<div class="section bg-light">
+<h2>Option C — Favicon-Optimized (Maximum Simplicity)</h2>
+<p style="font-size:11px;color:#999;margin-bottom:16px;">Reduced to essential shapes — reads clearly even at 16px.</p>
+<div class="row">
+  <div class="variant">
+    <svg width="16" height="16" viewBox="0 0 64 64" fill="none">
+      <!-- Ground -->
+      <rect x="0" y="54" width="64" height="10" fill="#D1D5DB"/>
+      <!-- Post -->
+      <rect x="12" y="10" width="4" height="44" fill="#6B21A8"/>
+      <!-- Sign (rounded square) -->
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <!-- Bus body block -->
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.12"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#7C3AED" stroke-width="2.5" fill="none"/>
+      <!-- Door -->
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#7C3AED" opacity="0.4"/>
+      <!-- Wheel -->
+      <circle cx="51" cy="54" r="5.5" fill="#4C1D95"/>
+    </svg>
+    <span class="size-label">16px</span>
+  </div>
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" fill="#D1D5DB"/>
+      <rect x="12" y="10" width="4" height="44" fill="#6B21A8"/>
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.12"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#7C3AED" stroke-width="2.5" fill="none"/>
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#7C3AED" opacity="0.4"/>
+      <circle cx="51" cy="54" r="5.5" fill="#4C1D95"/>
+    </svg>
+    <span class="size-label">32px</span>
+  </div>
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" fill="#D1D5DB"/>
+      <rect x="12" y="10" width="4" height="44" fill="#6B21A8"/>
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.12"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#7C3AED" stroke-width="2.5" fill="none"/>
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#7C3AED" opacity="0.4"/>
+      <circle cx="51" cy="54" r="5.5" fill="#4C1D95"/>
+    </svg>
+    <span class="size-label">64px</span>
+  </div>
+  <div class="variant">
+    <svg width="128" height="128" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" fill="#D1D5DB"/>
+      <rect x="12" y="10" width="4" height="44" fill="#6B21A8"/>
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.12"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#7C3AED" stroke-width="2.5" fill="none"/>
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#7C3AED" opacity="0.4"/>
+      <circle cx="51" cy="54" r="5.5" fill="#4C1D95"/>
+    </svg>
+    <span class="size-label">128px</span>
+  </div>
+</div>
+<div class="with-text">
+  <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+    <rect x="0" y="54" width="64" height="10" fill="#D1D5DB"/>
+    <rect x="12" y="10" width="4" height="44" fill="#6B21A8"/>
+    <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+    <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.12"/>
+    <rect x="30" y="20" width="30" height="34" rx="5" stroke="#7C3AED" stroke-width="2.5" fill="none"/>
+    <rect x="33" y="27" width="10" height="25" rx="2" fill="#7C3AED" opacity="0.4"/>
+    <circle cx="51" cy="54" r="5.5" fill="#4C1D95"/>
+  </svg>
+  <span class="text-mark light">MYSTOPNOW</span>
+</div>
+</div>
+
+<div class="section bg-dark">
+<h2>Option C — Dark Mode</h2>
+<div class="row">
+  <div class="variant">
+    <svg width="16" height="16" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" fill="#374151"/>
+      <rect x="12" y="10" width="4" height="44" fill="#A78BFA"/>
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.15"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#A78BFA" stroke-width="2.5" fill="none"/>
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#A78BFA" opacity="0.5"/>
+      <circle cx="51" cy="54" r="5.5" fill="#6D28D9"/>
+    </svg>
+    <span class="size-label">16px</span>
+  </div>
+  <div class="variant">
+    <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" fill="#374151"/>
+      <rect x="12" y="10" width="4" height="44" fill="#A78BFA"/>
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.15"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#A78BFA" stroke-width="2.5" fill="none"/>
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#A78BFA" opacity="0.5"/>
+      <circle cx="51" cy="54" r="5.5" fill="#6D28D9"/>
+    </svg>
+    <span class="size-label">32px</span>
+  </div>
+  <div class="variant">
+    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" fill="#374151"/>
+      <rect x="12" y="10" width="4" height="44" fill="#A78BFA"/>
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.15"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#A78BFA" stroke-width="2.5" fill="none"/>
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#A78BFA" opacity="0.5"/>
+      <circle cx="51" cy="54" r="5.5" fill="#6D28D9"/>
+    </svg>
+    <span class="size-label">64px</span>
+  </div>
+  <div class="variant">
+    <svg width="128" height="128" viewBox="0 0 64 64" fill="none">
+      <rect x="0" y="54" width="64" height="10" fill="#374151"/>
+      <rect x="12" y="10" width="4" height="44" fill="#A78BFA"/>
+      <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.15"/>
+      <rect x="30" y="20" width="30" height="34" rx="5" stroke="#A78BFA" stroke-width="2.5" fill="none"/>
+      <rect x="33" y="27" width="10" height="25" rx="2" fill="#A78BFA" opacity="0.5"/>
+      <circle cx="51" cy="54" r="5.5" fill="#6D28D9"/>
+    </svg>
+    <span class="size-label">128px</span>
+  </div>
+</div>
+<div class="with-text">
+  <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+    <rect x="0" y="54" width="64" height="10" fill="#374151"/>
+    <rect x="12" y="10" width="4" height="44" fill="#A78BFA"/>
+    <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+    <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.15"/>
+    <rect x="30" y="20" width="30" height="34" rx="5" stroke="#A78BFA" stroke-width="2.5" fill="none"/>
+    <rect x="33" y="27" width="10" height="25" rx="2" fill="#A78BFA" opacity="0.5"/>
+    <circle cx="51" cy="54" r="5.5" fill="#6D28D9"/>
+  </svg>
+  <span class="text-mark dark">MYSTOPNOW</span>
+</div>
+</div>
+
+</div>
+
+<!-- Homescreen simulation -->
+<h2 style="margin-top:48px;margin-bottom:16px;font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.04em;">Homescreen Icon Simulation</h2>
+<p style="font-size:11px;color:#999;margin-bottom:16px;">How the icon would look saved to a phone homescreen (with background fill).</p>
+<div class="row" style="gap:24px;">
+  <div class="variant">
+    <div class="homescreen-sim ios">
+      <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+        <rect x="0" y="54" width="64" height="10" fill="#D1D5DB"/>
+        <rect x="12" y="10" width="4" height="44" fill="#6B21A8"/>
+        <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+        <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.12"/>
+        <rect x="30" y="20" width="30" height="34" rx="5" stroke="#7C3AED" stroke-width="2.5" fill="none"/>
+        <rect x="33" y="27" width="10" height="25" rx="2" fill="#7C3AED" opacity="0.4"/>
+        <circle cx="51" cy="54" r="5.5" fill="#4C1D95"/>
+      </svg>
+    </div>
+    <span class="phone-label">iOS (light)</span>
+  </div>
+  <div class="variant">
+    <div class="homescreen-sim android">
+      <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+        <rect x="0" y="54" width="64" height="10" fill="#374151"/>
+        <rect x="12" y="10" width="4" height="44" fill="#A78BFA"/>
+        <rect x="6" y="4" width="16" height="14" rx="4" fill="#7C3AED"/>
+        <rect x="30" y="20" width="30" height="34" rx="5" fill="#7C3AED" opacity="0.15"/>
+        <rect x="30" y="20" width="30" height="34" rx="5" stroke="#A78BFA" stroke-width="2.5" fill="none"/>
+        <rect x="33" y="27" width="10" height="25" rx="2" fill="#A78BFA" opacity="0.5"/>
+        <circle cx="51" cy="54" r="5.5" fill="#6D28D9"/>
+      </svg>
+    </div>
+    <span class="phone-label">Android (dark)</span>
+  </div>
+  <div class="variant">
+    <div class="homescreen-sim" style="background:#7C3AED;">
+      <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
+        <rect x="0" y="54" width="64" height="10" fill="rgba(255,255,255,0.2)"/>
+        <rect x="12" y="10" width="4" height="44" fill="rgba(255,255,255,0.9)"/>
+        <rect x="6" y="4" width="16" height="14" rx="4" fill="rgba(255,255,255,0.95)"/>
+        <rect x="30" y="20" width="30" height="34" rx="5" fill="rgba(255,255,255,0.1)"/>
+        <rect x="30" y="20" width="30" height="34" rx="5" stroke="rgba(255,255,255,0.8)" stroke-width="2.5" fill="none"/>
+        <rect x="33" y="27" width="10" height="25" rx="2" fill="rgba(255,255,255,0.4)"/>
+        <circle cx="51" cy="54" r="5.5" fill="rgba(255,255,255,0.7)"/>
+      </svg>
+    </div>
+    <span class="phone-label">Purple bg (branded)</span>
+  </div>
+</div>
+
+</body>
+</html>

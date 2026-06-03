@@ -168,7 +168,7 @@ export async function fetchWeather(location = 'hoboken') {
   }
 
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'HobokenCommuter/1.0 (commuter-dashboard)' },
+    headers: { 'User-Agent': 'MyStopNow/1.0 (transit-dashboard)' },
   })
   if (!res.ok) throw new Error(`NWS API returned ${res.status}`)
 

@@ -1,5 +1,5 @@
 /**
- * Hoboken Commuter Dashboard — Integration Test Suite
+ * My Stop Now — Integration Test Suite
  *
  * Tests all server API endpoints and key frontend behaviors.
  * Run with: node tests/dashboard.test.mjs
@@ -394,7 +394,7 @@ await section('Settings — localStorage key defined', async () => {
   // the build output contains the key
   const { readFileSync } = await import('fs')
   const src = readFileSync('src/App.jsx', 'utf8')
-  ok('STORAGE_KEY defined', src.includes("'hoboken-commuter-settings'"))
+  ok('STORAGE_KEY defined', src.includes("'msn-settings'"))
   ok('loadSettings function exists', src.includes('function loadSettings()'))
   ok('saveSettings function exists', src.includes('function saveSettings('))
   ok('DEFAULT_SETTINGS defined', src.includes('const DEFAULT_SETTINGS'))
@@ -834,7 +834,7 @@ await section('PABT — gate shown for route 126 (live)', async () => {
 // ─────────────────────────────────────────────
 await section('HBLR — stop name persistence in frontend', async () => {
   const src = readFileSync('src/App.jsx', 'utf8')
-  ok('STOP_NAMES_KEY defined', src.includes("'hoboken-commuter-stop-names'"))
+  ok('STOP_NAMES_KEY defined', src.includes("'msn-stop-names'"))
   ok('persistDynamicStopName writes to localStorage', src.includes('localStorage.setItem(STOP_NAMES_KEY'))
   ok('Stop names restored from localStorage on load', src.includes('Object.assign(dynamicStopNames'))
   ok('STOP_NAMES_KEY cleared on reset', src.includes('localStorage.removeItem(STOP_NAMES_KEY)'))

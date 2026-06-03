@@ -1,4 +1,4 @@
-# Hoboken Commuter Dashboard — Technical Documentation
+# My Stop Now — Technical Documentation
 
 **Version 2.0.0**
 
@@ -217,7 +217,7 @@ PABT stop IDs are also rebuilt from GTFS at startup — `PABT_STOP_IDS` is popul
 
 Uses NJT bus GTFS-RT infrastructure (route `HBLR`). Stops appear in bus stop search. Card shows headsign (destination) on each departure row.
 
-Default stop IDs are resolved from GTFS by name at startup via `/api/bus/hblr-defaults`. The frontend fetches this endpoint on load and migrates any stale IDs in localStorage automatically. Stop names are persisted to `localStorage` under `hoboken-commuter-stop-names` so the settings panel shows friendly labels after a page reload.
+Default stop IDs are resolved from GTFS by name at startup via `/api/bus/hblr-defaults`. The frontend fetches this endpoint on load and migrates any stale IDs in localStorage automatically. Stop names are persisted to `localStorage` under `msn-stop-names` so the settings panel shows friendly labels after a page reload.
 
 ---
 
@@ -362,14 +362,14 @@ Returns stop keys in the format the frontend expects (`bus:`, `mta:`, `path:`, `
 
 ## Settings Persistence
 
-Settings are stored in `localStorage` under key `hoboken-commuter-settings`. Includes:
+Settings are stored in `localStorage` under key `msn-settings`. Includes:
 - Outbound/inbound card lists and city names
 - Weather locations (zip-resolved)
 - Alert toggles, inline alert duration, ticker speed
 - Show/hide tunnel and weather cards
 - Selected tunnels
 
-Dynamic stop display names (for cards added via the picker) are stored separately under `hoboken-commuter-stop-names` and merged into `dynamicStopNames` on load.
+Dynamic stop display names (for cards added via the picker) are stored separately under `msn-stop-names` and merged into `dynamicStopNames` on load.
 
 **Reset:** Settings panel footer has a "Reset to defaults" button with inline confirmation. Clears both localStorage keys and shows the preset picker.
 

@@ -1562,7 +1562,7 @@ const dynamicStopNames = {
 
 // Restore any persisted dynamic stop names from localStorage (e.g. HBLR, dynamic bus, etc.)
 // This ensures the settings panel shows friendly names after a page reload.
-const STOP_NAMES_KEY = 'hoboken-commuter-stop-names'
+const STOP_NAMES_KEY = 'msn-stop-names'
 try {
   const saved = localStorage.getItem(STOP_NAMES_KEY)
   if (saved) Object.assign(dynamicStopNames, JSON.parse(saved))
@@ -3162,7 +3162,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
 
 // ── App ──
 
-const STORAGE_KEY = 'hoboken-commuter-settings'
+const STORAGE_KEY = 'msn-settings'
 
 // Fallback HBLR stop IDs used in DEFAULT_SETTINGS.
 // The app fetches /api/bus/hblr-defaults on load and migrates these to the current GTFS IDs.

@@ -2,22 +2,143 @@ name: Deploy to Lightsail
 
 on:
   push:
-    branches: [master]
+    branches: [master, beta]
     paths-ignore:
       - '**.md'
-      - 'TODO.md'
-      - 'DECISIONS.md'
-      - 'CHANGELOG.md'
-      - 'DEPLOYMENT.md'
-      - 'README.md'
-      - 'DATA_SOURCES.md'
-      - 'public/icon-drafts.html'
+      - 'public/icon-drafts*.html'
       - '.gitignore'
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - promote-beta-to-prod
 
+jobs:
+  # ------------------------------------------------------------------
+  # Promotion job: copy beta build to production (workflow_dispatch only)
+  # ------------------------------------------------------------------
+  promote:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'promote-beta-to-prod'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Promote beta to production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            echo "Promoting beta build to production..."
+            
+            # Copy beta dist to production
+            rm -rf /app/my-stop-now/dist
+            cp -r /app/my-stop-now-beta/dist /app/my-stop-now/dist
+            
+            # Sync server code and dependencies
+            cp /app/my-stop-now-beta/server/index.js /app/my-stop-now/server/index.js
+            cp /app/my-stop-now-beta/package.json /app/my-stop-now/package.json
+            cp /app/my-stop-now-beta/package-lock.json /app/my-stop-now/package-lock.json
+            cd /app/my-stop-now
+            npm ci --omit=dev
+            
+            # Restart production pm2 process
+            pm2 restart my-stop-now || pm2 start server/index.js --name my-stop-now --node-args="--max-old-space-size=768"
+            pm2 save
+            echo "Promotion complete"
+
+  # ------------------------------------------------------------------
+  # Detect which paths changed (push events only)
+  # ------------------------------------------------------------------
+  detect-changes:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      mobile-only: ${{ steps.filter.outputs.mobile-only }}
+      desktop-only: ${{ steps.filter.outputs.desktop-only }}
+      server-or-shared: ${{ steps.filter.outputs.server-or-shared }}
+      deploy-target: ${{ steps.target.outputs.dir }}
+      pm2-name: ${{ steps.target.outputs.pm2-name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed paths
+        id: filter
+        run: |
+          # Get list of changed files between HEAD~1 and HEAD
+          CHANGED=$(git diff --name-only HEAD~1 HEAD)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          HAS_MOBILE=false
+          HAS_DESKTOP=false
+          HAS_SERVER=false
+
+          while IFS= read -r file; do
+            # Skip empty lines
+            [ -z "$file" ] && continue
+
+            # Mobile source files
+            if echo "$file" | grep -q '^src/mobile/'; then
+              HAS_MOBILE=true
+            # Desktop/shared frontend source (src/ but not src/mobile/)
+            elif echo "$file" | grep -q '^src/'; then
+              HAS_DESKTOP=true
+            # Server files
+            elif echo "$file" | grep -q '^server/'; then
+              HAS_SERVER=true
+            # Shared config that affects everything
+            elif echo "$file" | grep -qE '^(package\.json|package-lock\.json|vite\.config\.)'; then
+              HAS_SERVER=true
+            fi
+          done <<< "$CHANGED"
+
+          # Determine deployment type
+          if [ "$HAS_SERVER" = "true" ]; then
+            echo "mobile-only=false" >> "$GITHUB_OUTPUT"
+            echo "desktop-only=false" >> "$GITHUB_OUTPUT"
+            echo "server-or-shared=true" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_MOBILE" = "true" ] && [ "$HAS_DESKTOP" = "false" ]; then
+            echo "mobile-only=true" >> "$GITHUB_OUTPUT"
+            echo "desktop-only=false" >> "$GITHUB_OUTPUT"
+            echo "server-or-shared=false" >> "$GITHUB_OUTPUT"
+          elif [ "$HAS_DESKTOP" = "true" ] && [ "$HAS_MOBILE" = "false" ]; then
+            echo "mobile-only=false" >> "$GITHUB_OUTPUT"
+            echo "desktop-only=true" >> "$GITHUB_OUTPUT"
+            echo "server-or-shared=false" >> "$GITHUB_OUTPUT"
+          else
+            # Both mobile and desktop changed (but no server) — build both without restart
+            echo "mobile-only=false" >> "$GITHUB_OUTPUT"
+            echo "desktop-only=false" >> "$GITHUB_OUTPUT"
+            echo "server-or-shared=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Determine deploy target
+        id: target
+        run: |
+          if [ "${{ github.ref_name }}" = "beta" ]; then
+            echo "dir=/app/my-stop-now-beta" >> "$GITHUB_OUTPUT"
+            echo "pm2-name=my-stop-now-beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=/app/my-stop-now" >> "$GITHUB_OUTPUT"
+            echo "pm2-name=my-stop-now" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ------------------------------------------------------------------
+  # Deploy: mobile-only (build mobile, SCP dist/mobile/, no pm2 restart)
+  # ------------------------------------------------------------------
+  deploy-mobile:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.mobile-only == 'true'
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,7 +149,119 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Deploy to Lightsail
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build mobile
+        run: npm run build:mobile
+
+      - name: Deploy mobile build
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            DEPLOY_DIR="${{ needs.detect-changes.outputs.deploy-target }}"
+            cd "$DEPLOY_DIR"
+
+            # Timestamped backup before deploy
+            BACKUP_DIR="/app/my-stop-now-backup/$(date +%Y%m%d-%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            cp -r dist/ server/index.js package-lock.json .env "$BACKUP_DIR/" || exit 1
+
+            git pull origin ${{ github.ref_name }}
+
+      - name: SCP mobile dist
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          source: "dist/mobile/"
+          target: "${{ needs.detect-changes.outputs.deploy-target }}/dist/mobile/"
+          strip_components: 2
+          overwrite: true
+
+  # ------------------------------------------------------------------
+  # Deploy: desktop-only (build desktop, SCP dist/dashboard/, no pm2 restart)
+  # ------------------------------------------------------------------
+  deploy-desktop:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.desktop-only == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build desktop
+        run: npm run build:desktop
+
+      - name: Deploy desktop build
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -e
+            DEPLOY_DIR="${{ needs.detect-changes.outputs.deploy-target }}"
+            cd "$DEPLOY_DIR"
+
+            # Timestamped backup before deploy
+            BACKUP_DIR="/app/my-stop-now-backup/$(date +%Y%m%d-%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            cp -r dist/ server/index.js package-lock.json .env "$BACKUP_DIR/" || exit 1
+
+            git pull origin ${{ github.ref_name }}
+
+      - name: SCP desktop dist
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.LIGHTSAIL_HOST }}
+          username: ${{ secrets.LIGHTSAIL_USER }}
+          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+          source: "dist/dashboard/"
+          target: "${{ needs.detect-changes.outputs.deploy-target }}/dist/dashboard/"
+          strip_components: 2
+          overwrite: true
+
+  # ------------------------------------------------------------------
+  # Deploy: server/shared (full build + npm ci on server + pm2 restart)
+  # ------------------------------------------------------------------
+  deploy-full:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.server-or-shared == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all
+        run: npm run build
+
+      - name: Full deploy with pm2 restart
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.LIGHTSAIL_HOST }}
@@ -37,11 +270,26 @@ jobs:
           command_timeout: 30m
           script: |
             set -e
-            cd /app/hoboken-commuter
-            git pull origin master
+            DEPLOY_DIR="${{ needs.detect-changes.outputs.deploy-target }}"
+            PM2_NAME="${{ needs.detect-changes.outputs.pm2-name }}"
+            BRANCH="${{ github.ref_name }}"
+
+            cd "$DEPLOY_DIR"
+
+            # Timestamped backup before deploy
+            BACKUP_DIR="/app/my-stop-now-backup/$(date +%Y%m%d-%H%M%S)"
+            mkdir -p "$BACKUP_DIR"
+            cp -r dist/ server/index.js package-lock.json .env "$BACKUP_DIR/" || exit 1
+
+            git pull origin "$BRANCH"
             npm ci
             npm run build
-            pm2 delete hoboken-commuter || true
-            NODE_ENV=production pm2 start server/index.js --name hoboken-commuter --node-args="--max-old-space-size=768"
+
+            # Restart or start the pm2 process
+            if pm2 describe "$PM2_NAME" > /dev/null 2>&1; then
+              pm2 restart "$PM2_NAME"
+            else
+              NODE_ENV=production pm2 start server/index.js --name "$PM2_NAME" --node-args="--max-old-space-size=768"
+            fi
             pm2 save
-            echo "Deploy complete"
+            echo "Full deploy complete"

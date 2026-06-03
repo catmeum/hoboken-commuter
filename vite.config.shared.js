@@ -1,8 +1,7 @@
-import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
-export default defineConfig({
+// Shared Vite configuration used by both desktop and mobile builds
+export const sharedConfig = {
   plugins: [react()],
   test: {
     environment: 'jsdom',
@@ -74,4 +73,4 @@ export default defineConfig({
       },
     },
   },
-})
+}

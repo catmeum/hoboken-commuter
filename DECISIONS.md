@@ -206,7 +206,7 @@ Originally weather had a manual toggle between Hoboken and NYC. This was confusi
 
 ## Why settings use localStorage instead of a backend
 
-Settings are user-specific and don't need to be shared or synced. localStorage is zero-infrastructure, works offline, and survives page refreshes. The key `hoboken-commuter-settings` stores a JSON snapshot of all configurable state. A "Reset to defaults" button in the settings footer clears it. The default configuration is defined in `DEFAULT_SETTINGS` in `App.jsx` and reflects the author's actual commute setup.
+Settings are user-specific and don't need to be shared or synced. localStorage is zero-infrastructure, works offline, and survives page refreshes. The key `msn-settings` stores a JSON snapshot of all configurable state. A "Reset to defaults" button in the settings footer clears it. The default configuration is defined in `DEFAULT_SETTINGS` in `App.jsx` and reflects the author's actual commute setup.
 
 ## Why the MTA Bus SIRI endpoint has an 8-second timeout
 

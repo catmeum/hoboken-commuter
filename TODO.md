@@ -1,10 +1,12 @@
-# My Stop Now (formerly Hoboken Commuter Dashboard) — TODO
+# My Stop Now — TODO
 
 ## Active — Next Session
 
-- [ ] **Desktop: Per-line alert toggles (match mobile)** — Update desktop `deriveActiveAlertSources()` to emit per-subway-line IDs (`mta_B`, `mta_D`, etc.) instead of a single `mta_subway`. Add grouped/expandable UI in the desktop settings alert section to match the mobile two-level toggle pattern. Update `buildTickerItems()` filtering and `ALERT_SOURCE_NAMES`. Goal: desktop and mobile alert toggles work identically.
 - [ ] **Mobile: NY Waterway ferry card showing single route instead of all destinations** — A ferry stop (e.g. Hoboken/NJ Transit Terminal) serves multiple routes (Brookfield Place, W 39th St, Paulus Hook), but the mobile transit card only displays one. Should show all destination routes for the selected terminal, matching the desktop multi-route display behavior. Additionally, existing preset cards now show no upcoming ferries.
-- [ ] **Rename app to "My Stop Now"** — FIRST: Evaluate options for a better git strategy to deploy the mobile and desktop versions independently. THEN, rebrand from "Hoboken Commuter Dashboard" to My Stop Now (domain: mystopnow.com). Update app title, page title, README, all docs, and any hardcoded references. commute.stroszeck.com should still work as redirect/alias. Host on same lightsail instance. Give information of how to host app on mystopnow.com and setup redirect from commute.stroszeck.com
+- [ ] **Mobile: Replace static presets with dynamically ones** - Some of the presets may still be hardcoded, leading to issues with inaccurate stop times for a given transit stop (e.g. Willow / 15 the preset version does not show any buses, even though the dynamic one does show buses)
+- [ ] **Add Service Time Notice** - Some routes, like buses on the 126 NYC via Clinton St bus only run Weekdays 5:40am-9:45am and 4:09pm-8:29pm. Currently, this information may be hardcoded, but dynamically pull data for all stops like this which only have scheduled buses for commute times as opposed to always. Do the same thing for NYW and NYC Ferries, which do not run 24/7. 
+- [x] **Rename app to "My Stop Now"** — Rebrand complete (domain: mystopnow.com). App title, page title, README, all docs, and hardcoded references updated. commute.stroszeck.com configured as redirect. Independent deploy strategy with beta/production stages documented.
+- [ ] **Create new logo for MyStopNow** - Make the logo for usage as a favicon, and for home screen install.
 
 
 ## v3 Mobile App — Implementation Tasks
@@ -19,7 +21,7 @@
 - [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
 - [ ] **My Stops sorting** — sort My Stops cards by proximity to current location (closest first), Order added, or by Soonest Arrival (which stop has an arrival first)
 - [ ] **Buy Me a Coffee link** — swap Venmo with buymeacoffee.com/mystopnow.
-
+- [ ] **Desktop: Per-line alert toggles (match mobile)** — Update desktop `deriveActiveAlertSources()` to emit per-subway-line IDs (`mta_B`, `mta_D`, etc.) instead of a single `mta_subway`. Add grouped/expandable UI in the desktop settings alert section to match the mobile two-level toggle pattern. Update `buildTickerItems()` filtering and `ALERT_SOURCE_NAMES`. Goal: desktop and mobile alert toggles work identically.
 
 ## UX / Loading State (Future)
 
