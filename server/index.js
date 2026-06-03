@@ -3090,7 +3090,10 @@ if (process.env.NODE_ENV === 'production') {
   // Serve dashboard assets from root
   app.use(express.static(path.join(distRoot, 'dist', 'dashboard'), { index: false }))
 
-  // Mobile SPA catch-all
+  // Mobile SPA catch-all (bare /mobile and /mobile/*)
+  app.get('/mobile', (req, res) => {
+    res.sendFile(path.join(distRoot, 'dist', 'mobile', 'mobile.html'))
+  })
   app.get('/mobile/*path', (req, res) => {
     res.sendFile(path.join(distRoot, 'dist', 'mobile', 'mobile.html'))
   })

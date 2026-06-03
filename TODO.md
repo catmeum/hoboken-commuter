@@ -7,6 +7,8 @@
 - [ ] **Add Service Time Notice** - Some routes, like buses on the 126 NYC via Clinton St bus only run Weekdays 5:40am-9:45am and 4:09pm-8:29pm. Currently, this information may be hardcoded, but dynamically pull data for all stops like this which only have scheduled buses for commute times as opposed to always. Do the same thing for NYW and NYC Ferries, which do not run 24/7. 
 - [x] **Rename app to "My Stop Now"** — Rebrand complete (domain: mystopnow.com). App title, page title, README, all docs, and hardcoded references updated. commute.stroszeck.com configured as redirect. Independent deploy strategy with beta/production stages documented.
 - [ ] **Create new logo for MyStopNow** - Make the logo for usage as a favicon, and for home screen install.
+- [ ] **Update version number on desktop and mobile** - Currently says v2.4.0
+- [ ] **About page in settings** - Add a subtle button in both desktop and mobile settings which gives a brief description of what the app does, how it's not affiliated with the transit providers, and for more information about the developer, go to stroszeck.com.
 
 
 ## v3 Mobile App — Implementation Tasks
