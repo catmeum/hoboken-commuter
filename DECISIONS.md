@@ -2,6 +2,19 @@
 
 Things that aren't obvious from the code alone.
 
+## NJT G2 GTFS-RT: route from Vehicle Positions, not TripUpdates (June 2026)
+
+NJT's G2 GTFS-RT feed has a fundamental issue: the `trip_id` values in the TripUpdates feed don't match the `trip_id` values in the static GTFS `trips.txt`. This means looking up route/headsign by trip_id from static data gives **wrong results** (e.g., a 126 bus shows as route 114).
+
+The fix: use the **Vehicle Positions feed** as the authoritative source for `routeId` (it correctly populates `vehicle.trip.routeId`), and derive headsigns from the last stop in each trip's `stopTimeUpdate` sequence (the terminal stop = destination).
+
+The GTFS G2 API provides:
+- `getTripUpdates` → ETAs per stop (accurate) + trip_id (NOT usable for route lookup)
+- `getVehiclePositions` → routeId (accurate), occupancy, GPS position, vehicle ID
+- `getGTFS` → static schedule, stop names, stop_times (used for schedule fallback)
+
+Contact for BusTime API access (headsign variants): `ProductionPasscomm@njtransit.com`
+
 ## Stop naming: direction in parens, lines/routes as badges (June 2026)
 
 Stop display names use parentheses ONLY for direction info:

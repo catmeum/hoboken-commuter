@@ -120,7 +120,14 @@ function CardShell({ icon, station, badges, alert, onAlertTap, stopId, children 
   )
 }
 
-function DepartureRow({ dest, eta, etaClock, badgeColor, source }) {
+function capacityLabel(cap) {
+  if (cap === 'empty') return 'Seats'
+  if (cap === 'some') return 'Standing'
+  if (cap === 'full') return 'Full'
+  return null
+}
+
+function DepartureRow({ dest, eta, etaClock, badgeColor, source, capacity }) {
   const [expanded, setExpanded] = useState(false)
   const timerRef = useRef(null)
 
@@ -138,17 +145,19 @@ function DepartureRow({ dest, eta, etaClock, badgeColor, source }) {
   // Cleanup timer on unmount
   useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current) }, [])
 
+  const capText = capacityLabel(capacity)
+
   return (
     <div className={`ms-row${expanded ? ' ms-row-expanded' : ''}`} onClick={handleTap}>
       {badgeColor && <span className="ms-dot" style={{ background: badgeColor }} />}
       <span className="ms-dest">{dest}</span>
       <span className={`ms-eta ${etaClass(eta)}`}>{eta} min</span>
       <span className="ms-clock">{etaClock || etaTime(eta)}</span>
-      {source && (
-        <span className={`ms-src ${source === 'schedule' ? 'ms-sched' : ''}`}>
-          {source === 'realtime' ? 'LIVE' : 'SCHED'}
-        </span>
-      )}
+      {capText ? (
+        <span className={`ms-src ms-cap-${capacity}`}>{capText}</span>
+      ) : source === 'schedule' ? (
+        <span className="ms-src ms-sched">SCHED</span>
+      ) : null}
     </div>
   )
 }
@@ -275,6 +284,7 @@ export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlert
               etaClock={b.etaTime || etaTime(b.eta)}
               badgeColor={njtRouteColor(b.route)}
               source={b.source}
+              capacity={b.capacity}
             />
           )
         })

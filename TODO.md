@@ -4,14 +4,20 @@
 
 - [ ] **Mobile: NY Waterway ferry card showing single route instead of all destinations** — A ferry stop (e.g. Hoboken/NJ Transit Terminal) serves multiple routes (Brookfield Place, W 39th St, Paulus Hook), but the mobile transit card only displays one. Should show all destination routes for the selected terminal, matching the desktop multi-route display behavior. Additionally, existing preset cards now show no upcoming ferries.
 - [ ] **Mobile: Replace static presets with dynamically ones** - Some of the presets may still be hardcoded, leading to issues with inaccurate stop times for a given transit stop (e.g. Willow / 15 the preset version does not show any buses, even though the dynamic one does show buses)
+- [ ] **Feedback Reporting Mechanism** - Create the ability for users to submit feedback, perhaps a form that submits to a github issue, or a form that sends me an email?
 - [ ] **Add Service Time Notice** - Some routes, like buses on the 126 NYC via Clinton St bus only run Weekdays 5:40am-9:45am and 4:09pm-8:29pm. Currently, this information may be hardcoded, but dynamically pull data for all stops like this which only have scheduled buses for commute times as opposed to always. Do the same thing for NYW and NYC Ferries, which do not run 24/7. 
-- [x] **Rename app to "My Stop Now"** — Rebrand complete (domain: mystopnow.com). App title, page title, README, all docs, and hardcoded references updated. commute.stroszeck.com configured as redirect. Independent deploy strategy with beta/production stages documented.
 - [ ] **Create new logo for MyStopNow** - Make the logo for usage as a favicon, and for home screen install.
 - [ ] **Update version number on desktop and mobile** - Currently says v2.4.0
 - [ ] **About page in settings** - Add a subtle button in both desktop and mobile settings which gives a brief description of what the app does, how it's not affiliated with the transit providers, and for more information about the developer, go to stroszeck.com.
+- [ ] **Add Disclaimer for NJT** - Add disclaimer to About section that says "Data provided by NJ TRANSIT, which is the sole owner of the Data. This “App” is not endorsed by, directly affiliated with, maintained, authorized, or sponsored by NJ TRANSIT. All product and company names are the registered trademarks of their original owners. The use of any trade name or trademark is for identification and reference purposes only and does not imply any association with the trademark owner." and add a MyBusNow disclaimer that mentions that this site is for personal, non-commercial use
 
 
-## v3 Mobile App — Implementation Tasks
+## Recently Completed
+
+- [x] **NJT bus real-time data fix** — Upgraded gtfs-realtime-bindings to 2.0.0, fixed route resolution via VP feed, added terminal-stop headsigns, mobile capacity badges, graceful RT fallback
+- [x] **App rebrand & deployment** — Renamed to "My Stop Now", split builds, Caddy config, beta stage, GitHub Actions pipeline
+- [x] **Mobile base path fix** — Added `base: '/mobile/'` to vite.config.mobile.js so assets load correctly
+- [x] **Express /mobile route** — Added explicit `app.get('/mobile', ...)` route for the bare path (Express 5 wildcard only matches subpaths)
 
 - [ ] **PWA setup** — manifest.json, service worker, iOS meta tags for home screen install
 
@@ -40,6 +46,7 @@
 
 ## Completed
 
+- [x] **Rename app to "My Stop Now"** — Rebrand complete (domain: mystopnow.com). App title, page title, README, all docs, and hardcoded references updated. commute.stroszeck.com configured as redirect. Independent deploy strategy with beta/production stages documented.
 - [x] **NJT Bus Custom svg gone** — fixed legacy stop IDs (`clinton`, `willow`, `washington`, `pabt_*`) falling through to generic Lucide Bus icon in desktop and mobile settings. Matching now covers all legacy formats.
 - [x] **NYC Ferry empty departures** — implemented static GTFS schedule supplement in `/api/nycferry/query`. Parses `stop_times.txt` and `calendar.txt` at startup; RT departures are always supplemented with schedule data for gaps (filtered by service day, deduped within ±3 min of RT). Shows LIVE/SCHED badges.
 - [x] **Tap to expand individual line info on mobile** — departure rows are now tappable. Tap expands to show full truncated text (flex-wrap), auto-collapses after 10s. Second tap immediately collapses.

@@ -1,5 +1,30 @@
 # My Stop Now — Version History
 
+## 2026-06-03 — Fix NJT Bus Real-Time Data Pipeline
+
+### Bug Fixes
+- **Upgraded `gtfs-realtime-bindings` to 2.0.0** — NJT's G2 GTFS-RT feed includes proto extensions that caused the 1.x decoder to crash with "index out of range" errors. Passing `Buffer` directly to `decode()` (not `Uint8Array`) resolved intermittent failures.
+- **Fixed route resolution for real-time buses** — NJT's G2 trip_ids in the RT feed don't match static GTFS trip_ids, so route lookups returned wrong routes (e.g., 114 instead of 126). Now uses `routeId` from the Vehicle Positions feed as the primary source (accurate), falling back to static GTFS only when VP data is unavailable.
+- **Fixed headsign for real-time buses** — static GTFS headsign mapping is unreliable for G2 trip_ids. Now derives the destination from the last stop in each trip's `stopTimeUpdate` sequence (the terminal stop), resolved to short friendly names (e.g., "New York", "Hoboken", "Jersey City").
+- **Added graceful fallback for RT feed decode failures** — `fetchTripUpdates()` and `fetchVehiclePositions()` now catch protobuf decode errors and fall back to cached data or empty results instead of crashing the endpoint with 500.
+- **Vehicle Positions feed now provides route + occupancy** — `fetchVehiclePositions()` returns both `occMap` (tripId → capacity) and `routeMap` (tripId → routeId), enabling accurate route assignment for real-time buses.
+
+### Mobile
+- **Added bus occupancy badges** — mobile `DepartureRow` now shows Seats/Standing/Full badges (colored green/yellow/red) when capacity data is available from the VP feed, replacing the generic SCHED badge for live buses.
+
+### Known Limitation
+- **Headsign variants (VIA WILLOW vs VIA CLINTON) not available** — the GTFS G2 RT feed does not include headsign data, and the NJT BusTime API requires separate developer access. Headsigns show the terminal destination only (e.g., "New York"). Pending: request BusTime API access from ProductionPasscomm@njtransit.com.
+
+---
+
+## 2026-06-03 — PM2 Ecosystem Config with GTFS Auto-Refresh
+
+### Ops
+- **PM2 ecosystem config file added** — `ecosystem.config.cjs` on the Lightsail server replaces the inline `pm2 start` command. Includes `cron_restart: '0 3 */3 * *'` to restart the server at 3am every 3 days, ensuring NJT GTFS static data is re-downloaded per license requirements.
+- **DEPLOYMENT.md updated** — Step 4 now documents the ecosystem file setup and explains the rationale for the cron restart.
+
+---
+
 ## 2025-07-14 — Rebrand to "My Stop Now"
 
 ### Rebrand

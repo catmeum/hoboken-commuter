@@ -414,36 +414,54 @@ const RT_CACHE_TTL = 30_000
 
 async function fetchTripUpdates() {
   if (rtCache && Date.now() - rtCacheTime < RT_CACHE_TTL) return rtCache
-  const token = await getToken()
-  const form = new FormData()
-  form.append('token', token)
-  const res = await fetch(`${NJT_API}/getTripUpdates`, { method: 'POST', body: form })
-  const buf = Buffer.from(await res.arrayBuffer())
-  rtCache = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buf))
-  rtCacheTime = Date.now()
-  console.log('[RT] Fetched', rtCache.entity.length, 'trip updates')
-  return rtCache
+  try {
+    const token = await getToken()
+    const form = new FormData()
+    form.append('token', token)
+    const res = await fetch(`${NJT_API}/getTripUpdates`, { method: 'POST', body: form })
+    const buf = Buffer.from(await res.arrayBuffer())
+    rtCache = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
+    rtCacheTime = Date.now()
+    console.log('[RT] Fetched', rtCache.entity.length, 'trip updates')
+    return rtCache
+  } catch (err) {
+    console.error('[RT] Failed to fetch/decode trip updates:', err.message)
+    // Return stale cache if available, otherwise empty feed
+    if (rtCache) return rtCache
+    return { entity: [] }
+  }
 }
 
 const OCC_MAP = { 0: 'empty', 1: 'empty', 2: 'some', 3: 'full', 4: 'full', 5: 'full', 6: 'full' }
 
 async function fetchVehiclePositions() {
   if (vpCache && Date.now() - vpCacheTime < RT_CACHE_TTL) return vpCache
-  const token = await getToken()
-  const form = new FormData()
-  form.append('token', token)
-  const res = await fetch(`${NJT_API}/getVehiclePositions`, { method: 'POST', body: form })
-  const buf = Buffer.from(await res.arrayBuffer())
-  const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buf))
-  const occMap = {}
-  for (const entity of feed.entity) {
-    const vp = entity.vehicle
-    if (vp?.trip?.tripId) occMap[vp.trip.tripId] = OCC_MAP[vp.occupancyStatus] ?? 'unknown'
+  try {
+    const token = await getToken()
+    const form = new FormData()
+    form.append('token', token)
+    const res = await fetch(`${NJT_API}/getVehiclePositions`, { method: 'POST', body: form })
+    const buf = Buffer.from(await res.arrayBuffer())
+    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
+    const occMap = {}
+    const routeMap = {}
+    for (const entity of feed.entity) {
+      const vp = entity.vehicle
+      if (vp?.trip?.tripId) {
+        occMap[vp.trip.tripId] = OCC_MAP[vp.occupancyStatus] ?? 'unknown'
+        if (vp.trip.routeId) routeMap[vp.trip.tripId] = vp.trip.routeId
+      }
+    }
+    vpCache = { occMap, routeMap }
+    vpCacheTime = Date.now()
+    console.log('[VP] Fetched', Object.keys(occMap).length, 'vehicle positions,', Object.keys(routeMap).length, 'route mappings')
+    return vpCache
+  } catch (err) {
+    console.error('[VP] Failed to fetch/decode vehicle positions:', err.message)
+    // Return stale cache if available, otherwise empty maps
+    if (vpCache) return vpCache
+    return { occMap: {}, routeMap: {} }
   }
-  vpCache = occMap
-  vpCacheTime = Date.now()
-  console.log('[VP] Fetched', Object.keys(occMap).length, 'vehicle positions')
-  return occMap
 }
 
 // ══════════════════════════════════════════════════════════
@@ -547,25 +565,59 @@ function getScheduleFallback(stopIds, limit = 6, filterRoutes = null, filterHead
   return deduped.slice(0, limit)
 }
 
+// Derive a short, friendly destination/headsign from the terminal stop name of a trip.
+// The RT feed's stopTimeUpdate sequence ends at the trip's final stop — that's
+// the true destination. Static GTFS trip→headsign mapping is unreliable for NJT G2
+// because RT trip_ids don't align with static trip_ids, so we use the live stop sequence.
+// Keep outputs short (≈ ≤16 chars) so they fit the card layout.
+function headsignFromTerminal(terminalStopName) {
+  if (!terminalStopName) return ''
+  const upper = terminalStopName.toUpperCase()
+  // Map well-known terminals to short, rider-friendly destinations
+  if (upper.includes('PORT AUTHORITY') || upper.includes('NEW YORK')) return 'New York'
+  if (upper.includes('HOBOKEN')) return 'Hoboken'
+  if (upper.includes('PATH')) return 'PATH'
+  if (upper.includes('JOURNAL SQ')) return 'Journal Sq'
+  if (upper.includes('JERSEY CITY')) return 'Jersey City'
+  if (upper.includes('BERGENLINE')) return 'Bergenline'
+  if (upper.includes('GEORGE WASHINGTON') || upper.includes('GW BRIDGE')) return 'GWB Station'
+  if (upper.includes('NEWARK')) return 'Newark'
+  // Otherwise, shorten the raw terminal name: take the part before " AT "
+  // (e.g. "BERGENLINE AVE AT JFK BLVD" → "Bergenline Ave") and cap length.
+  let short = terminalStopName.split(/ AT /i)[0].trim()
+  if (short.length > 16) short = short.slice(0, 15).trim() + '…'
+  // Title-case it
+  return short.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+}
+
 async function getRealtimeBuses(stopIds, limit = 6, filterRoutes = null, filterHeadsigns = null, excludeHeadsigns = null) {
-  const [feed, occMap] = await Promise.all([fetchTripUpdates(), fetchVehiclePositions()])
+  const [feed, vpData] = await Promise.all([fetchTripUpdates(), fetchVehiclePositions()])
+  const { occMap, routeMap: vpRouteMap } = vpData
   const now = Date.now() / 1000
   const stopSet = new Set(stopIds)
   const results = []
   for (const entity of feed.entity) {
     const tu = entity.tripUpdate
     if (!tu) continue
-    for (const stu of tu.stopTimeUpdate) {
+    const stus = tu.stopTimeUpdate
+    if (!stus || stus.length === 0) continue
+    // Derive destination from the LAST stop in the trip's live sequence
+    const terminalStop = stus[stus.length - 1]
+    const terminalName = stopNamesMap[terminalStop.stopId] || ''
+    const headsign = headsignFromTerminal(terminalName)
+    const hsUpper = headsign.toUpperCase()
+    for (const stu of stus) {
       if (!stopSet.has(stu.stopId)) continue
       const t = (stu.arrival?.time?.low || stu.arrival?.time || 0) || (stu.departure?.time?.low || stu.departure?.time || 0)
       if (t && t > now) {
         const tripId = tu.trip?.tripId || ''
-        const route = tripRouteMap[tripId] || '?'
+        // Route: VP feed is the only reliable source (RT trip descriptor has no routeId,
+        // and static GTFS trip→route mapping doesn't align with RT trip_ids).
+        const route = vpRouteMap[tripId] || tripRouteMap[tripId] || '?'
         if (filterRoutes && !filterRoutes.includes(route)) continue
-        const headsign = tripHeadsignMap[tripId] || ''
-        const hsUpper = headsign.toUpperCase()
-        if (filterHeadsigns && !filterHeadsigns.some(f => hsUpper.includes(f.toUpperCase()))) continue
-        if (excludeHeadsigns && excludeHeadsigns.some(f => hsUpper.includes(f.toUpperCase()))) continue
+        // Headsign filtering uses the live-derived destination
+        if (filterHeadsigns && headsign && !filterHeadsigns.some(f => hsUpper.includes(f.toUpperCase()))) continue
+        if (excludeHeadsigns && headsign && excludeHeadsigns.some(f => hsUpper.includes(f.toUpperCase()))) continue
         const d = new Date(t * 1000)
         results.push({
           route,
@@ -575,6 +627,7 @@ async function getRealtimeBuses(stopIds, limit = 6, filterRoutes = null, filterH
           capacity: occMap[tripId] || 'unknown',
           headsign,
           variant: parseVariant(headsign),
+          _liveHeadsign: true,
         })
       }
     }
@@ -599,7 +652,7 @@ async function fetchBusAlerts() {
     form.append('token', token)
     const res = await fetch(`${NJT_API}/getAlerts`, { method: 'POST', body: form })
     const buf = Buffer.from(await res.arrayBuffer())
-    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buf))
+    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
     const alerts = []
     for (const entity of feed.entity) {
       const alert = entity.alert
@@ -998,10 +1051,14 @@ app.get('/api/bus/stops', async (req, res) => {
     let buses = await getRealtimeBuses(stopIds, 6, routeFilter, headsignFilter)
     if (buses.length === 0) buses = getScheduleFallback(stopIds, 6, routeFilter, headsignFilter)
 
-    // Add variant and headsign info if missing
+    // Add variant and headsign info if missing.
+    // Realtime buses already have a live-derived headsign (from the trip's terminal stop);
+    // don't override it with the unreliable static GTFS trip→headsign mapping.
     buses = buses.map(b => {
-      if (!b.variant && b.tripId) b.variant = parseVariant(tripHeadsignMap[b.tripId])
-      if (!b.headsign && b.tripId) b.headsign = tripHeadsignMap[b.tripId] || ''
+      if (!b._liveHeadsign) {
+        if (!b.variant && b.tripId) b.variant = parseVariant(tripHeadsignMap[b.tripId])
+        if (!b.headsign && b.tripId) b.headsign = tripHeadsignMap[b.tripId] || ''
+      }
       return b
     })
 
@@ -1120,7 +1177,7 @@ async function fetchPathFeed() {
   if (pathCache && Date.now() - pathCacheTime < PATH_CACHE_TTL) return pathCache
   const resp = await fetch(PATH_GTFSRT_URL)
   const buf = Buffer.from(await resp.arrayBuffer())
-  pathCache = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buf))
+  pathCache = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
   pathCacheTime = Date.now()
   return pathCache
 }
@@ -1589,7 +1646,7 @@ async function fetchMtaFeed(feedSuffix) {
   if (cached && Date.now() - cached.time < MTA_CACHE_TTL) return cached.data
   const resp = await fetch(`${MTA_BASE}/${feedSuffix}`)
   const buf = Buffer.from(await resp.arrayBuffer())
-  const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buf))
+  const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
   mtaFeedCaches[feedSuffix] = { data: feed, time: Date.now() }
   return feed
 }
@@ -1604,7 +1661,7 @@ async function fetchMtaAlerts() {
   try {
     const resp = await fetch(`${MTA_BASE}/${MTA_ALERTS_FEED}`)
     const buf = Buffer.from(await resp.arrayBuffer())
-    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buf))
+    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
     const alerts = []
     for (const entity of feed.entity) {
       const a = entity.alert
@@ -2248,7 +2305,7 @@ async function fetchNycFerryFeed() {
   if (nycFerryFeedCache && Date.now() - nycFerryFeedTime < NYC_FERRY_CACHE_TTL) return nycFerryFeedCache
   const resp = await fetch('https://nycferry.connexionz.net/rtt/public/utility/gtfsrealtime.aspx/tripupdate')
   const buf = Buffer.from(await resp.arrayBuffer())
-  nycFerryFeedCache = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(new Uint8Array(buf))
+  nycFerryFeedCache = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
   nycFerryFeedTime = Date.now()
   return nycFerryFeedCache
 }

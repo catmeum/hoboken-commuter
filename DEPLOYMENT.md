@@ -89,11 +89,33 @@ mkdir -p .cache
 
 ## Step 4 — Start with pm2
 
+The server uses a PM2 ecosystem file for configuration, including a scheduled restart every 3 days to refresh NJT GTFS static data (required by NJT's license terms).
+
+Create `ecosystem.config.cjs` in `/app/my-stop-now/`:
+
+```js
+module.exports = {
+  apps: [{
+    name: 'my-stop-now',
+    script: 'server/index.js',
+    node_args: '--max-old-space-size=1536',
+    env: { NODE_ENV: 'production' },
+    cron_restart: '0 3 */3 * *'  // Restart at 3am every 3 days to refresh GTFS cache
+  }]
+}
+```
+
+Start (or switch over from an inline pm2 start):
+
 ```bash
 cd /app/my-stop-now
 
-# Start the server with NODE_ENV=production
-NODE_ENV=production pm2 start server/index.js --name my-stop-now --node-args="--max-old-space-size=1536"
+# If already running via inline command, stop it first:
+pm2 stop my-stop-now
+pm2 delete my-stop-now
+
+# Start using ecosystem file
+pm2 start ecosystem.config.cjs
 
 # Save pm2 config so it restarts on reboot
 pm2 save
@@ -106,6 +128,8 @@ Verify it's running:
 pm2 status
 pm2 logs my-stop-now --lines 20
 ```
+
+> **Why the cron restart?** The `loadGTFS()` function in `server/index.js` checks the age of `.cache/gtfs.zip` on startup and re-downloads if it's older than 3 days. Without periodic restarts, a long-running server would never trigger a re-download.
 
 ---
 

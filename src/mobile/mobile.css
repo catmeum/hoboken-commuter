@@ -459,8 +459,14 @@
   background: rgba(52, 211, 153, 0.12); color: #34d399;
 }
 .ms-sched { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+.ms-cap-empty { background: rgba(52, 211, 153, 0.12); color: #34d399; }
+.ms-cap-some { background: rgba(251, 191, 36, 0.12); color: #fbbf24; }
+.ms-cap-full { background: rgba(239, 68, 68, 0.12); color: #ef4444; }
 [data-theme="light"] .ms-src { background: #d1fae5; color: #059669; }
 [data-theme="light"] .ms-sched { background: #fef3c7; color: #b45309; }
+[data-theme="light"] .ms-cap-empty { background: #d1fae5; color: #059669; }
+[data-theme="light"] .ms-cap-some { background: #fef3c7; color: #b45309; }
+[data-theme="light"] .ms-cap-full { background: #fee2e2; color: #dc2626; }
 .ms-empty { text-align: center; padding: 12px; font-size: 13px; color: var(--m-text-muted); }
 
 /* ═══ Tab Bar ═══ */
