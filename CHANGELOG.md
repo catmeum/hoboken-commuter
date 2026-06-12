@@ -1,5 +1,12 @@
 # My Stop Now — Version History
 
+## 2026-06-12 — About Modal & Version Bump
+
+### Features
+- **About modal in settings** — Both desktop and mobile settings now have an "About" link that opens a centered modal with app description, developer link, and transit data disclaimer.
+- **Generalized transit disclaimer** — Covers all operators (NJ TRANSIT, MTA, Port Authority, NY Waterway, NYC Ferry/Hornblower) instead of just NJT.
+- **Version bumped to v2.5.0** — Desktop reads from package.json; mobile now imports it dynamically instead of hardcoding.
+
 ## 2026-06-12 — Improved Zip Code Stop Selection Algorithm
 
 ### Improvements

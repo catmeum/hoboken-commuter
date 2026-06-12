@@ -2755,6 +2755,7 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
   const [draftTunnels, setDraftTunnels] = useState([...selectedTunnels])
   const [newCardTarget, setNewCardTarget] = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
+  const [showAboutModal, setShowAboutModal] = useState(false)
   const dragRef = useRef(null) // { id, setter } for active drag
 
   // Reset drafts when panel opens
@@ -3088,6 +3089,11 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                 })}
               </div>
             </section>
+
+            {/* About */}
+            <section className="settings-section settings-about-section">
+              <button className="settings-about-link" onClick={() => setShowAboutModal(true)}>About My Stop Now</button>
+            </section>
           </div>
 
           <div className="settings-footer">
@@ -3156,6 +3162,23 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
         onAdd={handleNewCardAdd}
         excludeIds={allSelected}
       />
+
+      {showAboutModal && (
+        <div className="about-modal-overlay" onClick={() => setShowAboutModal(false)}>
+          <div className="about-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="about-modal-close" onClick={() => setShowAboutModal(false)}>
+              <X size={18} />
+            </button>
+            <h2 className="about-modal-title">My Stop Now</h2>
+            <p className="about-modal-version">v{APP_VERSION}</p>
+            <p className="about-modal-text">A real-time transit aggregator for NY/NJ metro area commuters. Not endorsed by, affiliated with, or sponsored by any transit provider.</p>
+            <p className="about-modal-text">For more about the developer, visit <a href="https://stroszeck.com" target="_blank" rel="noopener noreferrer">stroszeck.com</a>.</p>
+            <hr className="about-modal-divider" />
+            <p className="about-modal-disclaimer">Transit data is provided by its respective operators (NJ TRANSIT, MTA, Port Authority of NY & NJ, NY Waterway, NYC Ferry/Hornblower). This app is not endorsed by, directly affiliated with, maintained, authorized, or sponsored by any transit agency. All product and company names are the registered trademarks of their original owners. The use of any trade name or trademark is for identification and reference purposes only and does not imply any association with the trademark holder.</p>
+            <p className="about-modal-disclaimer">This site is for personal, non-commercial use only.</p>
+          </div>
+        </div>
+      )}
     </>
   )
 }

@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { Bus } from 'lucide-react'
+import { version as APP_VERSION } from '../../../package.json'
 import { MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, NywFerryIcon, NycFerryIcon, MtaBusIcon, GrandCentralClock, SubwayBadge } from '../../components/icons'
 
 const TUNNEL_OPTIONS = [
@@ -147,6 +149,7 @@ export default function SettingsPage({
   const [confirmReset, setConfirmReset] = useState(false)
   const [showAllStops, setShowAllStops] = useState(false)
   const [showAllTunnels, setShowAllTunnels] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   // Drag to reorder state
   const [dragIndex, setDragIndex] = useState(null)
   const [dragOverIndex, setDragOverIndex] = useState(null)
@@ -367,10 +370,11 @@ export default function SettingsPage({
 
       {/* About */}
       <section className="m-set-section">
-        <h3 className="m-set-label">About</h3>
-        <p className="m-set-about">My Stop Now · v2.4.0</p>
-        <p className="m-set-about">Made with ❤️ for public transit</p>
+        <p className="m-set-about">My Stop Now · v{APP_VERSION}</p>
+        <button className="m-set-about-link" onClick={() => setShowAbout(true)}>About</button>
       </section>
+
+      {showAbout && createPortal(<AboutModal onClose={() => setShowAbout(false)} />, document.body)}
     </div>
   )
 }
@@ -539,6 +543,24 @@ function SwipeableStopItem({ stopId, index, name, hideBadges, onRemove, onEdit, 
           )
         })()}
         <button className="m-set-remove" onClick={() => onRemove(stopId)}>✕</button>
+      </div>
+    </div>
+  )
+}
+
+// About modal
+function AboutModal({ onClose }) {
+  return (
+    <div className="m-about-overlay" onClick={onClose}>
+      <div className="m-about-modal" onClick={(e) => e.stopPropagation()}>
+        <button className="m-about-close" onClick={onClose}>✕</button>
+        <h2 className="m-about-title">My Stop Now</h2>
+        <p className="m-about-version">v{APP_VERSION}</p>
+        <p className="m-about-text">A real-time transit aggregator for NY/NJ metro area commuters. Not endorsed by, affiliated with, or sponsored by any transit provider.</p>
+        <p className="m-about-text">For more about the developer, visit <a href="https://stroszeck.com" target="_blank" rel="noopener noreferrer">stroszeck.com</a>.</p>
+        <hr className="m-about-divider" />
+        <p className="m-about-disclaimer">Transit data is provided by its respective operators (NJ TRANSIT, MTA, Port Authority of NY & NJ, NY Waterway, NYC Ferry/Hornblower). This app is not endorsed by, directly affiliated with, maintained, authorized, or sponsored by any transit agency. All product and company names are the registered trademarks of their original owners. The use of any trade name or trademark is for identification and reference purposes only and does not imply any association with the trademark holder.</p>
+        <p className="m-about-disclaimer">This site is for personal, non-commercial use only.</p>
       </div>
     </div>
   )

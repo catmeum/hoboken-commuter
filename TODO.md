@@ -33,9 +33,9 @@
 
 ## Informational / About
 
-- [ ] **About page in settings** — Add a subtle button in both desktop and mobile settings with a brief description of the app, a note that it's not affiliated with transit providers, and a link to stroszeck.com.
-- [ ] **Add NJT disclaimer to About section** — Include: "Data provided by NJ TRANSIT, which is the sole owner of the Data. This app is not endorsed by, directly affiliated with, maintained, authorized, or sponsored by NJ TRANSIT. All product and company names are the registered trademarks of their original owners." Also add a MyBusNow disclaimer noting this site is for personal, non-commercial use.
-- [ ] **Update version number on desktop and mobile** — Currently says v2.4.0.
+- [x] **About page in settings** — Added About section to both desktop and mobile settings with app description, non-affiliation notice, and link to stroszeck.com.
+- [x] **Add NJT disclaimer to About section** — Included full NJT data disclaimer and MyBusNow personal-use notice in collapsible/expandable section on both platforms.
+- [x] **Update version number on desktop and mobile** — Bumped to v2.5.0 in package.json. Desktop already read from package.json; mobile now imports it instead of hardcoding.
 
 ## UX / Loading State (Future)
 
