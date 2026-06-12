@@ -2537,7 +2537,7 @@ function PresetPickerModal({ open, onSelect }) {
 
       // Try nearby-stops endpoint first
       try {
-        const nearbyRes = await fetch(`/api/nearby-stops?lat=${lat}&lon=${lon}&max=6`)
+        const nearbyRes = await fetch(`/api/nearby-stops?lat=${lat}&lon=${lon}&max=10`)
         if (nearbyRes.ok) {
           const nearbyData = await nearbyRes.json()
           if (nearbyData.stops && nearbyData.stops.length >= 3) {

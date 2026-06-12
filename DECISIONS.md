@@ -2,6 +2,26 @@
 
 Things that aren't obvious from the code alone.
 
+## Nearby-stops algorithm: location-aware, mode-diverse, cross-state exclusions (June 2026)
+
+The `/api/nearby-stops` endpoint uses a 3-pass selection algorithm with geographic zone detection:
+
+**Zones** (determined by lat/lon bounds):
+- NJ Waterfront (Hoboken/JC/Weehawken): lon -74.08 to -74.01, lat 40.70–40.78
+- Manhattan: lon -74.02 to -73.93, lat 40.70–40.88
+- Outer Boroughs: lon -74.04 to -73.70, lat 40.55–40.92 (excluding Manhattan)
+- NJ Suburban: everything else
+
+**Cross-state exclusions** (hard filter — these modes never appear in that zone):
+- NJ Waterfront: no MTA Subway, no MTA Bus, no NYC Ferry
+- Manhattan: no PATH, no HBLR, no NJT Bus, no NY Waterway Ferry
+- Outer Boroughs: no NJT Bus, no NY Waterway, no PATH, no HBLR
+- NJ Suburban: no HBLR, no MTA Subway, no MTA Bus, no NY Waterway, no NYC Ferry
+
+**Why exclude rather than just deprioritize?** A user in Hoboken would never commute via the F train (1.5mi away across the Hudson), and a user in Brooklyn would never take NJT Bus route 126. Hard exclusions prevent confusing results.
+
+**MTA Bus not yet included** — requires downloading MTA Bus GTFS or building a coord cache from SIRI API. Left as a TODO.
+
 ## NJT G2 GTFS-RT: route from Vehicle Positions, not TripUpdates (June 2026)
 
 NJT's G2 GTFS-RT feed has a fundamental issue: the `trip_id` values in the TripUpdates feed don't match the `trip_id` values in the static GTFS `trips.txt`. This means looking up route/headsign by trip_id from static data gives **wrong results** (e.g., a 126 bus shows as route 114).

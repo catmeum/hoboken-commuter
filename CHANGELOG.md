@@ -1,5 +1,17 @@
 # My Stop Now — Version History
 
+## 2026-06-12 — Improved Zip Code Stop Selection Algorithm
+
+### Improvements
+- **Location-aware stop selection** — `/api/nearby-stops` now detects geographic zone (NJ waterfront, Manhattan, outer boroughs, NJ suburban) and prioritizes transit modes accordingly. Hoboken zips get PATH/Ferry/HBLR/Bus; Manhattan zips get Subway; Brooklyn zips get Subway + NYC Ferry.
+- **Cross-state exclusions** — No subway or MTA Bus in NJ results; no PATH, HBLR, or NJT Bus in NYC results. Each zone only shows transit modes that actually serve that area.
+- **2-per-type cap with 3-pass fill** — Each transit mode limited to 2 stops max in the initial selection, ensuring diversity. Remaining slots fill by distance, with a final pass allowing overflow if needed.
+- **Default max results bumped to 10** — Up from 6. Easier to delete stops than to add ones the algorithm missed.
+- **NYC Ferry added to nearby-stops search** — NYC Ferry GTFS stops (with lat/lon from `stops.txt`) are now included as candidates in the geographic search. Fixed a `\r` carriage return parsing bug that was preventing longitude extraction.
+
+### Bug Fixes
+- **NYC Ferry GTFS `stop_lon` parsing** — The `stops.txt` header had a trailing `\r` on the last column (`stop_lon`), causing `indexOf('stop_lon')` to return -1. All ferry stops had `null` longitude. Fixed by stripping `\r` from CSV lines during parsing.
+
 ## 2026-06-03 — Fix NJT Bus Real-Time Data Pipeline
 
 ### Bug Fixes

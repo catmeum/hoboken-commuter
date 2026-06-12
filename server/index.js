@@ -2231,13 +2231,17 @@ async function loadNycFerryData() {
     const tripLines = zip.readAsText('trips.txt').trim().split('\n')
 
     // Parse stops
-    const stopHeader = stopLines[0].replace(/"/g, '').split(',')
+    const stopHeader = stopLines[0].replace(/"/g, '').replace(/\r/g, '').split(',')
     const sIdIdx = stopHeader.indexOf('stop_id')
     const sNameIdx = stopHeader.indexOf('stop_name')
+    const sLatIdx = stopHeader.indexOf('stop_lat')
+    const sLonIdx = stopHeader.indexOf('stop_lon')
     const stops = []
     for (let i = 1; i < stopLines.length; i++) {
-      const cols = stopLines[i].replace(/"/g, '').split(',')
-      stops.push({ id: cols[sIdIdx], name: cols[sNameIdx] })
+      const cols = stopLines[i].replace(/"/g, '').replace(/\r/g, '').split(',')
+      const lat = parseFloat(cols[sLatIdx])
+      const lon = parseFloat(cols[sLonIdx])
+      stops.push({ id: cols[sIdIdx], name: cols[sNameIdx], lat: isNaN(lat) ? null : lat, lon: isNaN(lon) ? null : lon })
     }
     stops.sort((a, b) => a.name.localeCompare(b.name))
     nycFerryStopsCache = stops
@@ -2866,7 +2870,7 @@ app.get('/api/nearby-stops', async (req, res) => {
     if (isNaN(lat) || isNaN(lon)) return res.status(400).json({ error: 'Invalid lat/lon' })
 
     const maxDistance = parseFloat(req.query.maxDistance) || 3 // miles
-    const maxResults = parseInt(req.query.max) || 6
+    const maxResults = parseInt(req.query.max) || 10
 
     const candidates = [] // { type, id, name, distance, stopKey, routes }
 
@@ -2970,37 +2974,91 @@ app.get('/api/nearby-stops', async (req, res) => {
       candidates.push({ type: 'rail', id: station.code, name: station.name, distance: dist, stopKey, routes: station.lines })
     }
 
-    // Sort by distance and pick closest, with light diversity preference
+    // 6. NYC Ferry stops (from GTFS)
+    try {
+      const nycFerryData = await loadNycFerryData()
+      if (nycFerryData.stops && nycFerryData.stops.length > 0) {
+        for (const stop of nycFerryData.stops) {
+          if (!stop.lat || !stop.lon) continue
+          const dist = haversineDistance(lat, lon, stop.lat, stop.lon)
+          if (dist > maxDistance) continue
+          candidates.push({ type: 'nycferry', id: stop.id, name: stop.name, distance: dist, stopKey: `nycferry:${stop.id}`, routes: [] })
+        }
+      }
+    } catch {
+      // NYC Ferry GTFS may not be loaded yet — skip silently
+    }
+
+    // Sort by distance and pick closest, with mode diversity and location-aware priority
     candidates.sort((a, b) => a.distance - b.distance)
 
-    // Pick up to maxResults — prefer diversity but don't pick far-away stops over close ones
-    // Only enforce diversity if candidates of different types are within 2x the distance of the closest
+    // Determine location context for prioritization
+    // NJ waterfront (Hoboken, JC, Weehawken): PATH, Ferry, Bus, HBLR dominate
+    // Manhattan: Subway dominates
+    // Outer boroughs (Brooklyn, Queens, Bronx): Subway + MTA Bus + NYC Ferry
+    // NJ suburban: NJT Rail + Bus
+    const isNJWaterfront = lon < -74.01 && lon > -74.08 && lat > 40.70 && lat < 40.78
+    const isManhattan = lon > -74.02 && lon < -73.93 && lat > 40.70 && lat < 40.88
+    const isOuterBorough = lon > -74.04 && lon < -73.70 && lat > 40.55 && lat < 40.92 && !isManhattan
+    // If none of the above, treat as NJ suburban (rail + bus area)
+
+    // Priority tiers by location (higher priority modes get filled first)
+    // Also define which modes are EXCLUDED per zone (cross-state filtering)
+    let modePriority
+    let excludedModes = new Set()
+    if (isNJWaterfront) {
+      modePriority = ['path', 'ferry', 'hblr', 'bus', 'rail']
+      excludedModes = new Set(['mta', 'mtabus', 'nycferry'])
+    } else if (isManhattan) {
+      modePriority = ['mta', 'rail', 'mtabus', 'nycferry']
+      excludedModes = new Set(['path', 'hblr', 'bus', 'ferry'])
+    } else if (isOuterBorough) {
+      modePriority = ['mta', 'mtabus', 'nycferry', 'rail']
+      excludedModes = new Set(['bus', 'ferry', 'path', 'hblr'])
+    } else {
+      // NJ suburban
+      modePriority = ['rail', 'bus', 'path']
+      excludedModes = new Set(['hblr', 'mta', 'mtabus', 'ferry', 'nycferry'])
+    }
+
+    // Filter out excluded modes before selection
+    const filteredCandidates = candidates.filter(c => !excludedModes.has(c.type))
+
+    const MAX_PER_TYPE = 2
     const selected = []
     const typeCounts = {}
 
-    for (const c of candidates) {
+    // Pass 1: Pick the closest stop from each available mode (in priority order)
+    for (const mode of modePriority) {
       if (selected.length >= maxResults) break
-      const count = typeCounts[c.type] || 0
-      // Allow up to 4 of same type (don't over-restrict when one type dominates the area)
-      if (count >= 4 && selected.length < maxResults) {
-        // Check if there's a different-type candidate within reasonable distance
-        const altExists = candidates.some(alt =>
-          !selected.includes(alt) && alt.type !== c.type && alt.distance < c.distance * 2
-        )
-        if (altExists) continue
+      const closest = filteredCandidates.find(c => c.type === mode && !selected.includes(c))
+      if (closest) {
+        selected.push(closest)
+        typeCounts[mode] = (typeCounts[mode] || 0) + 1
       }
+    }
+
+    // Pass 2: Fill remaining slots with closest candidates, respecting 2-per-type cap
+    for (const c of filteredCandidates) {
+      if (selected.length >= maxResults) break
+      if (selected.includes(c)) continue
+      const count = typeCounts[c.type] || 0
+      if (count >= MAX_PER_TYPE) continue
       selected.push(c)
       typeCounts[c.type] = count + 1
     }
 
-    // If we haven't filled up, add remaining closest regardless of type
+    // Pass 3: If still not full, allow a 3rd of any type (closest remaining)
     if (selected.length < maxResults) {
-      for (const c of candidates) {
+      for (const c of filteredCandidates) {
         if (selected.length >= maxResults) break
         if (selected.includes(c)) continue
         selected.push(c)
       }
     }
+
+    // Re-sort final selection by distance for display
+    selected.sort((a, b) => a.distance - b.distance)
 
     // Build response with stop keys and display names
     const stops = selected.map(s => ({

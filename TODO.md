@@ -3,14 +3,50 @@
 ## Active — Next Session
 
 - [ ] **Mobile: NY Waterway ferry card showing single route instead of all destinations** — A ferry stop (e.g. Hoboken/NJ Transit Terminal) serves multiple routes (Brookfield Place, W 39th St, Paulus Hook), but the mobile transit card only displays one. Should show all destination routes for the selected terminal, matching the desktop multi-route display behavior. Additionally, existing preset cards now show no upcoming ferries.
-- [ ] **Mobile: Replace static presets with dynamically ones** - Some of the presets may still be hardcoded, leading to issues with inaccurate stop times for a given transit stop (e.g. Willow / 15 the preset version does not show any buses, even though the dynamic one does show buses)
-- [ ] **Feedback Reporting Mechanism** - Create the ability for users to submit feedback, perhaps a form that submits to a github issue, or a form that sends me an email?
-- [ ] **Add Service Time Notice** - Some routes, like buses on the 126 NYC via Clinton St bus only run Weekdays 5:40am-9:45am and 4:09pm-8:29pm. Currently, this information may be hardcoded, but dynamically pull data for all stops like this which only have scheduled buses for commute times as opposed to always. Do the same thing for NYW and NYC Ferries, which do not run 24/7. 
-- [ ] **Create new logo for MyStopNow** - Make the logo for usage as a favicon, and for home screen install.
-- [ ] **Update version number on desktop and mobile** - Currently says v2.4.0
-- [ ] **About page in settings** - Add a subtle button in both desktop and mobile settings which gives a brief description of what the app does, how it's not affiliated with the transit providers, and for more information about the developer, go to stroszeck.com.
-- [ ] **Add Disclaimer for NJT** - Add disclaimer to About section that says "Data provided by NJ TRANSIT, which is the sole owner of the Data. This “App” is not endorsed by, directly affiliated with, maintained, authorized, or sponsored by NJ TRANSIT. All product and company names are the registered trademarks of their original owners. The use of any trade name or trademark is for identification and reference purposes only and does not imply any association with the trademark owner." and add a MyBusNow disclaimer that mentions that this site is for personal, non-commercial use
+- [ ] **Mobile: Replace static presets with dynamic ones** — Some presets may still be hardcoded, leading to inaccurate stop times (e.g. Willow / 15 preset shows no buses, but the dynamically-added version does).
+- [ ] **Add Service Time Notice** — Some routes (e.g. 126 NYC via Clinton St) only run during commute windows (Weekdays 5:40am–9:45am, 4:09pm–8:29pm). Dynamically detect routes with limited service hours from GTFS and display a notice on the card. Apply the same logic to NYW and NYC Ferries, which also don't run 24/7.
+- [ ] **Mobile: Tunnel Pills Disappear** - Occasionally on refresh, the tunnel pills disappear, leaving only the weather pill. Investigate cause and fix.
 
+## UX & Visual Polish
+
+- [ ] **Add animation when transit cards update** — Animate individual transit cards (fade, highlight, or slide) when their departure data refreshes, so users can see at a glance which cards just received new information.
+- [ ] **Mobile: Fix "My Stops" toggle text alignment** — The text inside the direction toggle on the My Stops page is not vertically centered. Fix the toggle styling so the label text is properly centered within the button.
+- [ ] **Add high-contrast mode toggle to settings** — Add an accessibility option in both desktop and mobile Settings for a high-contrast color scheme (increased text/background contrast, bolder borders).
+- [ ] **Create new logo for MyStopNow** — Design a logo suitable for favicon and home screen install icon.
+- [ ] **Mobile: Fix weather panel** - Replace emojis with better icons and text. Add a Feels Like temperature.
+
+## Feature Backlog
+
+- [ ] **Feedback submission mechanism** — Add a way for users to submit feedback or report issues. Options: embedded Google Form, link to a GitHub Issues template, or a simple form that sends an email.
+- [x] **Improve zip code stop selection algorithm** — Rewrote nearby-stops selection: 2-per-type cap, location-aware priority zones (NJ waterfront, Manhattan, outer boroughs, NJ suburban), cross-state exclusions (no subway in NJ, no HBLR in NYC), default max bumped to 10. Added NYC Ferry GTFS stops to candidate search (fixed `\r` parsing bug in stop_lon).
+- [ ] **Add MTA Bus to nearby-stops search** — The nearby-stops endpoint doesn't include MTA Bus stops as candidates. Requires downloading MTA Bus GTFS data or building a stop coordinate cache from the SIRI `routes-for-agency` + `stops-for-route` API calls. Currently only subway, PATH, NJT Bus, ferries, and rail are searchable.
+- [ ] **PWA setup** — manifest.json, service worker, iOS meta tags for home screen install.
+- [ ] **Explore page with map** — MapLibre GL map showing nearby transit stops as colored markers. Bottom sheet with list. Medium effort — add after list-based Add Stop flow is solid.
+- [ ] **iPhone app (Capacitor)** — Wrap PWA as native iOS app for App Store. Longer term after PWA is stable.
+- [ ] **Unit tests + E2E verification** — Add tests for TransitCard routing, InfoPills, MobileApp alert aggregation. Full manual E2E walkthrough.
+- [ ] **Triple-tap logo easter egg** — Triple-tap MSN logo to pick 6 random stops (one per transit mode).
+- [ ] **My Stops sorting** — Sort My Stops cards by proximity to current location (closest first), order added, or by soonest arrival.
+- [ ] **Buy Me a Coffee link** — Swap Venmo with buymeacoffee.com/mystopnow.
+- [ ] **Desktop: Per-line alert toggles (match mobile)** — Update desktop `deriveActiveAlertSources()` to emit per-subway-line IDs (`mta_B`, `mta_D`, etc.) instead of a single `mta_subway`. Add grouped/expandable UI in the desktop settings alert section to match the mobile two-level toggle pattern.
+- [ ] **Clothing recommendation card** — Square card between tunnel and weather cards. Shows a single icon for what to bring outside (umbrella, winter coat, sunscreen, light jacket) derived from existing weather data.
+- [ ] **Share list of stops** - Create a mechanism to share one or multiple stops with a friend using a shared URL.
+
+## Informational / About
+
+- [ ] **About page in settings** — Add a subtle button in both desktop and mobile settings with a brief description of the app, a note that it's not affiliated with transit providers, and a link to stroszeck.com.
+- [ ] **Add NJT disclaimer to About section** — Include: "Data provided by NJ TRANSIT, which is the sole owner of the Data. This app is not endorsed by, directly affiliated with, maintained, authorized, or sponsored by NJ TRANSIT. All product and company names are the registered trademarks of their original owners." Also add a MyBusNow disclaimer noting this site is for personal, non-commercial use.
+- [ ] **Update version number on desktop and mobile** — Currently says v2.4.0.
+
+## UX / Loading State (Future)
+
+- [ ] **GTFS loading status API** — Update `/api/bus/gtfs-status` to return `{ status: "building" | "ready", progress?: string }` so the frontend can poll during startup.
+- [ ] **App-level loading screen** — On initial load, poll `/api/bus/gtfs-status` every 3s; while `status === "building"` show a full-screen overlay with spinner and "Loading transit data, please wait…"
+- [ ] **Auto-refresh on ready** — When poll detects `status === "ready"`, dismiss loading screen and trigger a data fetch across all panels.
+
+## Known Bugs
+
+- [ ] **NJT Bus intermittent empty state** — Bus cards occasionally show "No upcoming buses" for ~30s then repopulate. Likely a GTFS-RT protobuf parsing race condition or index-out-of-range error when route filter is applied.
+- [ ] **PABT gate accuracy for sub-routes** — Route 126 has two gates (213 for Washington, 214 for Willow) but the dynamic card only shows the primary gate. Headsign-based lookup would be more accurate.
 
 ## Recently Completed
 
@@ -18,31 +54,6 @@
 - [x] **App rebrand & deployment** — Renamed to "My Stop Now", split builds, Caddy config, beta stage, GitHub Actions pipeline
 - [x] **Mobile base path fix** — Added `base: '/mobile/'` to vite.config.mobile.js so assets load correctly
 - [x] **Express /mobile route** — Added explicit `app.get('/mobile', ...)` route for the bare path (Express 5 wildcard only matches subpaths)
-
-- [ ] **PWA setup** — manifest.json, service worker, iOS meta tags for home screen install
-
-## Feature Backlog
-
-- [ ] **Explore page with map** — MapLibre GL map showing nearby transit stops as colored markers. Bottom sheet with list. Medium effort — add after list-based Add Stop flow is solid.
-- [ ] **iPhone app (Capacitor)** — wrap PWA as native iOS app for App Store. Longer term after PWA is stable.
-- [ ] **Unit tests + E2E verification** — add tests for TransitCard routing, InfoPills, MobileApp alert aggregation. Full manual E2E walkthrough.
-- [ ] **Triple-tap logo easter egg** — triple-tap MSN logo to pick 6 random stops (one per transit mode)
-- [ ] **My Stops sorting** — sort My Stops cards by proximity to current location (closest first), Order added, or by Soonest Arrival (which stop has an arrival first)
-- [ ] **Buy Me a Coffee link** — swap Venmo with buymeacoffee.com/mystopnow.
-- [ ] **Desktop: Per-line alert toggles (match mobile)** — Update desktop `deriveActiveAlertSources()` to emit per-subway-line IDs (`mta_B`, `mta_D`, etc.) instead of a single `mta_subway`. Add grouped/expandable UI in the desktop settings alert section to match the mobile two-level toggle pattern. Update `buildTickerItems()` filtering and `ALERT_SOURCE_NAMES`. Goal: desktop and mobile alert toggles work identically.
-
-## UX / Loading State (Future)
-
-- [ ] **GTFS loading status API** — update `/api/bus/gtfs-status` to return `{ status: "building" | "ready", progress?: string }` so the frontend can poll it during startup
-- [ ] **App-level loading screen** — on initial load, poll `/api/bus/gtfs-status` every 3s; while `status === "building"` show a full-screen overlay with spinner and "Loading transit data, please wait…"
-- [ ] **Auto-refresh on ready** — when poll detects `status === "ready"`, dismiss loading screen and trigger a data fetch across all panels automatically
-
-## Backlog
-
-- [ ] **Clinton St service note** — hardcoded hours; could derive from GTFS dynamically
-- [ ] **NJT Bus intermittent empty state** — bus cards occasionally show "No upcoming buses" for ~30 seconds then repopulate. Likely a GTFS-RT protobuf parsing race condition or index-out-of-range error when route filter is applied. Server returns `{ error: "index out of range" }` intermittently.
-- [ ] **PABT gate accuracy for sub-routes** — route 126 has two gates (213 for Washington, 214 for Willow) but the dynamic card only shows the primary gate. Headsign-based lookup would be more accurate but adds complexity. See DECISIONS.md for tradeoff analysis
-- [ ] **Clothing recommendation card** — square card that sits between the tunnel and weather cards. Shows a single icon for what to bring outside based on current conditions: umbrella (rain), winter coat (cold), sunscreen (hot/sunny), light jacket (mild), etc. Derived from the weather data already fetched — no new API needed.
 
 ## Completed
 
