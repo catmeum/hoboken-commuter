@@ -1,16 +1,16 @@
-﻿import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, GrandCentralClock } from '../../components/icons'
 import { ferryDestColor } from '../../components/transitColors'
 import { AlertTriangle } from 'lucide-react'
 
-// â”€â”€ Helpers â”€â”€
+// ── Helpers ──
 function etaClass(min) {
   if (min <= 5) return 'soon'
   if (min <= 15) return 'moderate'
   return 'later'
 }
 
-// NJT Bus route color palette â€” consistent colors by route number
+// NJT Bus route color palette — consistent colors by route number
 const NJT_ROUTE_COLORS = {
   '119': '#0e7c47', '125': '#6b21a8', '126': '#1e40af',
   '22': '#b45309', '64': '#0f766e', '68': '#7c2d12',
@@ -49,12 +49,11 @@ function shortenStopName(name) {
     .trim()
   s = s.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
   s = s.replace(/(\d+)(St|Nd|Rd|Th)\b/gi, (_, n, suf) => n + suf.toLowerCase())
-  // Preserve PABT as uppercase
   s = s.replace(/\bPabt\b/g, 'PABT')
   return s
 }
 
-// â”€â”€ Polling hook â”€â”€
+// ── Polling hook ──
 function usePolling(fetchFn, intervalMs) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
@@ -79,7 +78,7 @@ function usePolling(fetchFn, intervalMs) {
   return { data, error, refetch: poll }
 }
 
-// â”€â”€ Expandable badge row â€” shows max 3, tap to expand all â”€â”€
+// ── Expandable badge row — shows max 3, tap to expand all ──
 function ExpandableBadges({ children, maxVisible = 3 }) {
   const [expanded, setExpanded] = useState(false)
   const items = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : []
@@ -99,14 +98,14 @@ function ExpandableBadges({ children, maxVisible = 3 }) {
       )}
       {expanded && (
         <span className="ms-badge-more" onClick={(e) => { e.stopPropagation(); setExpanded(false) }}>
-          â–¾
+          ▾
         </span>
       )}
     </>
   )
 }
 
-// â”€â”€ Generic transit card shell â”€â”€
+// ── Generic transit card shell ──
 // alert prop: 'active' = fresh undismissed, 'dismissed' = greyed out, falsy = no icon
 function CardShell({ icon, station, badges, alert, onAlertTap, stopId, loading, children }) {
   return (
@@ -123,14 +122,7 @@ function CardShell({ icon, station, badges, alert, onAlertTap, stopId, loading, 
   )
 }
 
-function capacityLabel(cap) {
-  if (cap === 'empty') return 'Seats'
-  if (cap === 'some') return 'Standing'
-  if (cap === 'full') return 'Full'
-  return null
-}
-
-// â”€â”€ Loading skeleton rows for transit cards â”€â”€
+// ── Loading skeleton rows for transit cards ──
 function SkeletonRows({ count = 3 }) {
   return (
     <div className="ms-skeleton-rows">
@@ -142,6 +134,13 @@ function SkeletonRows({ count = 3 }) {
       ))}
     </div>
   )
+}
+
+function capacityLabel(cap) {
+  if (cap === 'empty') return 'Seats'
+  if (cap === 'some') return 'Standing'
+  if (cap === 'full') return 'Full'
+  return null
 }
 
 function DepartureRow({ dest, eta, etaClock, badgeColor, source, capacity }) {
@@ -179,7 +178,7 @@ function DepartureRow({ dest, eta, etaClock, badgeColor, source, capacity }) {
   )
 }
 
-// â”€â”€ MTA Subway Card â”€â”€
+// ── MTA Subway Card ──
 export function MtaSubwayCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
@@ -229,7 +228,7 @@ export function MtaSubwayCard({ stopId, displayName, hiddenBadges, alertState, o
   )
 }
 
-// â”€â”€ NJT Bus Card â”€â”€
+// ── NJT Bus Card ──
 export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const [showGateInfo, setShowGateInfo] = useState(false)
   const fetcher = useCallback(async () => {
@@ -284,22 +283,22 @@ export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlert
     >
       {showGateInfo && gateSchedule && (
         <div className="ms-gate-info">
-          <div className="ms-gate-row"><span>6 AM â€“ 10 PM</span><span className="ms-gate-num">Gate {gateSchedule.day}</span></div>
-          <div className="ms-gate-row"><span>10 PM â€“ 1 AM</span><span className="ms-gate-num">Gate {gateSchedule.late}</span></div>
-          <div className="ms-gate-row"><span>1 AM â€“ 6 AM</span><span className="ms-gate-num">Gate {gateSchedule.overnight}</span></div>
+          <div className="ms-gate-row"><span>6 AM – 10 PM</span><span className="ms-gate-num">Gate {gateSchedule.day}</span></div>
+          <div className="ms-gate-row"><span>10 PM – 1 AM</span><span className="ms-gate-num">Gate {gateSchedule.late}</span></div>
+          <div className="ms-gate-row"><span>1 AM – 6 AM</span><span className="ms-gate-num">Gate {gateSchedule.overnight}</span></div>
         </div>
       )}
       {buses.length > 0 ? (
         buses.slice(0, 4).map((b, i) => {
           // Clean up headsign: remove route number prefix, shorten common words
-          let dest = b.headsign || b.variant || 'â€”'
+          let dest = b.headsign || b.variant || '—'
           dest = dest.replace(/^\d+[A-Z]?\s+/, '') // remove "126 " or "126T " prefix
-          dest = dest.replace(/VIA\s+/gi, 'â†’ ').replace(/\s+/g, ' ').trim()
-          if (dest.length > 28) dest = dest.slice(0, 26) + 'â€¦'
+          dest = dest.replace(/VIA\s+/gi, '→ ').replace(/\s+/g, ' ').trim()
+          if (dest.length > 28) dest = dest.slice(0, 26) + '…'
           return (
             <DepartureRow
               key={i}
-              dest={`${b.route} Â· ${dest}`}
+              dest={`${b.route} · ${dest}`}
               eta={b.eta}
               etaClock={b.etaTime || etaTime(b.eta)}
               badgeColor={njtRouteColor(b.route)}
@@ -315,7 +314,7 @@ export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlert
   )
 }
 
-// â”€â”€ PATH Card â”€â”€
+// ── PATH Card ──
 export function PathCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
@@ -351,7 +350,7 @@ export function PathCard({ stopId, displayName, hiddenBadges, alertState, onAler
   )
 }
 
-// â”€â”€ Ferry Card â”€â”€
+// ── Ferry Card ──
 export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const colonIdx = stopId.indexOf(':')
@@ -363,7 +362,7 @@ export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAle
 
     let url = `/api/ferry/query?stop=${stopTag}`
     if (routePart === 'all') {
-      // No filter â€” fetch all routes
+      // No filter — fetch all routes
     } else if (routePart.includes(',')) {
       // Multi-route: pass as routes param
       url += `&routes=${encodeURIComponent(routePart)}`
@@ -405,7 +404,7 @@ export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAle
   return (
     <CardShell
       loading={!data}
-      icon="â›´ï¸"
+      icon="⛴️"
       station={name}
       alert={alertState}
       onAlertTap={onAlertTap}
@@ -420,9 +419,9 @@ export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAle
     >
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => {
-          // Extract short destination from "Terminal â†’ Dest"
+          // Extract short destination from "Terminal → Dest"
           let dest = d.dest || ''
-          if (dest.includes('â†’')) dest = dest.split('â†’').pop().trim()
+          if (dest.includes('→')) dest = dest.split('→').pop().trim()
           return <DepartureRow key={i} dest={dest} eta={d.eta} etaClock={d.etaTime} badgeColor={ferryDestColor(dest)} source={d.source} />
         })
       ) : (
@@ -432,7 +431,7 @@ export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAle
   )
 }
 
-// â”€â”€ NJT Rail Card â”€â”€
+// ── NJT Rail Card ──
 export function RailCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
@@ -473,7 +472,7 @@ export function RailCard({ stopId, displayName, hiddenBadges, alertState, onAler
         departures.slice(0, 4).map((d, i) => (
           <DepartureRow
             key={i}
-            dest={`${d.lineName} â†’ ${d.dest}`}
+            dest={`${d.lineName} → ${d.dest}`}
             eta={d.eta}
             etaClock={d.etaTime}
             badgeColor={d.lineColor}
@@ -486,7 +485,7 @@ export function RailCard({ stopId, displayName, hiddenBadges, alertState, onAler
   )
 }
 
-// â”€â”€ HBLR Card â”€â”€
+// ── HBLR Card ──
 export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
@@ -515,7 +514,7 @@ export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
         buses.slice(0, 4).map((b, i) => (
           <DepartureRow
             key={i}
-            dest={b.headsign || b.variant || 'â€”'}
+            dest={b.headsign || b.variant || '—'}
             eta={b.eta}
             etaClock={b.etaTime || etaTime(b.eta)}
             source={b.source}
@@ -528,7 +527,7 @@ export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
   )
 }
 
-// â”€â”€ LIRR Card â”€â”€
+// ── LIRR Card ──
 export function LirrCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
@@ -575,7 +574,7 @@ export function LirrCard({ stopId, displayName, hiddenBadges, alertState, onAler
   )
 }
 
-// â”€â”€ Metro-North Card â”€â”€
+// ── Metro-North Card ──
 export function MnrCard({ stopId, displayName, hiddenBadges, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
@@ -622,7 +621,7 @@ export function MnrCard({ stopId, displayName, hiddenBadges, alertState, onAlert
   )
 }
 
-// â”€â”€ NYC Ferry Card â”€â”€
+// ── NYC Ferry Card ──
 export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
@@ -638,7 +637,7 @@ export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
   return (
     <CardShell
       loading={!data}
-      icon="â›´ï¸"
+      icon="⛴️"
       station={name}
       alert={alertState}
       onAlertTap={onAlertTap}
@@ -648,8 +647,8 @@ export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
       {departures.length > 0 ? (
         departures.slice(0, 4).map((d, i) => {
           let dest = d.dest || ''
-          if (dest.includes('â†’')) dest = dest.split('â†’').pop().trim()
-          return <DepartureRow key={i} dest={`â†’ ${dest}`} eta={d.eta} etaClock={d.etaTime} />
+          if (dest.includes('→')) dest = dest.split('→').pop().trim()
+          return <DepartureRow key={i} dest={`→ ${dest}`} eta={d.eta} etaClock={d.etaTime} />
         })
       ) : (
         <div className="ms-empty">No upcoming ferries</div>
@@ -658,7 +657,7 @@ export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
   )
 }
 
-// â”€â”€ MTA Bus Card â”€â”€
+// ── MTA Bus Card ──
 export function MtaBusCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const parts = stopId.split(':')
@@ -695,7 +694,7 @@ export function MtaBusCard({ stopId, displayName, alertState, onAlertTap }) {
   )
 }
 
-// â”€â”€ Helper: extract bus route(s) from a bus stop ID â”€â”€
+// ── Helper: extract bus route(s) from a bus stop ID ──
 // Formats: bus:{stopIds}:{routes} or bus:{stopIds}:{routes}:{headsign}
 function getBusRoutes(stopId) {
   if (!stopId.startsWith('bus:')) return []
@@ -704,7 +703,7 @@ function getBusRoutes(stopId) {
   return []
 }
 
-// â”€â”€ Helper: determine alert state for a card based on its stop ID â”€â”€
+// ── Helper: determine alert state for a card based on its stop ID ──
 function getAlertState(stopId, alerts, dismissedAlerts) {
   if (!alerts && !dismissedAlerts) return null
   // Determine which alert source IDs match this stop
@@ -744,7 +743,7 @@ function getAlertState(stopId, alerts, dismissedAlerts) {
   return null // no alert at all
 }
 
-// â”€â”€ Card router â€” picks the right card component based on stop ID prefix â”€â”€
+// ── Card router — picks the right card component based on stop ID prefix ──
 export default function TransitCard({ stopId, displayName, hiddenBadges, alerts, dismissedAlerts, onAlertTap }) {
   const alertState = getAlertState(stopId, alerts, dismissedAlerts)
   if (stopId.startsWith('mta:')) return <MtaSubwayCard stopId={stopId} displayName={displayName} hiddenBadges={hiddenBadges} alertState={alertState} onAlertTap={onAlertTap} />
