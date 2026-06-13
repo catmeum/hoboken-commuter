@@ -2730,7 +2730,7 @@ function PresetPickerModal({ open, onSelect }) {
   )
 }
 
-function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops, inboundStops, alertSettings, activeAlertSources, inlineAlertDuration, tickerSpeed, outboundWeather, inboundWeather, showTunnels, showWeather, selectedTunnels, onSave, onShowPresetPicker }) {
+function SettingsPanel({ open, onClose, highContrast, setHighContrast, outboundCity, inboundCity, outboundStops, inboundStops, alertSettings, activeAlertSources, inlineAlertDuration, tickerSpeed, outboundWeather, inboundWeather, showTunnels, showWeather, selectedTunnels, onSave, onShowPresetPicker }) {
   const [gtfsStatus, setGtfsStatus] = useState(null)
   const [showSystemStatus, setShowSystemStatus] = useState(false)
   const [systemStatus, setSystemStatus] = useState(null)
@@ -2984,6 +2984,12 @@ function SettingsPanel({ open, onClose, outboundCity, inboundCity, outboundStops
                   <span className="settings-display-label">Show weather card</span>
                   <button className={`settings-alert-toggle ${draftShowWeather ? 'on' : 'off'}`} onClick={() => setDraftShowWeather(v => !v)} style={{ minWidth: 'auto' }}>
                     {draftShowWeather ? 'On' : 'Off'}
+                  </button>
+                </div>
+                <div className="settings-display-row">
+                  <span className="settings-display-label">High contrast</span>
+                  <button className={`settings-alert-toggle ${highContrast ? 'on' : 'off'}`} onClick={() => setHighContrast(v => !v)} style={{ minWidth: 'auto' }}>
+                    {highContrast ? 'On' : 'Off'}
                   </button>
                 </div>
               </div>
@@ -3603,6 +3609,7 @@ function AlertsPanel({ open, onClose, tickerItems, dismissed, onDismiss, onResto
 export default function App() {
   const [theme, setTheme] = useState(isDaytime() ? 'light' : 'dark')
   const [autoTheme, setAutoTheme] = useState(true)
+  const [highContrast, setHighContrast] = useState(() => localStorage.getItem('msn-high-contrast') === 'true')
   const [outboundWeather, setOutboundWeather] = useState(() => loadSettings().outboundWeather)
   const [inboundWeather, setInboundWeather] = useState(() => loadSettings().inboundWeather)
   const [direction, setDirection] = useState('outbound')
@@ -3741,7 +3748,10 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
-  }, [theme])
+    document.documentElement.setAttribute('data-high-contrast', highContrast ? 'true' : 'false')
+  }, [theme, highContrast])
+
+  useEffect(() => { localStorage.setItem('msn-high-contrast', highContrast) }, [highContrast])
 
   useEffect(() => {
     if (!autoTheme) return
@@ -3945,6 +3955,8 @@ export default function App() {
     <SettingsPanel
       open={settingsOpen}
       onClose={() => setSettingsOpen(false)}
+      highContrast={highContrast}
+      setHighContrast={setHighContrast}
       outboundCity={outboundCity}
       inboundCity={inboundCity}
       outboundStops={outboundStops}

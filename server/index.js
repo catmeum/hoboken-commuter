@@ -1110,7 +1110,20 @@ app.get('/api/bus/stops', async (req, res) => {
       }
     }
 
-    res.json({ stop: stopName, buses, gate, gateSchedule, isPabt, timestamp: new Date().toISOString() })
+    // Service time notice for limited-service routes (hardcoded for now)
+    // TODO: derive dynamically from GTFS stop_times operating windows
+    let serviceNote = null
+    if (routeFilter && routeFilter.includes('126')) {
+      const stopName126 = (stopNamesMap[stopIds[0]] || '').toUpperCase()
+      if (stopName126.includes('CLINTON')) {
+        serviceNote = 'Weekdays only · AM 5:40–9:45 · PM 4:09–8:29'
+      }
+      if (isPabt && headsignFilter && headsignFilter.some(h => h.includes('WILLOW'))) {
+        serviceNote = 'Weekdays only · AM/PM peak hours'
+      }
+    }
+
+    res.json({ stop: stopName, buses, gate, gateSchedule, isPabt, serviceNote, timestamp: new Date().toISOString() })
   } catch (err) {
     console.error('[API]', err.message)
     res.status(500).json({ error: err.message })

@@ -25,6 +25,31 @@
   --m-error: #dc2626;
 }
 
+/* High contrast — dark */
+[data-high-contrast="true"] {
+  --m-bg: #000000;
+  --m-card-bg: #111115;
+  --m-card-border: #555;
+  --m-text: #ffffff;
+  --m-text-dim: #d0d0d0;
+  --m-text-muted: #aaa;
+  --m-accent: #c4a7ff;
+  --m-accent-hover: #a78bfa;
+}
+
+/* High contrast — light */
+[data-theme="light"][data-high-contrast="true"] {
+  --m-bg: #ffffff;
+  --m-card-bg: #ffffff;
+  --m-card-border: #333;
+  --m-text: #000000;
+  --m-text-dim: #222;
+  --m-text-muted: #444;
+  --m-accent: #5b21b6;
+  --m-accent-hover: #4c1d95;
+  --m-error: #b91c1c;
+}
+
 .mobile-app {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--m-bg);
@@ -318,6 +343,36 @@
   margin-left: auto;
 }
 
+/* Tunnel loading skeleton */
+.ms-tunnel-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+.ms-tunnel-skeleton-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--m-text-muted);
+  opacity: 0.3;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+.ms-tunnel-skeleton-dot:nth-child(2) { animation-delay: 0.15s; }
+.ms-tunnel-skeleton-text {
+  width: 48px;
+  height: 10px;
+  border-radius: 4px;
+  background: var(--m-text-muted);
+  opacity: 0.2;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.4; }
+}
+
 /* Weather expanded card */
 .ms-weather-expand {
   display: none;
@@ -343,7 +398,8 @@
   display: flex; gap: 12px; margin-bottom: 12px;
   font-size: 12px; color: var(--m-text-dim);
 }
-.ms-wx-stat-item { display: flex; align-items: center; gap: 3px; }
+.ms-wx-stat-item { display: flex; align-items: center; gap: 4px; }
+.ms-wx-stat-icon { opacity: 0.7; flex-shrink: 0; }
 .ms-wx-hourly {
   display: flex;
   gap: 6px;
@@ -401,7 +457,7 @@
 }
 .ms-badge-bus { border-radius: 5px; padding: 0 5px; font-size: 10px; }
 .ms-badge-rail { border-radius: 5px; padding: 0 6px; font-size: 9px; }
-.ms-station { font-size: 13px; font-weight: 600; margin-left: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.ms-station { font-size: 13px; font-weight: 600; margin-left: 2px; flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
 .ms-alert {
   margin-left: auto; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -468,6 +524,40 @@
 [data-theme="light"] .ms-cap-some { background: #fef3c7; color: #b45309; }
 [data-theme="light"] .ms-cap-full { background: #fee2e2; color: #dc2626; }
 .ms-empty { text-align: center; padding: 12px; font-size: 13px; color: var(--m-text-muted); }
+
+/* Card loading skeleton */
+.ms-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0;
+}
+.ms-skeleton-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ms-skeleton-dest {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--m-text-muted);
+  opacity: 0.15;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+  flex: 1;
+  max-width: 55%;
+}
+.ms-skeleton-row:nth-child(2) .ms-skeleton-dest { max-width: 45%; animation-delay: 0.1s; }
+.ms-skeleton-row:nth-child(3) .ms-skeleton-dest { max-width: 50%; animation-delay: 0.2s; }
+.ms-skeleton-eta {
+  height: 12px;
+  width: 32px;
+  border-radius: 4px;
+  background: var(--m-text-muted);
+  opacity: 0.12;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+  animation-delay: 0.3s;
+}
 
 /* ═══ Tab Bar ═══ */
 .m-tabbar {

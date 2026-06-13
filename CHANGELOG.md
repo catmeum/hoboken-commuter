@@ -1,5 +1,18 @@
 # My Stop Now — Version History
 
+## 2026-06-13 — Mobile UX Polish & High Contrast
+
+### Features
+- **High contrast mode** — New toggle in both desktop and mobile Settings. Persists independently of light/dark theme via `data-high-contrast` attribute. Increases text/background contrast, bolder borders.
+- **Weather panel redesign** — Replaced emoji stats (💧💨🌡) with lucide icons (Droplets, Wind, Thermometer). Added "Feels like" temperature derived from NWS wind chill / heat index data.
+- **Tunnel pill loading skeleton** — Shows pulsing skeleton pill while tunnel data loads, preventing layout shift.
+- **Transit card loading skeletons** — All mobile transit cards now show animated skeleton rows while waiting for data, instead of immediately showing "No upcoming X".
+- **Service time notice for 126 Clinton/Willow** — Server returns `serviceNote` field for dynamic bus stops on route 126 at Clinton St and PABT gate 214 (Willow). Hardcoded for now; TODO to derive dynamically from GTFS.
+
+### UX Improvements
+- **PABT title shortened on mobile** — "PORT AUTHORITY BUS TERMINAL" → "PABT" in transit card titles. Applied at render time regardless of localStorage.
+- **Card titles allow 2-line wrap** — Mobile station names no longer truncate with ellipsis; they wrap to a second line via `-webkit-line-clamp: 2`.
+
 ## 2026-06-12 — About Modal & Version Bump
 
 ### Features

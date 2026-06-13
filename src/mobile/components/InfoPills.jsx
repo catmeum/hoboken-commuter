@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { Droplets, Wind, Thermometer } from 'lucide-react'
 import { fetchWeather } from '../../services/weather'
 import { fetchTunnels } from '../../services/tunnels'
 
@@ -133,6 +134,13 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
         {showWeather && !weatherNow && (
           <div className="ms-info-pill ms-weather-pill">⏳ Loading…</div>
         )}
+        {showTunnels && !tunnelData && tunnelFilter.length === 1 && (
+          <div className="ms-info-pill ms-tunnel-pill ms-tunnel-loading">
+            <span className="ms-tunnel-skeleton-dot" />
+            <span className="ms-tunnel-skeleton-dot" />
+            <span className="ms-tunnel-skeleton-text" />
+          </div>
+        )}
         {showTunnels && filteredTunnels.length === 1 && filteredTunnels.map(t => {
           const tunnelName = t.name.toLowerCase()
           const hasActiveAlert = (activeAlerts || []).some(a =>
@@ -145,6 +153,17 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
       </div>
 
       {/* Tunnel pills on separate row when >1 */}
+      {showTunnels && !tunnelData && tunnelFilter.length > 1 && (
+        <div className="ms-info-row">
+          {tunnelFilter.map(id => (
+            <div key={id} className="ms-info-pill ms-tunnel-pill ms-tunnel-loading">
+              <span className="ms-tunnel-skeleton-dot" />
+              <span className="ms-tunnel-skeleton-dot" />
+              <span className="ms-tunnel-skeleton-text" />
+            </div>
+          ))}
+        </div>
+      )}
       {showTunnels && filteredTunnels.length > 1 && (
         <div className="ms-info-row">
           {filteredTunnels.map(t => {
@@ -168,9 +187,9 @@ export default function InfoPills({ showWeather, showTunnels, tunnelFilter, acti
             <button className="ms-wx-close" onClick={() => setWeatherExpanded(false)}>✕</button>
           </div>
           <div className="ms-wx-stats">
-            <span className="ms-wx-stat-item">💧 {weatherNow.precip}</span>
-            <span className="ms-wx-stat-item">💨 {weatherNow.wind}</span>
-            <span className="ms-wx-stat-item">🌡 {weatherNow.humidity}</span>
+            <span className="ms-wx-stat-item"><Thermometer size={13} className="ms-wx-stat-icon" /> Feels like {displayTemp(weatherNow.feelsLike, unit)}</span>
+            <span className="ms-wx-stat-item"><Droplets size={13} className="ms-wx-stat-icon" /> {weatherNow.humidity}</span>
+            <span className="ms-wx-stat-item"><Wind size={13} className="ms-wx-stat-icon" /> {weatherNow.wind}</span>
           </div>
           <div className="ms-wx-hourly">
             {(weatherData.hourly || weatherData.periods).map((p, i) => (

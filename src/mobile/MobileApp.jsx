@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   stopNames: 'msn_stop_names',
   stopHiddenBadges: 'msn_stop_hidden_badges',
   theme: 'msn_theme',
+  highContrast: 'msn_high_contrast',
   tempUnit: 'msn_temp_unit',
   weatherZip: 'msn_weather_zip',
   showWeather: 'msn_show_weather',
@@ -199,6 +200,7 @@ export default function MobileApp() {
   const [stopNames, setStopNames] = useState(() => loadJSON(STORAGE_KEYS.stopNames, {}))
   const [stopHiddenBadges, setStopHiddenBadges] = useState(() => loadJSON(STORAGE_KEYS.stopHiddenBadges, {}))
   const [theme, setTheme] = useState(() => localStorage.getItem(STORAGE_KEYS.theme) || 'auto')
+  const [highContrast, setHighContrast] = useState(() => localStorage.getItem(STORAGE_KEYS.highContrast) === 'true')
   const [tempUnit, setTempUnit] = useState(() => localStorage.getItem(STORAGE_KEYS.tempUnit) || 'F')
   const [weatherZip, setWeatherZip] = useState(() => localStorage.getItem(STORAGE_KEYS.weatherZip) || '')
   const [showWeather, setShowWeather] = useState(() => loadJSON(STORAGE_KEYS.showWeather, true))
@@ -219,6 +221,7 @@ export default function MobileApp() {
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.stopNames, JSON.stringify(stopNames)) }, [stopNames])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.stopHiddenBadges, JSON.stringify(stopHiddenBadges)) }, [stopHiddenBadges])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.theme, theme) }, [theme])
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.highContrast, highContrast) }, [highContrast])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.tempUnit, tempUnit) }, [tempUnit])
   useEffect(() => { if (weatherZip) localStorage.setItem(STORAGE_KEYS.weatherZip, weatherZip); else localStorage.removeItem(STORAGE_KEYS.weatherZip) }, [weatherZip])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.showWeather, JSON.stringify(showWeather)) }, [showWeather])
@@ -237,7 +240,8 @@ export default function MobileApp() {
       resolved = (h < 7 || h >= 18) ? 'dark' : 'light'
     }
     document.documentElement.setAttribute('data-theme', resolved)
-  }, [theme])
+    document.documentElement.setAttribute('data-high-contrast', highContrast ? 'true' : 'false')
+  }, [theme, highContrast])
 
   // ── Dev shortcut: press "t" to toggle light/dark ──
   useEffect(() => {
@@ -517,6 +521,8 @@ export default function MobileApp() {
         onClose={() => setSettingsOpen(false)}
         theme={theme}
         setTheme={setTheme}
+        highContrast={highContrast}
+        setHighContrast={setHighContrast}
         tempUnit={tempUnit}
         setTempUnit={setTempUnit}
         weatherZip={weatherZip}

@@ -113,10 +113,15 @@ function pickPeriods(hourlyPeriods) {
 
   function formatPeriod(period, label) {
     const periodDate = new Date(period.startTime)
+    // "Feels like" = wind chill (cold) or heat index (hot), fallback to actual temp
+    const windChill = period.windChill?.value != null ? Math.round(period.windChill.value * 9 / 5 + 32) : null
+    const heatIndex = period.heatIndex?.value != null ? Math.round(period.heatIndex.value * 9 / 5 + 32) : null
+    const feelsLike = windChill ?? heatIndex ?? period.temperature
     return {
       label,
       icon: forecastIcon(period.shortForecast, period.isDaytime, periodDate),
       temp: period.temperature,
+      feelsLike,
       desc: period.shortForecast,
       wind: period.windSpeed,
       precip: `${period.probabilityOfPrecipitation?.value ?? 0}%`,

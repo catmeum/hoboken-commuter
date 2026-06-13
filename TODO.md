@@ -11,7 +11,7 @@
 
 - [ ] **Add animation when transit cards update** — Animate individual transit cards (fade, highlight, or slide) when their departure data refreshes, so users can see at a glance which cards just received new information.
 - [ ] **Mobile: Fix "My Stops" toggle text alignment** — The text inside the direction toggle on the My Stops page is not vertically centered. Fix the toggle styling so the label text is properly centered within the button.
-- [ ] **Add high-contrast mode toggle to settings** — Add an accessibility option in both desktop and mobile Settings for a high-contrast color scheme (increased text/background contrast, bolder borders).
+- [x] **Add high-contrast mode toggle to settings** — Added accessibility option in both desktop and mobile Settings for a high-contrast color scheme. Persists independently of light/dark theme via `data-high-contrast` attribute.
 - [ ] **Create new logo for MyStopNow** — Design a logo suitable for favicon and home screen install icon.
 - [ ] **Mobile: Fix weather panel** - Replace emojis with better icons and text. Add a Feels Like temperature.
 

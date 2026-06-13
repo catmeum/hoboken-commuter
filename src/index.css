@@ -60,6 +60,28 @@
   --news-source-ferry-bg: #fef3c7;
 }
 
+/* ── High Contrast — dark mode ── */
+[data-high-contrast="true"] {
+  --bg-primary: #000000;
+  --bg-card: #111115;
+  --bg-card-hover: #1a1a20;
+  --border-color: #555;
+  --text-primary: #ffffff;
+  --text-secondary: #d0d0d0;
+  --text-muted: #aaa;
+}
+
+/* ── High Contrast — light mode ── */
+[data-theme="light"][data-high-contrast="true"] {
+  --bg-primary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f0f0f0;
+  --border-color: #333;
+  --text-primary: #000000;
+  --text-secondary: #222;
+  --text-muted: #444;
+}
+
 * {
   margin: 0;
   padding: 0;

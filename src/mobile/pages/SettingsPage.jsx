@@ -132,6 +132,7 @@ function sortTunnelsForDisplay(selected) {
 export default function SettingsPage({
   open, onClose,
   theme, setTheme,
+  highContrast, setHighContrast,
   tempUnit, setTempUnit,
   weatherZip, setWeatherZip,
   showWeather, setShowWeather,
@@ -222,6 +223,10 @@ export default function SettingsPage({
         <div className="m-set-toggle-row">
           <span>Appearance</span>
           <button className="m-set-mode-btn" onClick={cycleTheme}>{themeLabels[theme]}</button>
+        </div>
+        <div className="m-set-toggle-row">
+          <span>High Contrast</span>
+          <button className={`m-set-switch ${highContrast ? 'on' : ''}`} onClick={() => setHighContrast(v => !v)} />
         </div>
         <div className="m-set-toggle-row">
           <span>Show Weather</span>
