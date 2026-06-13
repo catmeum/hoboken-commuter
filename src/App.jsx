@@ -1,3 +1,4 @@
+// v2.5.0
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { version as APP_VERSION } from '../package.json'
 import {
