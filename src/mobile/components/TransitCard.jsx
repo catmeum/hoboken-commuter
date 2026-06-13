@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, GrandCentralClock } from '../../components/icons'
+import { SubwayBadge, MtaGlobeIcon, NjtBusIcon, NjtRailIcon, PathIcon, LightRailIcon, HeavyRailIcon, GrandCentralClock, NywFerryIcon, NycFerryIcon } from '../../components/icons'
 import { ferryDestColor } from '../../components/transitColors'
 import { AlertTriangle } from 'lucide-react'
 
@@ -404,7 +404,7 @@ export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAle
   return (
     <CardShell
       loading={!data}
-      icon="⛴️"
+      icon={<NywFerryIcon size={16} />}
       station={name}
       alert={alertState}
       onAlertTap={onAlertTap}
@@ -637,7 +637,7 @@ export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
   return (
     <CardShell
       loading={!data}
-      icon="⛴️"
+      icon={<NycFerryIcon size={16} />}
       station={name}
       alert={alertState}
       onAlertTap={onAlertTap}
