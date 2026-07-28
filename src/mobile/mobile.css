@@ -249,11 +249,11 @@
 }
 
 .ms-time {
-  font-size: 15px;
+  font-size: 28px;
   font-weight: 700;
-  color: var(--m-text-dim);
+  color: var(--accent-blue);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.5px;
 }
 
 .ms-cards {
@@ -435,6 +435,22 @@
   border: 1px solid var(--m-card-border);
   border-radius: 14px;
   padding: 14px 16px;
+}
+.ms-card-stale {
+  opacity: 0.7;
+  border-color: var(--m-text-muted);
+  border-style: dashed;
+}
+.ms-stale-badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--m-text-muted);
+  background: color-mix(in srgb, var(--m-text-muted) 15%, transparent);
+  border-radius: 4px;
+  padding: 2px 5px;
 }
 .ms-card-head {
   display: flex;

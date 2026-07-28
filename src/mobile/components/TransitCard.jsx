@@ -57,25 +57,33 @@ function shortenStopName(name) {
 function usePolling(fetchFn, intervalMs) {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
+  const [stale, setStale] = useState(false)
+  const hasData = useRef(false)
 
   const poll = useCallback(async () => {
     try {
       const result = await fetchFn()
       setData(result)
       setError(null)
+      setStale(false)
+      hasData.current = result !== null
     } catch (e) {
       setError(e.message)
+      // Mark data as stale but don't clobber it — keep last-known good data
+      if (hasData.current) setStale(true)
     }
   }, [fetchFn])
 
   useEffect(() => {
     setData(null) // eslint-disable-line react-hooks/set-state-in-effect
+    setStale(false)
+    hasData.current = false
     poll()
     const id = setInterval(poll, intervalMs)
     return () => clearInterval(id)
   }, [poll, intervalMs])
 
-  return { data, error, refetch: poll }
+  return { data, error, stale, refetch: poll }
 }
 
 // ── Expandable badge row — shows max 3, tap to expand all ──
@@ -107,13 +115,14 @@ function ExpandableBadges({ children, maxVisible = 3 }) {
 
 // ── Generic transit card shell ──
 // alert prop: 'active' = fresh undismissed, 'dismissed' = greyed out, falsy = no icon
-function CardShell({ icon, station, badges, alert, onAlertTap, stopId, loading, children }) {
+function CardShell({ icon, station, badges, alert, onAlertTap, stopId, loading, stale, children }) {
   return (
-    <div className="ms-card">
+    <div className={`ms-card${stale ? ' ms-card-stale' : ''}`}>
       <div className="ms-card-head">
         <span className="ms-icon">{icon}</span>
         {badges}
         <span className="ms-station">{station}</span>
+        {stale && <span className="ms-stale-badge">STALE</span>}
         {alert === 'active' && <button className="ms-alert ms-alert-active" onClick={() => onAlertTap && onAlertTap(stopId)}><AlertTriangle size={14} /></button>}
         {alert === 'dismissed' && <span className="ms-alert ms-alert-dismissed"><AlertTriangle size={14} /></span>}
       </div>
@@ -191,10 +200,10 @@ export function MtaSubwayCard({ stopId, displayName, hiddenBadges, alertState, o
     let url = `/api/mta/query?stop=${stopParam}`
     if (lines) url += `&lines=${lines}`
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`MTA API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
   const stationName = displayName || data?.stationName || stopId
@@ -204,6 +213,7 @@ export function MtaSubwayCard({ stopId, displayName, hiddenBadges, alertState, o
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<MtaGlobeIcon size={16} />}
       station={stationName}
       alert={alertState}
@@ -242,15 +252,15 @@ export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlert
       if (routes) url += `&routes=${routes}`
       if (headsigns) url += `&headsigns=${encodeURIComponent(headsigns)}`
       const res = await fetch(url)
-      if (!res.ok) return null
+      if (!res.ok) throw new Error(`Bus API returned ${res.status}`)
       return await res.json()
     }
     // Legacy preconfigured stops
     const res = await fetch(`/api/bus/stops?ids=${stopId}`)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`Bus API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const buses = data?.buses || []
   const rawName = displayName || shortenStopName(data?.name || data?.stop) || stopId
@@ -263,6 +273,7 @@ export function BusCard({ stopId, displayName, hiddenBadges, alertState, onAlert
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<NjtBusIcon size={16} />}
       station={name}
       alert={alertState}
@@ -321,10 +332,10 @@ export function PathCard({ stopId, displayName, hiddenBadges, alertState, onAler
     if (parts.length < 4) return null
     const [, route, direction, stop] = parts
     const res = await fetch(`/api/path/query?route=${route}&direction=${direction}&stop=${stop}`)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`PATH API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 15_000)
+  const { data, stale } = usePolling(fetcher, 15_000)
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
@@ -332,6 +343,7 @@ export function PathCard({ stopId, displayName, hiddenBadges, alertState, onAler
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<PathIcon size={16} />}
       station={name}
       alert={alertState}
@@ -376,10 +388,10 @@ export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAle
       }
     }
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`Ferry API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
   const name = displayName || data?.platformName || stopId
@@ -404,6 +416,7 @@ export function FerryCard({ stopId, displayName, hiddenBadges, alertState, onAle
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<NywFerryIcon size={16} />}
       station={name}
       alert={alertState}
@@ -440,10 +453,10 @@ export function RailCard({ stopId, displayName, hiddenBadges, alertState, onAler
     let url = `/api/rail/query?station=${station}`
     if (lines) url += `&lines=${lines}`
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`Rail API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 60_000)
+  const { data, stale } = usePolling(fetcher, 60_000)
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
@@ -455,6 +468,7 @@ export function RailCard({ stopId, displayName, hiddenBadges, alertState, onAler
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<NjtRailIcon size={16} />}
       station={name}
       alert={alertState}
@@ -492,10 +506,10 @@ export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
     if (parts.length < 2) return null
     const [, gtfsStop] = parts
     const res = await fetch(`/api/bus/stops?ids=${gtfsStop}&routes=HBLR,NLR`)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`HBLR API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const buses = data?.buses || []
   const name = displayName || shortenStopName(data?.stop) || stopId
@@ -503,6 +517,7 @@ export function HblrCard({ stopId, displayName, alertState, onAlertTap }) {
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<LightRailIcon size={16} />}
       station={name}
       alert={alertState}
@@ -535,10 +550,10 @@ export function LirrCard({ stopId, displayName, hiddenBadges, alertState, onAler
     let url = `/api/lirr/query?stop=${id}`
     if (routes) url += `&routes=${routes}`
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`LIRR API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
@@ -550,6 +565,7 @@ export function LirrCard({ stopId, displayName, hiddenBadges, alertState, onAler
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<HeavyRailIcon size={16} />}
       station={name}
       alert={alertState}
@@ -582,10 +598,10 @@ export function MnrCard({ stopId, displayName, hiddenBadges, alertState, onAlert
     let url = `/api/mnr/query?stop=${id}`
     if (routes) url += `&routes=${routes}`
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`MNR API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
@@ -597,6 +613,7 @@ export function MnrCard({ stopId, displayName, hiddenBadges, alertState, onAlert
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<GrandCentralClock size={16} />}
       station={name}
       alert={alertState}
@@ -626,10 +643,10 @@ export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
   const fetcher = useCallback(async () => {
     const id = stopId.split(':')[1]
     const res = await fetch(`/api/nycferry/query?stop=${id}`)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`NYC Ferry API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
   const name = displayName || data?.stationName || stopId
@@ -637,6 +654,7 @@ export function NycFerryCard({ stopId, displayName, alertState, onAlertTap }) {
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<NycFerryIcon size={16} />}
       station={name}
       alert={alertState}
@@ -665,10 +683,10 @@ export function MtaBusCard({ stopId, displayName, alertState, onAlertTap }) {
     let url = `/api/mtabus/query?stop=${stop}`
     if (route) url += `&route=${route}`
     const res = await fetch(url)
-    if (!res.ok) return null
+    if (!res.ok) throw new Error(`MTA Bus API returned ${res.status}`)
     return await res.json()
   }, [stopId])
-  const { data } = usePolling(fetcher, 30_000)
+  const { data, stale } = usePolling(fetcher, 30_000)
 
   const departures = data?.departures || []
   const name = displayName || data?.stopName || stopId
@@ -676,6 +694,7 @@ export function MtaBusCard({ stopId, displayName, alertState, onAlertTap }) {
   return (
     <CardShell
       loading={!data}
+      stale={stale}
       icon={<NjtBusIcon size={16} />}
       station={name}
       alert={alertState}
