@@ -413,3 +413,24 @@ This bug only manifested in production because in dev, Vite's proxy intercepts `
 The GitHub Actions deploy workflow runs `npm ci`, `npm run build`, and restarts pm2 on every push. For documentation-only changes (`.md` files, `icon-drafts.html`), this is wasteful — it takes 2-3 minutes and restarts the live server unnecessarily.
 
 The workflow uses `paths-ignore` to skip deploys when only doc files change. Code changes (`src/`, `server/`, `package.json`, etc.) still trigger a full deploy.
+
+## Why NJT bus alerts use the RSS feed instead of GTFS-RT (July 2026)
+
+NJT's GTFS-RT `getAlerts` endpoint only contains real-time travel alerts (delays, cancellations). It does NOT include service advisories (planned detours, construction, stop deletions) or station advisories. Furthermore, NJT never populates the GTFS-RT `cause` and `effect` enum fields — everything comes back as `UNKNOWN_CAUSE` / `UNKNOWN_EFFECT`.
+
+The NJT website shows advisories from a separate Drupal CMS at `content.njtransit.com`, which doesn't have a practical REST listing API. However, NJT maintains an RSS feed at `https://www.njtransit.com/rss/BusAdvisories_feed.xml` that contains both travel alerts and service advisories in one feed. Each item has:
+- `<title>BUS {route} - {date}</title>` for route parsing
+- `<advisoryAlert>` tag: empty = service advisory, `0` = travel alert
+- `<link>` to the full advisory page on njtransit.com
+
+The RSS feed is parsed with regex (no XML library needed — the format is simple and stable). Items are deduplicated by link (same advisory appears once per affected route). Advisory items are truncated to 140/160 chars with a "Full advisory" link.
+
+## Why mobile saves GTFS stop names separately from display names (July 2026)
+
+NJT rotates GTFS stop IDs with each data update (every few weeks). A stop saved as `bus:7940,16135:126` might become `bus:8001,16157:126` after a GTFS refresh. The display name ("PABT · 126 Willow / Hamilton Pk") is user-facing and must never change due to ID rotation.
+
+The solution: save the raw GTFS stop name (e.g. "PORT AUTHORITY BUS TERMINAL", "WILLOW AVE AT 15TH ST") separately in `msn_stop_gtfs_names`. This name is stable across GTFS updates — only the numeric IDs change. Every 8 hours, mobile calls `/api/bus/resolve-stops` with the GTFS name to get current IDs. If IDs changed, only the stop key is updated; display name stays untouched.
+
+Stops added before this feature have no saved GTFS name and are skipped during re-resolution (no-op). Once reconfigured via the stop editor, they gain a GTFS name and participate in future re-resolution cycles.
+
+The GTFS name is visible in the stop editor as a read-only label, so users can always see the underlying stop.
