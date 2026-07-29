@@ -1,5 +1,23 @@
 # My Stop Now — Version History
 
+## 2026-07-28 — NJT Alerts + Mobile Data Fixes
+
+### Features
+- **NJT service advisories via RSS** — Replaced GTFS-RT `getAlerts` (travel alerts only) with the NJT RSS feed (`BusAdvisories_feed.xml`) which includes both travel alerts and service advisories (detours, stop deletions, construction). Advisory items are truncated with a "Full advisory" link to the NJT website.
+- **Mobile stop ID re-resolution** — Bus stop IDs rotate with each NJT GTFS update. Mobile now saves the original GTFS stop name and periodically (every 8h) resolves current IDs from the server. Display names are never affected — only the underlying IDs update silently.
+- **Stale data indicator** — When a mobile transit card's fetch fails, the card keeps its last-known data and shows a "STALE" badge + dashed border instead of going blank.
+- **GTFS name in stop editor** — The Edit Stop panel now shows the raw GTFS stop name below the display name input, so users always know the underlying stop.
+
+### Bug Fixes
+- **Mobile cards no longer go blank on network errors** — Card fetchers now throw on failure (instead of returning null), allowing the polling hook to preserve previous data.
+- **NJT alert deduplication** — RSS items for the same alert across multiple routes are merged into a single alert entry with all affected routes listed.
+
+### Infrastructure
+- Extracted `parseNjtBusRss` into testable module (`server/parseNjtBusRss.mjs`)
+- Added `/api/bus/resolve-stops` endpoint for name-based stop ID resolution
+- New localStorage key `msn_stop_gtfs_names` for GTFS stop name persistence
+- 20 new automated tests (13 unit tests for RSS parsing, 7 integration tests for stop resolution)
+
 ## 2026-06-13 — Mobile UX Polish & High Contrast
 
 ### Features

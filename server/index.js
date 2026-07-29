@@ -14,6 +14,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import AdmZip from 'adm-zip'
+import { parseNjtBusRss } from './parseNjtBusRss.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: path.join(__dirname, '..', '.env') })
@@ -643,37 +644,21 @@ async function getRealtimeBuses(stopIds, limit = 6, filterRoutes = null, filterH
 let busAlertCache = null, busAlertCacheTime = 0
 const BUS_ALERT_CACHE_TTL = 120_000
 const OUR_BUS_ROUTES = new Set(['126', '119', '89', '22', '23', '128', '165', '166'])
+const NJT_BUS_RSS_URL = 'https://www.njtransit.com/rss/BusAdvisories_feed.xml'
 
 async function fetchBusAlerts() {
   if (busAlertCache && Date.now() - busAlertCacheTime < BUS_ALERT_CACHE_TTL) return busAlertCache
   try {
-    const token = await getToken()
-    const form = new FormData()
-    form.append('token', token)
-    const res = await fetch(`${NJT_API}/getAlerts`, { method: 'POST', body: form })
-    const buf = Buffer.from(await res.arrayBuffer())
-    const feed = GtfsRealtimeBindings.transit_realtime.FeedMessage.decode(buf)
-    const alerts = []
-    for (const entity of feed.entity) {
-      const alert = entity.alert
-      if (!alert) continue
-      const routesAffected = new Set()
-      for (const ie of alert.informedEntity) {
-        if (ie.routeId && OUR_BUS_ROUTES.has(ie.routeId)) routesAffected.add(ie.routeId)
-      }
-      if (routesAffected.size > 0) {
-        const text = (alert.descriptionText?.translation?.[0]?.text || alert.headerText?.translation?.[0]?.text || '').slice(0, 200)
-        // Extract active_period start timestamp (Unix seconds)
-        const startEpoch = alert.activePeriod?.[0]?.start
-        const startedAt = startEpoch ? Number(startEpoch) * 1000 : null
-        if (text) alerts.push({ routes: [...routesAffected], text, startedAt })
-      }
-    }
+    const res = await fetch(NJT_BUS_RSS_URL, {
+      headers: { 'User-Agent': 'MyStopNow/1.0', 'Accept': 'application/rss+xml, application/xml, text/xml' },
+    })
+    const xml = await res.text()
+    const alerts = parseNjtBusRss(xml, OUR_BUS_ROUTES)
     busAlertCache = alerts
     busAlertCacheTime = Date.now()
-    console.log('[Alerts] NJT bus alerts for our routes:', alerts.length)
+    console.log('[Alerts] NJT bus RSS alerts for our routes:', alerts.length)
   } catch (err) {
-    console.error('[Alerts] NJT bus alerts error:', err.message)
+    console.error('[Alerts] NJT bus RSS error:', err.message)
     busAlertCache = busAlertCache || []
   }
   return busAlertCache
@@ -848,6 +833,75 @@ app.get('/api/bus/stop-routes', async (req, res) => {
     const routes = [...routeSet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     const stopName = stopNamesMap[stopIds[0]] || stopIds[0]
     res.json({ routes, stopName })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Resolve stale bus stop IDs — given stop names + routes, find current GTFS IDs.
+// Mobile calls this periodically to keep saved stop IDs current after GTFS updates.
+// Accepts: ?stops=NAME|IDS:ROUTES;NAME|IDS:ROUTES (semicolon separates entries)
+// NAME is the stop name (URL-encoded), IDS are comma-separated current IDs, ROUTES are comma-separated route filters
+// Returns resolved IDs for each entry; changed=true if they differ from the input IDs.
+app.get('/api/bus/resolve-stops', async (req, res) => {
+  try {
+    await loadGTFS()
+    const stopsParam = (req.query.stops || '').split(';').filter(Boolean)
+    if (stopsParam.length === 0) return res.json({ resolved: [] })
+
+    const resolved = []
+    for (const entry of stopsParam) {
+      // Format: NAME|IDS:ROUTES or IDS:ROUTES (legacy, no name)
+      const pipeIdx = entry.indexOf('|')
+      let name = null, idsAndRoutes
+      if (pipeIdx > 0) {
+        name = decodeURIComponent(entry.slice(0, pipeIdx))
+        idsAndRoutes = entry.slice(pipeIdx + 1)
+      } else {
+        idsAndRoutes = entry
+      }
+
+      const [stopIdsStr, routesStr] = idsAndRoutes.split(':')
+      if (!stopIdsStr) continue
+      const ids = stopIdsStr.split(',').filter(Boolean)
+      const routeList = routesStr ? routesStr.split(',').filter(Boolean) : []
+
+      // If name provided, search by name; otherwise fall back to looking up name from IDs
+      const searchNames = new Set()
+      if (name) {
+        searchNames.add(name.toUpperCase())
+      } else {
+        for (const id of ids) {
+          const n = stopNamesMap[id]
+          if (n) searchNames.add(n.toUpperCase())
+        }
+      }
+
+      if (searchNames.size === 0) {
+        resolved.push({ input: entry, ids, changed: false })
+        continue
+      }
+
+      // Find all current stop IDs with matching name(s) that serve the requested routes
+      const newIds = new Set()
+      for (const [sid, sname] of Object.entries(stopNamesMap)) {
+        if (!searchNames.has(sname.toUpperCase())) continue
+        if (!scheduleByStop[sid]) continue
+        if (routeList.length > 0) {
+          const stopRoutes = new Set((scheduleByStop[sid] || []).map(e => e.route))
+          if (!routeList.some(r => stopRoutes.has(r))) continue
+        }
+        newIds.add(sid)
+      }
+
+      const resolvedIds = newIds.size > 0 ? [...newIds].sort() : ids
+      const changed = resolvedIds.join(',') !== [...ids].sort().join(',')
+      // Return the stop name from GTFS for the resolved IDs
+      const resolvedName = stopNamesMap[resolvedIds[0]] || null
+      resolved.push({ input: entry, ids: resolvedIds, changed, name: resolvedName })
+    }
+
+    res.json({ resolved, timestamp: new Date().toISOString() })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

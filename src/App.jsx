@@ -299,12 +299,19 @@ function buildTickerItems(tunnelData, ferryData, pathData, busData, mtaAlerts, r
     }
   }
 
-  // Bus alerts (live from NJT GTFS-RT)
+  // Bus alerts (live from NJT RSS feed)
   if (busData?._alerts) {
     busData._alerts.forEach((a) => {
       const routeAlertIds = a.routes.map(r => `bus_${r}`)
       if (routeAlertIds.some(id => on(id))) {
-        items.push({ source: 'NJT', cls: 'njtransit', text: `Rt ${a.routes.join(',')}: ${a.text}`, startedAt: a.startedAt || null })
+        items.push({
+          source: 'NJT',
+          cls: 'njtransit',
+          text: `Rt ${a.routes.join(',')}: ${a.text}`,
+          startedAt: a.startedAt || null,
+          isAdvisory: a.isAdvisory || false,
+          link: a.link || null,
+        })
       }
     })
   }
@@ -3572,7 +3579,14 @@ function AlertsPanel({ open, onClose, tickerItems, dismissed, onDismiss, onResto
                     <span className={`alerts-panel-source ${item.cls}`}>{item.source}</span>
                     <span className="alerts-panel-timestamp">{formatAlertTime(item.receivedAt)}</span>
                   </div>
-                  <div className="alerts-panel-card-body">{item.text}</div>
+                  <div className="alerts-panel-card-body">
+                    {item.isAdvisory && item.text && item.text.length > 160
+                      ? item.text.slice(0, 160) + '…'
+                      : item.text}
+                    {item.isAdvisory && item.link && (
+                      <a className="alerts-panel-link" href={item.link} target="_blank" rel="noopener noreferrer"> More on NJT →</a>
+                    )}
+                  </div>
                   <button className="alerts-panel-card-dismiss" onClick={() => handleDismiss(item)}>Dismiss</button>
                 </div>
               ))}

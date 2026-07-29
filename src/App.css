@@ -2400,6 +2400,13 @@
   line-height: 1.4;
   color: var(--text-primary);
 }
+.alerts-panel-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+}
+.alerts-panel-link:hover { text-decoration: underline; }
 
 .alerts-panel-timestamp {
   font-size: 11px;
