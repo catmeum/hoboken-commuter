@@ -3584,7 +3584,7 @@ function AlertsPanel({ open, onClose, tickerItems, dismissed, onDismiss, onResto
                       ? item.text.slice(0, 160) + '…'
                       : item.text}
                     {item.isAdvisory && item.link && (
-                      <a className="alerts-panel-link" href={item.link} target="_blank" rel="noopener noreferrer"> More on NJT →</a>
+                      <a className="alerts-panel-link" href={item.link} target="_blank" rel="noopener noreferrer"> Full advisory</a>
                     )}
                   </div>
                   <button className="alerts-panel-card-dismiss" onClick={() => handleDismiss(item)}>Dismiss</button>
