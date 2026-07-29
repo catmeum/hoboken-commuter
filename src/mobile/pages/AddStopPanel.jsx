@@ -316,7 +316,8 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
         .then(d => {
           const routes = d.routes || []
           setBusRoutes(routes)
-          setSelectedBusRoutes(new Set(routes))
+          // Terminals (5+ routes) default to none selected; small stops default to all selected
+          setSelectedBusRoutes(routes.length >= 5 ? new Set() : new Set(routes))
         })
       return
     }

@@ -89,7 +89,7 @@ function AlertCard({ alert, onDismiss, highlighted, highlightRef }) {
             : alert.text}
           {alert.isAdvisory && alert.link && (
             <a className="m-alert-link" href={alert.link} target="_blank" rel="noopener noreferrer">
-              {' '}More on NJT →
+              {' '}Full advisory
             </a>
           )}
         </div>
