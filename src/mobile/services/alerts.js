@@ -68,7 +68,7 @@ export async function fetchAlerts(stops) {
     // Tunnel fetch failed — skip
   }
 
-  // Bus alerts (from GTFS-RT)
+  // Bus alerts (from NJT RSS feed — includes travel alerts + service advisories)
   const hasBus = stops.some(s => s.startsWith('bus:') || /^\d/.test(s) || ['clinton', 'willow', 'washington', 'pabt_willow', 'pabt_washington', 'pabt_119'].includes(s))
   if (hasBus) {
     try {
@@ -84,7 +84,9 @@ export async function fetchAlerts(stops) {
               routes: a.routes || [],
               startedAt: a.startedAt || null,
               timestamp: a.startedAt ? formatRelativeTime(a.startedAt) : '',
-              badges: a.routes?.map(r => ({ label: r, color: '#1e40af' })),
+              badges: (a.routes || []).map(r => ({ label: r, color: '#1e40af' })),
+              isAdvisory: a.isAdvisory || false,
+              link: a.link || null,
             })
           }
         }

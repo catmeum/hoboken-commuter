@@ -12,6 +12,7 @@ import './mobile.css'
 const STORAGE_KEYS = {
   stops: 'msn_stops',
   stopNames: 'msn_stop_names',
+  stopGtfsNames: 'msn_stop_gtfs_names',
   stopHiddenBadges: 'msn_stop_hidden_badges',
   theme: 'msn_theme',
   highContrast: 'msn_high_contrast',
@@ -25,6 +26,7 @@ const STORAGE_KEYS = {
   alertStaleness: 'msn_alert_staleness',
   alertToggles: 'msn_alert_toggles',
   onboarded: 'msn_onboarded',
+  lastStopResolve: 'msn_last_stop_resolve',
 }
 
 function loadJSON(key, fallback) {
@@ -198,6 +200,7 @@ export default function MobileApp() {
   // ── User settings ──
   const [stops, setStops] = useState(() => loadJSON(STORAGE_KEYS.stops, []))
   const [stopNames, setStopNames] = useState(() => loadJSON(STORAGE_KEYS.stopNames, {}))
+  const [stopGtfsNames, setStopGtfsNames] = useState(() => loadJSON(STORAGE_KEYS.stopGtfsNames, {}))
   const [stopHiddenBadges, setStopHiddenBadges] = useState(() => loadJSON(STORAGE_KEYS.stopHiddenBadges, {}))
   const [theme, setTheme] = useState(() => localStorage.getItem(STORAGE_KEYS.theme) || 'auto')
   const [highContrast, setHighContrast] = useState(() => localStorage.getItem(STORAGE_KEYS.highContrast) === 'true')
@@ -219,6 +222,7 @@ export default function MobileApp() {
   // ── Persist settings ──
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.stops, JSON.stringify(stops)) }, [stops])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.stopNames, JSON.stringify(stopNames)) }, [stopNames])
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.stopGtfsNames, JSON.stringify(stopGtfsNames)) }, [stopGtfsNames])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.stopHiddenBadges, JSON.stringify(stopHiddenBadges)) }, [stopHiddenBadges])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.theme, theme) }, [theme])
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.highContrast, highContrast) }, [highContrast])
@@ -255,6 +259,82 @@ export default function MobileApp() {
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
   }, [])
+
+  // ── Bus stop ID re-resolution (every 8h) ──
+  // NJT rotates GTFS stop IDs with each data update; this keeps saved stops current.
+  useEffect(() => {
+    if (stops.length === 0) return
+    const RESOLVE_INTERVAL = 8 * 60 * 60 * 1000 // 8 hours
+    const lastResolve = parseInt(localStorage.getItem(STORAGE_KEYS.lastStopResolve) || '0', 10)
+    if (Date.now() - lastResolve < RESOLVE_INTERVAL) return
+
+    const busStops = stops.filter(s => s.startsWith('bus:'))
+    if (busStops.length === 0) {
+      localStorage.setItem(STORAGE_KEYS.lastStopResolve, String(Date.now()))
+      return
+    }
+
+    // Build query: GTFS_NAME|IDS:ROUTES for each bus stop that has a saved GTFS name
+    const resolveEntries = [] // { entry: string, stopId: string }
+    for (const stopId of busStops) {
+      const parts = stopId.split(':')
+      const ids = parts[1] || ''
+      const routes = parts[2] || ''
+      const gtfsName = stopGtfsNames[stopId]
+      if (!gtfsName || !ids) continue // Skip stops without saved GTFS name (no-op)
+      resolveEntries.push({
+        entry: `${encodeURIComponent(gtfsName)}|${ids}:${routes}`,
+        stopId,
+      })
+    }
+
+    if (resolveEntries.length === 0) {
+      localStorage.setItem(STORAGE_KEYS.lastStopResolve, String(Date.now()))
+      return
+    }
+
+    fetch(`/api/bus/resolve-stops?stops=${resolveEntries.map(e => e.entry).join(';')}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data?.resolved) return
+        let updated = false
+        const newStops = [...stops]
+        const newNames = { ...stopNames }
+        const newGtfsNames = { ...stopGtfsNames }
+        const newBadges = { ...stopHiddenBadges }
+
+        for (let i = 0; i < data.resolved.length; i++) {
+          const result = data.resolved[i]
+          if (!result.changed) continue
+          const matchStop = resolveEntries[i]?.stopId
+          if (!matchStop) continue
+
+          // Only update the IDs portion — preserve headsign filter, display name, and GTFS name
+          const parts = matchStop.split(':')
+          const newStopId = `bus:${result.ids.join(',')}:${parts.slice(2).join(':')}`
+          const idx = newStops.indexOf(matchStop)
+          if (idx >= 0) {
+            newStops[idx] = newStopId
+            // Re-key all metadata to new stop ID
+            if (newNames[matchStop]) { newNames[newStopId] = newNames[matchStop]; delete newNames[matchStop] }
+            if (newGtfsNames[matchStop]) { newGtfsNames[newStopId] = newGtfsNames[matchStop]; delete newGtfsNames[matchStop] }
+            if (newBadges[matchStop]) { newBadges[newStopId] = newBadges[matchStop]; delete newBadges[matchStop] }
+            updated = true
+          }
+        }
+
+        if (updated) {
+          setStops(newStops)
+          setStopNames(newNames)
+          setStopGtfsNames(newGtfsNames)
+          setStopHiddenBadges(newBadges)
+          console.log('[Resolve] Updated stale bus stop IDs')
+        }
+        localStorage.setItem(STORAGE_KEYS.lastStopResolve, String(Date.now()))
+      })
+      .catch(() => { /* silent — retry next session */ })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Run once on mount — interval gated by localStorage timestamp
 
   // ── Alerts polling ──
   const alertsInterval = useRef(null)
@@ -325,7 +405,7 @@ export default function MobileApp() {
     setPage('stops')
   }, [])
 
-  const addStop = useCallback((stopId, displayName) => {
+  const addStop = useCallback((stopId, displayName, gtfsName) => {
     setStops(prev => {
       if (prev.includes(stopId)) return prev
       return [...prev, stopId]
@@ -333,11 +413,14 @@ export default function MobileApp() {
     if (displayName) {
       setStopNames(prev => ({ ...prev, [stopId]: displayName }))
     }
+    if (gtfsName) {
+      setStopGtfsNames(prev => ({ ...prev, [stopId]: gtfsName }))
+    }
     setAddStopOpen(false)
     setEditingStop(null)
   }, [])
 
-  const updateStop = useCallback((oldStopId, newStopId, displayName, hiddenBadges) => {
+  const updateStop = useCallback((oldStopId, newStopId, displayName, hiddenBadges, gtfsName) => {
     setStops(prev => {
       const idx = prev.indexOf(oldStopId)
       if (idx === -1) return prev
@@ -353,6 +436,12 @@ export default function MobileApp() {
         next[newStopId] = displayName
         return next
       })
+      setStopGtfsNames(prev => {
+        const next = { ...prev }
+        delete next[oldStopId]
+        if (gtfsName) next[newStopId] = gtfsName
+        return next
+      })
       setStopHiddenBadges(prev => {
         const next = { ...prev }
         delete next[oldStopId]
@@ -361,6 +450,7 @@ export default function MobileApp() {
       })
     } else {
       setStopNames(prev => ({ ...prev, [newStopId]: displayName }))
+      if (gtfsName) setStopGtfsNames(prev => ({ ...prev, [newStopId]: gtfsName }))
       setStopHiddenBadges(prev => {
         if (!hiddenBadges || hiddenBadges.length === 0) {
           const next = { ...prev }
@@ -375,9 +465,9 @@ export default function MobileApp() {
   }, [])
 
   const openEditStop = useCallback((stopId) => {
-    setEditingStop({ stopId, displayName: stopNames[stopId] || stopId, hiddenBadges: stopHiddenBadges[stopId] || [] })
+    setEditingStop({ stopId, displayName: stopNames[stopId] || stopId, hiddenBadges: stopHiddenBadges[stopId] || [], gtfsName: stopGtfsNames[stopId] || null })
     setAddStopOpen(true)
-  }, [stopNames, stopHiddenBadges])
+  }, [stopNames, stopHiddenBadges, stopGtfsNames])
 
   const removeStop = useCallback((stopId) => {
     setStops(prev => prev.filter(s => s !== stopId))

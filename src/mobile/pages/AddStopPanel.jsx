@@ -474,7 +474,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
         } else {
           const stopId = `bus:${stopIds}:${routes}`
           const displayName = selectedBusStop.name
-          handleAdd(stopId, displayName)
+          handleAdd(stopId, displayName, selectedBusStop.name)
         }
       })
   }
@@ -502,7 +502,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
       const stopIds = variant.stopIds || selectedBusStop.id
       const stopId = `bus:${stopIds}:${routes}:${headsign}`
       const displayName = `${selectedBusStop.name} · ${routes} ${variant.variant}`
-      handleAdd(stopId, displayName)
+      handleAdd(stopId, displayName, selectedBusStop.name)
     } else {
       // Multiple variants — combine keywords with semicolons (commas are used within keywords)
       const routes = [...new Set(selected.map(v => v.route))].join(',')
@@ -511,7 +511,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
       const stopId = `bus:${stopIds}:${routes}:${keywords}`
       const variantNames = selected.map(v => v.variant).join(' + ')
       const displayName = `${selectedBusStop.name} · ${routes} ${variantNames}`
-      handleAdd(stopId, displayName)
+      handleAdd(stopId, displayName, selectedBusStop.name)
     }
   }
 
@@ -594,7 +594,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
 
   // When in edit mode (reconfigure flow), wrap onAdd to call onUpdate with the old stop ID
   const handleAdd = editingStop
-    ? (stopId, displayName) => onUpdate(editingStop.stopId, stopId, displayName)
+    ? (stopId, displayName, gtfsName) => onUpdate(editingStop.stopId, stopId, displayName, editingStop.hiddenBadges, gtfsName)
     : onAdd
 
   return (
@@ -640,6 +640,10 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
             autoFocus
           />
 
+          {editingStop.gtfsName && (
+            <p className="m-addstop-gtfs-name">GTFS: {editingStop.gtfsName}</p>
+          )}
+
           <div className="m-addstop-toggle-row" style={{ marginTop: 12, marginBottom: 16 }}>
             <span style={{ fontSize: 13 }}>Show Line Badges</span>
             <button
@@ -657,7 +661,7 @@ export default function AddStopPanel({ open, onClose, onAdd, editingStop, onUpda
             onClick={() => {
               const name = editDisplayName.trim() || editingStop.displayName
               const badges = Array.isArray(editHiddenBadges) ? editHiddenBadges : []
-              onUpdate(editingStop.stopId, editingStop.stopId, name, badges)
+              onUpdate(editingStop.stopId, editingStop.stopId, name, badges, editingStop.gtfsName)
             }}
             disabled={!editDisplayName.trim()}
             style={{ position: 'relative', bottom: 'auto', boxShadow: 'none' }}

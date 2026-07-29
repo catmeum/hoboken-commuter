@@ -83,7 +83,16 @@ function AlertCard({ alert, onDismiss, highlighted, highlightRef }) {
           </div>
           <span className="m-alert-timestamp">{alert.timestamp || ''}</span>
         </div>
-        <div className="m-alert-body">{alert.text}</div>
+        <div className="m-alert-body">
+          {alert.isAdvisory && alert.text && alert.text.length > 140
+            ? <>{alert.text.slice(0, 140)}…</>
+            : alert.text}
+          {alert.isAdvisory && alert.link && (
+            <a className="m-alert-link" href={alert.link} target="_blank" rel="noopener noreferrer">
+              {' '}More on NJT →
+            </a>
+          )}
+        </div>
       </div>
     </div>
   )
