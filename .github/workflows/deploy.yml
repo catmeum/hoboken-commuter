@@ -172,7 +172,8 @@ jobs:
             mkdir -p "$BACKUP_DIR"
             cp -r dist/ server/index.js package-lock.json .env "$BACKUP_DIR/" || exit 1
 
-            git pull origin ${{ github.ref_name }}
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
 
       - name: SCP mobile dist
         uses: appleboy/scp-action@v0.1.7
@@ -225,7 +226,8 @@ jobs:
             mkdir -p "$BACKUP_DIR"
             cp -r dist/ server/index.js package-lock.json .env "$BACKUP_DIR/" || exit 1
 
-            git pull origin ${{ github.ref_name }}
+            git fetch origin ${{ github.ref_name }}
+            git reset --hard origin/${{ github.ref_name }}
 
       - name: SCP desktop dist
         uses: appleboy/scp-action@v0.1.7
@@ -281,7 +283,8 @@ jobs:
             mkdir -p "$BACKUP_DIR"
             cp -r dist/ server/index.js package-lock.json .env "$BACKUP_DIR/" || exit 1
 
-            git pull origin "$BRANCH"
+            git fetch origin "$BRANCH"
+            git reset --hard "origin/$BRANCH"
             npm ci
             npm run build
 
